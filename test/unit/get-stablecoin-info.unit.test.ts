@@ -1,10 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { Client } from '@hashgraph/sdk';
+import { Client } from '@hiero-ledger/sdk';
 
 vi.mock('@hashgraph/stablecoin-npm-sdk', () => ({
   Network: { init: vi.fn() },
   StableCoin: { getInfo: vi.fn() },
-  GetStableCoinDetailsRequest: vi.fn(),
+  GetStableCoinDetailsRequest: vi.fn().mockImplementation(function (args) { Object.assign(this, args); }),
 }));
 vi.mock('@hashgraph/hedera-agent-kit', async importOriginal => {
   const original = await importOriginal<typeof import('@hashgraph/hedera-agent-kit')>();

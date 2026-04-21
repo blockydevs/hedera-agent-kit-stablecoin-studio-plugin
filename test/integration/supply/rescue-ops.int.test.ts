@@ -1,0 +1,161 @@
+import { describe, it, expect, beforeAll, afterAll } from 'vitest';
+import { Client, PrivateKey } from '@hiero-ledger/sdk';
+import { AgentMode, type Context } from '@hashgraph/hedera-agent-kit';
+import {
+  getOperatorClientForTests,
+  getCustomClient,
+  HederaOperationsWrapper,
+  UsdToHbarService,
+  BALANCE_TIERS,
+  wait,
+} from '../test-utils';
+import rescueStablecoinTool from '@/tools/supply/rescue-stablecoin';
+import rescueHbarStablecoinTool from '@/tools/supply/rescue-hbar-stablecoin';
+import associateTool from '@/tools/account/associate-stablecoin';
+import { CashInRequest, StableCoin } from '@hashgraph/stablecoin-npm-sdk';
+
+describe('Rescue Operations Integration Tests', () => {
+  let operatorClient: Client;
+  let executorClient: Client;
+  let operatorWrapper: HederaOperationsWrapper;
+  let executorWrapper: HederaOperationsWrapper;
+  let context: Context;
+  let tokenId: string;
+  let config: any;
+
+  beforeAll(async () => {
+    await UsdToHbarService.initialize();
+    operatorClient = getOperatorClientForTests();
+    operatorWrapper = new HederaOperationsWrapper(
+      operatorClient,
+      PrivateKey.fromStringECDSA(process.env.PRIVATE_KEY || '')
+    );
+
+    // Create executor account
+    const executorKey = PrivateKey.generateECDSA();
+    const executorAccountId = await operatorWrapper
+      .createAccount({
+        key: executorKey.publicKey,
+        initialBalance: UsdToHbarService.usdToHbar(BALANCE_TIERS.ELEVATED),
+        accountMemo: 'executor account for Rescue Operations Integration Tests',
+      })
+      .then((resp) => resp.accountId!);
+
+    await operatorWrapper.waitForAccount(executorAccountId.toString());
+
+    executorClient = getCustomClient(executorAccountId, executorKey);
+    executorWrapper = new HederaOperationsWrapper(
+      executorClient,
+      PrivateKey.fromStringECDSA(executorKey.toString())
+    );
+
+    context = {
+      mode: AgentMode.AUTONOMOUS,
+      accountId: executorAccountId.toString(),
+    };
+
+    config = {
+      accountId: executorAccountId.toString(),
+      privateKey: executorKey.toStringDer(),
+    };
+
+    tokenId = await executorWrapper.createStablecoin({
+      name: `Rescue Test ${Date.now()}`,
+      symbol: 'RSC',
+      config,
+      context,
+    });
+
+    // 2. Associate the executor account
+    const associate = associateTool(context, config);
+    await associate.execute(executorClient, context, {
+      tokenId,
+      targetId: context.accountId!,
+    });
+
+    // 3. Wait for association and grant KYC
+    await executorWrapper.waitForAssociation(context.accountId!, tokenId);
+    await executorWrapper.grantKyc({
+      accountId: context.accountId!,
+      tokenId,
+    });
+    await executorWrapper.waitForKyc(context.accountId!, tokenId);
+
+    // 4. Fund treasury with HBAR for rescue HBAR test
+    // We need to know the treasury account ID.
+    const info = await executorWrapper.getStablecoinInfo(tokenId);
+    const treasuryId = info.treasury!.toString();
+
+    // Send 5 HBAR from operator to treasury to ensure it has balance to rescue
+    const opClient = getOperatorClientForTests();
+    const { TransferTransaction, Hbar } = await import('@hiero-ledger/sdk');
+    const transferTx = new TransferTransaction()
+      .addHbarTransfer(opClient.operatorAccountId!, new Hbar(-5))
+      .addHbarTransfer(treasuryId, new Hbar(5));
+    await transferTx.execute(opClient);
+    opClient.close();
+
+    // 5. Send tokens to the token contract for rescue tokens test
+    // To rescue tokens, they must be in the token contract address.
+    // First mint some tokens to executor.
+    await StableCoin.cashIn(
+      new CashInRequest({
+        tokenId,
+        targetId: context.accountId!,
+        amount: '10',
+      })
+    );
+    await wait();
+
+    // Then transfer them to the token contract directly (EVM address)
+    // The token address is needed.
+    const info2 = await executorWrapper.getStablecoinInfo(tokenId);
+    const tokenAddress = info2.proxyAddress?.toString() || info2.evmProxyAddress?.toString() || '';
+
+    const txResp = await transferTx.execute(executorClient);
+    await txResp.getReceipt(executorClient);
+
+    await wait();
+  }, 120000);
+
+  afterAll(async () => {
+    if (executorClient && operatorClient) {
+      try {
+        await executorWrapper.deleteAccount({
+          accountId: executorClient.operatorAccountId!,
+          transferAccountId: operatorClient.operatorAccountId!,
+        });
+      } catch (error) {
+        console.warn('Failed to clean up executor account:', error);
+      }
+      executorClient.close();
+    }
+    if (operatorClient) {
+      operatorClient.close();
+    }
+  });
+
+  it('should rescue tokens (base test - execution check)', async () => {
+    const tool = rescueStablecoinTool(context, config);
+
+    // Rescuing tokens should execute successfully as a transaction
+    const result: any = await tool.execute(executorClient, context, {
+      tokenId,
+      amount: '1',
+      targetId: context.accountId!,
+    });
+    expect(result.humanMessage).toContain('rescued successfully');
+  });
+
+  it('should rescue HBAR (base test - execution check)', async () => {
+    const tool = rescueHbarStablecoinTool(context, config);
+
+    // Rescuing HBAR should execute successfully as a transaction
+    const result: any = await tool.execute(executorClient, context, {
+      tokenId,
+      amount: '0.01',
+      targetId: context.accountId!,
+    });
+    expect(result.humanMessage).toContain('rescued successfully');
+  });
+});

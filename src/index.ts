@@ -25,6 +25,34 @@ import getStablecoinBalanceTool, {
 import isAccountAssociatedTool, {
   IS_ACCOUNT_ASSOCIATED_TOOL,
 } from './tools/account/is-account-associated';
+import freezeAccountTool, { FREEZE_ACCOUNT_TOOL } from './tools/account/freeze-account';
+import unfreezeAccountTool, { UNFREEZE_ACCOUNT_TOOL } from './tools/account/unfreeze-account';
+import grantKycTool, { GRANT_KYC_TOOL } from './tools/account/grant-kyc';
+import revokeKycTool, { REVOKE_KYC_TOOL } from './tools/account/revoke-kyc';
+import isAccountFrozenTool, { IS_ACCOUNT_FROZEN_TOOL } from './tools/account/is-account-frozen';
+import isAccountKycGrantedTool, {
+  IS_ACCOUNT_KYC_GRANTED_TOOL,
+} from './tools/account/is-account-kyc-granted';
+import getStablecoinCapabilitiesTool, {
+  GET_STABLECOIN_CAPABILITIES_TOOL,
+} from './tools/account/get-stablecoin-capabilities';
+import grantRoleStablecoinTool, {
+  GRANT_ROLE_STABLECOIN_TOOL,
+} from './tools/lifecycle/grant-role-stablecoin';
+import revokeRoleStablecoinTool, {
+  REVOKE_ROLE_STABLECOIN_TOOL,
+} from './tools/lifecycle/revoke-role-stablecoin';
+import updateReserveAddressTool, {
+  UPDATE_RESERVE_ADDRESS_STABLECOIN_TOOL,
+} from './tools/lifecycle/update-reserve-address';
+import transferStablecoinTool, {
+  TRANSFER_STABLECOIN_TOOL,
+} from './tools/supply/transfer-stablecoin';
+import createHoldTool, { CREATE_HOLD_STABLECOIN_TOOL } from './tools/supply/create-hold';
+import executeHoldTool, { EXECUTE_HOLD_STABLECOIN_TOOL } from './tools/supply/execute-hold';
+import releaseHoldTool, { RELEASE_HOLD_STABLECOIN_TOOL } from './tools/supply/release-hold';
+import reclaimHoldTool, { RECLAIM_HOLD_STABLECOIN_TOOL } from './tools/supply/reclaim-hold';
+
 
 export type { StablecoinStudioPluginConfig } from './stablecoin-sdk-utils';
 
@@ -55,6 +83,21 @@ export const createStablecoinStudioPlugin = (config: {
       associateStablecoinTool(context, config),
       getStablecoinBalanceTool(context, config),
       isAccountAssociatedTool(context, config),
+      freezeAccountTool(context, config),
+      unfreezeAccountTool(context, config),
+      grantKycTool(context, config),
+      revokeKycTool(context, config),
+      isAccountFrozenTool(context, config),
+      isAccountKycGrantedTool(context, config),
+      getStablecoinCapabilitiesTool(context, config),
+      grantRoleStablecoinTool(context, config),
+      revokeRoleStablecoinTool(context, config),
+      updateReserveAddressTool(context, config),
+      transferStablecoinTool(context, config),
+      createHoldTool(context, config),
+      executeHoldTool(context, config),
+      releaseHoldTool(context, config),
+      reclaimHoldTool(context, config),
     ];
   },
 });
@@ -74,7 +117,23 @@ export const stablecoinStudioPluginToolNames = {
   ASSOCIATE_STABLECOIN_TOOL,
   GET_STABLECOIN_BALANCE_TOOL,
   IS_ACCOUNT_ASSOCIATED_TOOL,
+  FREEZE_ACCOUNT_TOOL,
+  UNFREEZE_ACCOUNT_TOOL,
+  GRANT_KYC_TOOL,
+  REVOKE_KYC_TOOL,
+  IS_ACCOUNT_FROZEN_TOOL,
+  IS_ACCOUNT_KYC_GRANTED_TOOL,
+  GET_STABLECOIN_CAPABILITIES_TOOL,
+  GRANT_ROLE_STABLECOIN_TOOL,
+  REVOKE_ROLE_STABLECOIN_TOOL,
+  UPDATE_RESERVE_ADDRESS_STABLECOIN_TOOL,
+  TRANSFER_STABLECOIN_TOOL,
+  CREATE_HOLD_STABLECOIN_TOOL,
+  EXECUTE_HOLD_STABLECOIN_TOOL,
+  RELEASE_HOLD_STABLECOIN_TOOL,
+  RECLAIM_HOLD_STABLECOIN_TOOL,
 } as const;
+
 
 export {
   GET_STABLECOIN_INFO_TOOL,
@@ -91,4 +150,20 @@ export {
   ASSOCIATE_STABLECOIN_TOOL,
   GET_STABLECOIN_BALANCE_TOOL,
   IS_ACCOUNT_ASSOCIATED_TOOL,
+  FREEZE_ACCOUNT_TOOL,
+  UNFREEZE_ACCOUNT_TOOL,
+  GRANT_KYC_TOOL,
+  REVOKE_KYC_TOOL,
+  IS_ACCOUNT_FROZEN_TOOL,
+  IS_ACCOUNT_KYC_GRANTED_TOOL,
+  GET_STABLECOIN_CAPABILITIES_TOOL,
+  GRANT_ROLE_STABLECOIN_TOOL,
+  REVOKE_ROLE_STABLECOIN_TOOL,
+  UPDATE_RESERVE_ADDRESS_STABLECOIN_TOOL,
+  TRANSFER_STABLECOIN_TOOL,
+  CREATE_HOLD_STABLECOIN_TOOL,
+  EXECUTE_HOLD_STABLECOIN_TOOL,
+  RELEASE_HOLD_STABLECOIN_TOOL,
+  RECLAIM_HOLD_STABLECOIN_TOOL,
 };
+

@@ -1,14 +1,23 @@
 import { z } from 'zod';
-import { Client, Status } from '@hashgraph/sdk';
-import { AgentMode, Context, Tool, PromptGenerator } from '@hashgraph/hedera-agent-kit';
-import { StableCoin, WipeRequest } from '@hashgraph/stablecoin-npm-sdk';
+import { Client, Status, Transaction } from '@hiero-ledger/sdk';
 import {
-  initSdk,
-  connectSdk,
-  resolveNetwork,
+  AgentMode,
+  Context,
+  BaseTool,
+  PromptGenerator,
+  handleTransaction,
+  RawTransactionResponse,
+  transactionToolOutputParser,
+} from '@hashgraph/hedera-agent-kit';
+import {
+  StableCoin,
+  WipeRequest,
+} from '@hashgraph/stablecoin-npm-sdk';
+import {
+  ensureSdkConnected,
+  hexToUint8Array,
   StablecoinStudioPluginConfig,
 } from '@/stablecoin-sdk-utils';
-import { stablecoinOutputParser } from '@/stablecoin-output-parser';
 
 export const WIPE_STABLECOIN_TOOL = 'wipe_stablecoin_tool';
 
@@ -24,7 +33,7 @@ This tool wipes (removes) a specified amount of stablecoin tokens from a target 
 Parameters:
 - tokenId (str, required): The Hedera token ID of the stablecoin (e.g., "0.0.123456").
 - targetId (str, required): The Hedera account ID to wipe tokens from (e.g., "0.0.789012").
-- amount (str, required): The amount of tokens to wipe (e.g., "1000").
+- amount (str, required): The amount of tokens to wipe in display units (e.g., "100.5"). The tool will handle parsing to base units.
 - startDate (str, optional): ISO 8601 date for scheduling the operation.
 ${usageInstructions}
 `;
@@ -34,40 +43,67 @@ const wipeStablecoinParameters = (_context: Context = {}) =>
   z.object({
     tokenId: z.string().describe('The Hedera token ID of the stablecoin (e.g., "0.0.123456")'),
     targetId: z.string().describe('The Hedera account ID to wipe tokens from (e.g., "0.0.789012")'),
-    amount: z.string().describe('The amount of tokens to wipe (e.g., "1000")'),
+    amount: z
+      .string()
+      .describe('The amount of tokens to wipe in display units (human-readable, e.g. "100.5")'),
     startDate: z.string().optional().describe('ISO 8601 date for scheduling the operation'),
   });
 
-const wipeStablecoin = async (
-  client: Client,
-  context: Context,
-  params: z.infer<ReturnType<typeof wipeStablecoinParameters>>,
-  config: StablecoinStudioPluginConfig,
-) => {
-  try {
-    if (context.mode !== AgentMode.RETURN_BYTES && !config.privateKey) {
+const postProcess = (response: RawTransactionResponse) => {
+  return `Successfully wiped tokens for stablecoin.
+Transaction ID: ${response.transactionId}`;
+};
+
+export class WipeStablecoinTool extends BaseTool {
+  method = WIPE_STABLECOIN_TOOL;
+  name = 'Wipe Stablecoin';
+  description: string;
+  parameters: ReturnType<typeof wipeStablecoinParameters>;
+  outputParser = transactionToolOutputParser;
+
+  private config: StablecoinStudioPluginConfig;
+
+  constructor(context: Context, config: StablecoinStudioPluginConfig) {
+    super();
+    this.description = wipeStablecoinPrompt(context);
+    this.parameters = wipeStablecoinParameters(context);
+    this.config = config;
+  }
+
+  async normalizeParams(inputParams: any, context: Context, client: Client) {
+    const params = this.parameters.parse(inputParams);
+
+    if (context.mode !== AgentMode.RETURN_BYTES && !this.config.privateKey) {
       throw new Error(
         'privateKey is required in plugin config for AUTONOMOUS mode. Provide it via createStablecoinStudioPlugin({ privateKey: "..." }).',
       );
     }
 
-    const network = resolveNetwork(client, config);
-    await initSdk(network, config);
-    await connectSdk(network, config, context);
+    await ensureSdkConnected(client, this.config, context);
 
-    const request = new WipeRequest({
+    return new WipeRequest({
       tokenId: params.tokenId,
       targetId: params.targetId,
       amount: params.amount,
       startDate: params.startDate,
     });
-    const response = await StableCoin.wipe(request);
+  }
 
-    return {
-      raw: response,
-      humanMessage: `Successfully wiped ${params.amount} tokens of ${params.tokenId} from ${params.targetId}.`,
-    };
-  } catch (error) {
+  async coreAction(request: WipeRequest, _context: Context, _client: Client) {
+    const response = await StableCoin.buildWipe(request);
+    const bytes = hexToUint8Array(response.serializedTransaction);
+    return Transaction.fromBytes(bytes);
+  }
+
+  async shouldSecondaryAction() {
+    return true;
+  }
+
+  async secondaryAction(transaction: Transaction, client: Client, context: Context) {
+    return await handleTransaction(transaction, client, context, postProcess);
+  }
+
+  async handleError(error: unknown, _context: Context): Promise<any> {
     const desc = 'Failed to wipe stablecoin';
     const message = desc + (error instanceof Error ? `: ${error.message}` : '');
     return {
@@ -75,16 +111,9 @@ const wipeStablecoin = async (
       humanMessage: message,
     };
   }
-};
+}
 
-const tool = (context: Context, config: StablecoinStudioPluginConfig): Tool => ({
-  method: WIPE_STABLECOIN_TOOL,
-  name: 'Wipe Stablecoin',
-  description: wipeStablecoinPrompt(context),
-  parameters: wipeStablecoinParameters(context),
-  execute: (client: Client, ctx: Context, params: any) =>
-    wipeStablecoin(client, ctx, params, config),
-  outputParser: stablecoinOutputParser,
-});
+const tool = (context: Context, config: StablecoinStudioPluginConfig): BaseTool =>
+  new WipeStablecoinTool(context, config);
 
 export default tool;

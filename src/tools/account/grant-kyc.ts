@@ -1,0 +1,108 @@
+import { z } from 'zod';
+import { Client, Status, Transaction } from '@hiero-ledger/sdk';
+import {
+  AgentMode,
+  Context,
+  BaseTool,
+  PromptGenerator,
+  handleTransaction,
+  RawTransactionResponse,
+  transactionToolOutputParser,
+} from '@hashgraph/hedera-agent-kit';
+import { StableCoin, KYCRequest } from '@hashgraph/stablecoin-npm-sdk';
+import {
+  ensureSdkConnected,
+  hexToUint8Array,
+  StablecoinStudioPluginConfig,
+} from '@/stablecoin-sdk-utils';
+
+export const GRANT_KYC_TOOL = 'grant_kyc_tool';
+
+const grantKycPrompt = (context: Context = {}) => {
+  const contextSnippet = PromptGenerator.getContextSnippet(context);
+  const usageInstructions = PromptGenerator.getParameterUsageInstructions();
+
+  return `
+${contextSnippet}
+
+This tool grants KYC (Know Your Customer) status to a specific account for a stablecoin on the Hedera network. This allows the account to hold and transfer the token. Requires the KYC key.
+
+Parameters:
+- tokenId (str, required): The Hedera token ID of the stablecoin (e.g., "0.0.123456").
+- targetId (str, required): The Hedera account ID to grant KYC to (e.g., "0.0.789012").
+${usageInstructions}
+`;
+};
+
+const grantKycParameters = (_context: Context = {}) =>
+  z.object({
+    tokenId: z.string().describe('The Hedera token ID of the stablecoin (e.g., "0.0.123456")'),
+    targetId: z.string().describe('The Hedera account ID to grant KYC to (e.g., "0.0.789012")'),
+  });
+
+const postProcess = (response: RawTransactionResponse) => {
+  return `Successfully granted KYC to account for stablecoin.
+Transaction ID: ${response.transactionId}`;
+};
+
+export class GrantKycTool extends BaseTool {
+  method = GRANT_KYC_TOOL;
+  name = 'Grant KYC';
+  description: string;
+  parameters: ReturnType<typeof grantKycParameters>;
+  outputParser = transactionToolOutputParser;
+
+  private config: StablecoinStudioPluginConfig;
+
+  constructor(context: Context, config: StablecoinStudioPluginConfig) {
+    super();
+    this.description = grantKycPrompt(context);
+    this.parameters = grantKycParameters(context);
+    this.config = config;
+  }
+
+  async normalizeParams(inputParams: any, context: Context, client: Client) {
+    const params = this.parameters.parse(inputParams);
+
+    if (context.mode !== AgentMode.RETURN_BYTES && !this.config.privateKey) {
+      throw new Error(
+        'privateKey is required in plugin config for AUTONOMOUS mode. Provide it via createStablecoinStudioPlugin({ privateKey: "..." }).',
+      );
+    }
+
+    await ensureSdkConnected(client, this.config, context);
+
+    return new KYCRequest({
+      tokenId: params.tokenId,
+      targetId: params.targetId,
+    });
+  }
+
+  async coreAction(request: KYCRequest, _context: Context, _client: Client) {
+    const response = await StableCoin.buildGrantKyc(request);
+    const bytes = hexToUint8Array(response.serializedTransaction);
+    return Transaction.fromBytes(bytes);
+  }
+
+  async shouldSecondaryAction() {
+    return true;
+  }
+
+  async secondaryAction(transaction: Transaction, client: Client, context: Context) {
+    return await handleTransaction(transaction, client, context, postProcess);
+  }
+
+  async handleError(error: unknown, _context: Context): Promise<any> {
+    const desc = 'Failed to grant KYC';
+    const message = desc + (error instanceof Error ? `: ${error.message}` : '');
+    return {
+      raw: { status: Status.InvalidTransaction, error: message },
+      humanMessage: message,
+    };
+  }
+}
+
+const tool = (context: Context, config: StablecoinStudioPluginConfig): BaseTool =>
+  new GrantKycTool(context, config);
+
+export default tool;

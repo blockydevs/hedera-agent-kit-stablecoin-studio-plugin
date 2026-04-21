@@ -1,14 +1,20 @@
 import { z } from 'zod';
-import { Client, Status } from '@hashgraph/sdk';
-import { AgentMode, Context, Tool, PromptGenerator } from '@hashgraph/hedera-agent-kit';
+import { Client, Status, Transaction } from '@hiero-ledger/sdk';
+import {
+  AgentMode,
+  Context,
+  BaseTool,
+  PromptGenerator,
+  handleTransaction,
+  RawTransactionResponse,
+  transactionToolOutputParser,
+} from '@hashgraph/hedera-agent-kit';
 import { StableCoin, AssociateTokenRequest } from '@hashgraph/stablecoin-npm-sdk';
 import {
-  initSdk,
-  connectSdk,
-  resolveNetwork,
+  ensureSdkConnected,
+  hexToUint8Array,
   StablecoinStudioPluginConfig,
 } from '@/stablecoin-sdk-utils';
-import { stablecoinOutputParser } from '@/stablecoin-output-parser';
 
 export const ASSOCIATE_STABLECOIN_TOOL = 'associate_stablecoin_tool';
 
@@ -36,34 +42,66 @@ const associateStablecoinParameters = (_context: Context = {}) =>
       .describe('The Hedera account ID to associate with the token (e.g., "0.0.789012")'),
   });
 
-const associateStablecoin = async (
-  client: Client,
-  context: Context,
-  params: z.infer<ReturnType<typeof associateStablecoinParameters>>,
-  config: StablecoinStudioPluginConfig,
-) => {
-  try {
-    if (context.mode !== AgentMode.RETURN_BYTES && !config.privateKey) {
+const postProcess = (response: RawTransactionResponse) => {
+  return `Successfully associated account with stablecoin.
+Transaction ID: ${response.transactionId}`;
+};
+
+export class AssociateStablecoinTool extends BaseTool {
+  method = ASSOCIATE_STABLECOIN_TOOL;
+  name = 'Associate Stablecoin';
+  description: string;
+  parameters: ReturnType<typeof associateStablecoinParameters>;
+  outputParser = transactionToolOutputParser;
+
+  private config: StablecoinStudioPluginConfig;
+
+  constructor(context: Context, config: StablecoinStudioPluginConfig) {
+    super();
+    this.description = associateStablecoinPrompt(context);
+    this.parameters = associateStablecoinParameters(context);
+    this.config = config;
+  }
+
+  async normalizeParams(inputParams: any, context: Context, client: Client) {
+    const params = this.parameters.parse(inputParams);
+
+    if (context.mode !== AgentMode.RETURN_BYTES && !this.config.privateKey) {
       throw new Error(
         'privateKey is required in plugin config for AUTONOMOUS mode. Provide it via createStablecoinStudioPlugin({ privateKey: "..." }).',
       );
     }
 
-    const network = resolveNetwork(client, config);
-    await initSdk(network, config);
-    await connectSdk(network, config, context);
+    // In autonomous mode, the agent can only associate itself.
+    if (context.mode === AgentMode.AUTONOMOUS && params.targetId !== this.config.accountId) {
+      throw new Error(
+        `Agent (account ${this.config.accountId}) cannot autonomously associate another account (${params.targetId}) with a token. The target account must associate itself or use RETURN_BYTES mode.`,
+      );
+    }
 
-    const request = new AssociateTokenRequest({
+    await ensureSdkConnected(client, this.config, context);
+
+    return new AssociateTokenRequest({
       tokenId: params.tokenId,
       targetId: params.targetId,
     });
-    const response = await StableCoin.associate(request);
+  }
 
-    return {
-      raw: response,
-      humanMessage: `Successfully associated token ${params.tokenId} with account ${params.targetId}.`,
-    };
-  } catch (error) {
+  async coreAction(request: AssociateTokenRequest, _context: Context, _client: Client) {
+    const response = await StableCoin.buildAssociate(request);
+    const bytes = hexToUint8Array(response.serializedTransaction);
+    return Transaction.fromBytes(bytes);
+  }
+
+  async shouldSecondaryAction() {
+    return true;
+  }
+
+  async secondaryAction(transaction: Transaction, client: Client, context: Context) {
+    return await handleTransaction(transaction, client, context, postProcess);
+  }
+
+  async handleError(error: unknown, _context: Context): Promise<any> {
     const desc = 'Failed to associate stablecoin';
     const message = desc + (error instanceof Error ? `: ${error.message}` : '');
     return {
@@ -71,16 +109,9 @@ const associateStablecoin = async (
       humanMessage: message,
     };
   }
-};
+}
 
-const tool = (context: Context, config: StablecoinStudioPluginConfig): Tool => ({
-  method: ASSOCIATE_STABLECOIN_TOOL,
-  name: 'Associate Stablecoin',
-  description: associateStablecoinPrompt(context),
-  parameters: associateStablecoinParameters(context),
-  execute: (client: Client, ctx: Context, params: any) =>
-    associateStablecoin(client, ctx, params, config),
-  outputParser: stablecoinOutputParser,
-});
+const tool = (context: Context, config: StablecoinStudioPluginConfig): BaseTool =>
+  new AssociateStablecoinTool(context, config);
 
 export default tool;

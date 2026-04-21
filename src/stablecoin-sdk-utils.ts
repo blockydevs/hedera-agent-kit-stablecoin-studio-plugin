@@ -1,4 +1,4 @@
-import { Client } from '@hashgraph/sdk';
+import { Client, PrivateKey } from '@hiero-ledger/sdk';
 import { Context } from '@hashgraph/hedera-agent-kit';
 import {
   Network,
@@ -43,16 +43,40 @@ export async function initSdk(
   );
 }
 
+// Used by all tools — build* methods require EXTERNAL_HEDERA to return serializedTransactionData
 export async function connectSdk(
   network: string,
   config: StablecoinStudioPluginConfig,
   _context: Context,
 ): Promise<void> {
+  const request = new ConnectRequest({
+    account: { accountId: config.accountId },
+    network,
+    wallet: SupportedWallets.EXTERNAL_HEDERA,
+    mirrorNode: { baseUrl: `https://${network}.mirrornode.hedera.com/api/v1/` },
+    rpcNode: { baseUrl: `https://${network}.hashio.io/api` },
+    externalWalletSettings: { validStartOffsetMinutes: 0 },
+  });
+
+  await Network.connect(request);
+}
+
+// Used for direct SDK calls (StableCoin.create, StableCoin.cashIn, etc.)
+// CLIENT wallet executes transactions immediately without returning serialized bytes
+export async function connectSdkClientMode(
+  network: string,
+  config: StablecoinStudioPluginConfig,
+): Promise<void> {
   const account: any = { accountId: config.accountId };
   if (config.privateKey) {
-    const isEcdsa =
-      config.privateKey.startsWith('0x') || config.privateKey.replace(/^0x/, '').length === 64;
-    account.privateKey = { key: config.privateKey, type: isEcdsa ? 'ECDSA' : 'ED25519' };
+    try {
+      PrivateKey.fromStringECDSA(config.privateKey);
+      account.privateKey = { key: config.privateKey, type: 'ECDSA' };
+    } catch (e) {
+      throw new Error(
+        `Failed to parse private key as ECDSA: ${e instanceof Error ? e.message : String(e)}`,
+      );
+    }
   }
 
   const request = new ConnectRequest({
@@ -61,9 +85,19 @@ export async function connectSdk(
     wallet: SupportedWallets.CLIENT,
     mirrorNode: { baseUrl: `https://${network}.mirrornode.hedera.com/api/v1/` },
     rpcNode: { baseUrl: `https://${network}.hashio.io/api` },
+    externalWalletSettings: { validStartOffsetMinutes: 0 },
   });
 
   await Network.connect(request);
+}
+export async function ensureSdkConnected(
+  client: Client,
+  config: StablecoinStudioPluginConfig,
+  context: Context,
+): Promise<void> {
+  const network = resolveNetwork(client, config);
+  await initSdk(network, config);
+  await connectSdk(network, config, context);
 }
 
 export function hexToUint8Array(hex: string): Uint8Array {

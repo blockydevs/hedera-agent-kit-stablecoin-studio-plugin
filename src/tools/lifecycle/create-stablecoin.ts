@@ -1,15 +1,26 @@
 import { z } from 'zod';
-import { Client, Status } from '@hashgraph/sdk';
-import { AgentMode, Context, Tool, PromptGenerator } from '@hashgraph/hedera-agent-kit';
-import { StableCoin, CreateRequest, TokenSupplyType, Account } from '@hashgraph/stablecoin-npm-sdk';
+import { Client, Status, Transaction } from '@hiero-ledger/sdk';
 import {
-  initSdk,
-  connectSdk,
-  resolveNetwork,
+  AgentMode,
+  BaseTool,
+  Context,
+  handleTransaction,
+  PromptGenerator,
+  RawTransactionResponse,
+  transactionToolOutputParser,
+} from '@hashgraph/hedera-agent-kit';
+import {
+  Account,
+  CreateRequest,
+  StableCoin,
+  TokenSupplyType,
+} from '@hashgraph/stablecoin-npm-sdk';
+import {
+  ensureSdkConnected,
+  hexToUint8Array,
   StablecoinStudioPluginConfig,
 } from '@/stablecoin-sdk-utils';
 import { STABLECOIN_CONFIG_ID, STABLECOIN_CONFIG_VERSION } from '@/constants';
-import { stablecoinOutputParser } from '@/stablecoin-output-parser';
 
 export const CREATE_STABLECOIN_TOOL = 'create_stablecoin_tool';
 
@@ -28,6 +39,7 @@ REQUIRED PARAMETERS — ask ONLY for these if missing:
 
 ALL other parameters are optional. NEVER ask the user about them. Apply defaults silently:
 - decimals: 6, initialSupply: "0", supplyType: INFINITE, createReserve: false
+- initialSupply and maxSupply are in display units (human-readable), the tool will handle parsing to base units.
 - All role accounts default to operator account
 
 STATE MANAGEMENT:
@@ -57,11 +69,13 @@ const createStablecoinParameters = (_context: Context = {}, operatorAccount: str
       .string()
       .optional()
       .default('0')
-      .describe('Initial token supply in base units. Default: "0"'),
+      .describe('Initial token supply in display units (e.g. "100.5"). Default: "0"'),
     maxSupply: z
       .string()
       .optional()
-      .describe('Maximum token supply. Only relevant when supplyType is FINITE'),
+      .describe(
+        'Maximum token supply in display units (e.g. "1000"). Only relevant when supplyType is FINITE',
+      ),
     supplyType: z
       .enum(['FINITE', 'INFINITE'])
       .optional()
@@ -125,24 +139,40 @@ const createStablecoinParameters = (_context: Context = {}, operatorAccount: str
       .describe('Account ID for fee role. Default: operator account'),
   });
 
-const createStablecoin = async (
-  client: Client,
-  context: Context,
-  params: z.output<ReturnType<typeof createStablecoinParameters>>,
-  config: StablecoinStudioPluginConfig,
-) => {
-  try {
-    if (context.mode !== AgentMode.RETURN_BYTES && !config.privateKey) {
+const postProcess = (response: RawTransactionResponse) => {
+  const tokenId = response.tokenId?.toString();
+  return `Stablecoin created successfully.${tokenId ? ` ID: ${tokenId}` : ''}
+Transaction ID: ${response.transactionId}`;
+};
+
+export class CreateStablecoinTool extends BaseTool {
+  method = CREATE_STABLECOIN_TOOL;
+  name = 'Create Stablecoin';
+  description: string;
+  parameters: ReturnType<typeof createStablecoinParameters>;
+  outputParser = transactionToolOutputParser;
+
+  private config: StablecoinStudioPluginConfig;
+
+  constructor(context: Context, config: StablecoinStudioPluginConfig) {
+    super();
+    this.description = createStablecoinPrompt(context);
+    this.parameters = createStablecoinParameters(context, config.accountId);
+    this.config = config;
+  }
+
+  async normalizeParams(inputParams: any, context: Context, client: Client) {
+    const params = this.parameters.parse(inputParams);
+
+    if (context.mode !== AgentMode.RETURN_BYTES && !this.config.privateKey) {
       throw new Error(
         'privateKey is required in plugin config for AUTONOMOUS mode. Provide it via createStablecoinStudioPlugin({ privateKey: "..." }).',
       );
     }
 
-    const network = resolveNetwork(client, config);
-    await initSdk(network, config);
-    await connectSdk(network, config, context);
+    await ensureSdkConnected(client, this.config, context);
 
-    const request = new CreateRequest({
+    return new CreateRequest({
       ...params,
       freezeKey: Account.NullPublicKey,
       wipeKey: Account.NullPublicKey,
@@ -150,18 +180,23 @@ const createStablecoin = async (
       configId: STABLECOIN_CONFIG_ID,
       configVersion: STABLECOIN_CONFIG_VERSION,
     });
+  }
 
-    const response = await StableCoin.create(request);
+  async coreAction(request: CreateRequest, _context: Context, _client: Client) {
+    const response = await StableCoin.buildCreate(request);
+    const bytes = hexToUint8Array(response.serializedTransaction);
+    return Transaction.fromBytes(bytes);
+  }
 
-    if (!response) {
-      throw new Error('Stablecoin SDK returned empty response');
-    }
+  async shouldSecondaryAction() {
+    return true;
+  }
 
-    return {
-      raw: response,
-      humanMessage: `Stablecoin created successfully. Token ID: ${response?.coin?.tokenId ?? 'unknown'}`,
-    };
-  } catch (error) {
+  async secondaryAction(transaction: Transaction, client: Client, context: Context) {
+    return await handleTransaction(transaction, client, context, postProcess);
+  }
+
+  async handleError(error: unknown, _context: Context): Promise<any> {
     const desc = 'Failed to create stablecoin';
     const message = desc + (error instanceof Error ? `: ${error.message}` : '');
     return {
@@ -169,15 +204,9 @@ const createStablecoin = async (
       humanMessage: message,
     };
   }
-};
+}
 
-const tool = (context: Context, config: StablecoinStudioPluginConfig): Tool => ({
-  method: CREATE_STABLECOIN_TOOL,
-  name: 'Create Stablecoin',
-  description: createStablecoinPrompt(context),
-  parameters: createStablecoinParameters(context, config.accountId),
-  execute: (client: Client, ctx: Context, p: any) => createStablecoin(client, ctx, p, config),
-  outputParser: stablecoinOutputParser,
-});
+const tool = (context: Context, config: StablecoinStudioPluginConfig): BaseTool =>
+  new CreateStablecoinTool(context, config);
 
 export default tool;

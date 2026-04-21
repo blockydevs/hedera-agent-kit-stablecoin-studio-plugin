@@ -1,14 +1,20 @@
 import { z } from 'zod';
-import { Client, Status } from '@hashgraph/sdk';
-import { AgentMode, Context, Tool, PromptGenerator } from '@hashgraph/hedera-agent-kit';
+import { Client, Status, Transaction } from '@hiero-ledger/sdk';
+import {
+  AgentMode,
+  Context,
+  BaseTool,
+  PromptGenerator,
+  handleTransaction,
+  RawTransactionResponse,
+  transactionToolOutputParser,
+} from '@hashgraph/hedera-agent-kit';
 import { StableCoin, UpdateRequest } from '@hashgraph/stablecoin-npm-sdk';
 import {
-  initSdk,
-  connectSdk,
-  resolveNetwork,
+  ensureSdkConnected,
+  hexToUint8Array,
   StablecoinStudioPluginConfig,
 } from '@/stablecoin-sdk-utils';
-import { stablecoinOutputParser } from '@/stablecoin-output-parser';
 
 export const UPDATE_STABLECOIN_TOOL = 'update_stablecoin_tool';
 
@@ -38,36 +44,61 @@ const updateStablecoinParameters = (_context: Context = {}) =>
     memo: z.string().max(100).optional().describe('New memo (max 100 characters)'),
   });
 
-const updateStablecoin = async (
-  client: Client,
-  context: Context,
-  params: z.infer<ReturnType<typeof updateStablecoinParameters>>,
-  config: StablecoinStudioPluginConfig,
-) => {
-  try {
-    if (context.mode !== AgentMode.RETURN_BYTES && !config.privateKey) {
+const postProcess = (response: RawTransactionResponse) => {
+  return `Successfully updated stablecoin.
+Transaction ID: ${response.transactionId}`;
+};
+
+export class UpdateStablecoinTool extends BaseTool {
+  method = UPDATE_STABLECOIN_TOOL;
+  name = 'Update Stablecoin';
+  description: string;
+  parameters: ReturnType<typeof updateStablecoinParameters>;
+  outputParser = transactionToolOutputParser;
+
+  private config: StablecoinStudioPluginConfig;
+
+  constructor(context: Context, config: StablecoinStudioPluginConfig) {
+    super();
+    this.description = updateStablecoinPrompt(context);
+    this.parameters = updateStablecoinParameters(context);
+    this.config = config;
+  }
+
+  async normalizeParams(inputParams: any, context: Context, client: Client) {
+    const params = this.parameters.parse(inputParams);
+
+    if (context.mode !== AgentMode.RETURN_BYTES && !this.config.privateKey) {
       throw new Error(
         'privateKey is required in plugin config for AUTONOMOUS mode. Provide it via createStablecoinStudioPlugin({ privateKey: "..." }).',
       );
     }
 
-    const network = resolveNetwork(client, config);
-    await initSdk(network, config);
-    await connectSdk(network, config, context);
+    await ensureSdkConnected(client, this.config, context);
 
     const requestConfig: any = { tokenId: params.tokenId };
     if (params.name !== undefined) requestConfig.name = params.name;
     if (params.symbol !== undefined) requestConfig.symbol = params.symbol;
     if (params.memo !== undefined) requestConfig.memo = params.memo;
 
-    const request = new UpdateRequest(requestConfig);
-    const response = await StableCoin.update(request);
+    return new UpdateRequest(requestConfig);
+  }
 
-    return {
-      raw: response,
-      humanMessage: `Stablecoin ${params.tokenId} updated successfully.`,
-    };
-  } catch (error) {
+  async coreAction(request: UpdateRequest, _context: Context, _client: Client) {
+    const response = await StableCoin.buildUpdate(request);
+    const bytes = hexToUint8Array(response.serializedTransaction);
+    return Transaction.fromBytes(bytes);
+  }
+
+  async shouldSecondaryAction() {
+    return true;
+  }
+
+  async secondaryAction(transaction: Transaction, client: Client, context: Context) {
+    return await handleTransaction(transaction, client, context, postProcess);
+  }
+
+  async handleError(error: unknown, _context: Context): Promise<any> {
     const desc = 'Failed to update stablecoin';
     const message = desc + (error instanceof Error ? `: ${error.message}` : '');
     return {
@@ -75,16 +106,9 @@ const updateStablecoin = async (
       humanMessage: message,
     };
   }
-};
+}
 
-const tool = (context: Context, config: StablecoinStudioPluginConfig): Tool => ({
-  method: UPDATE_STABLECOIN_TOOL,
-  name: 'Update Stablecoin',
-  description: updateStablecoinPrompt(context),
-  parameters: updateStablecoinParameters(context),
-  execute: (client: Client, ctx: Context, params: any) =>
-    updateStablecoin(client, ctx, params, config),
-  outputParser: stablecoinOutputParser,
-});
+const tool = (context: Context, config: StablecoinStudioPluginConfig): BaseTool =>
+  new UpdateStablecoinTool(context, config);
 
 export default tool;

@@ -4,7 +4,11 @@ import * as path from 'node:path';
 export default defineConfig({
   resolve: {
     alias: {
-      '@': path.resolve(__dirname, 'src'),
+      '@/': path.resolve(__dirname, 'src') + '/',
+      '@hashgraph/stablecoin-npm-sdk': path.resolve(
+        __dirname,
+        'node_modules/@hashgraph/stablecoin-npm-sdk/dist/cjs/index.js',
+      ),
     },
   },
   test: {

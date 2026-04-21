@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { Client, Status } from '@hashgraph/sdk';
+import { Client, Status } from '@hiero-ledger/sdk';
 import { AgentMode } from '@hashgraph/hedera-agent-kit';
 
 vi.mock('@hashgraph/stablecoin-npm-sdk', () => ({

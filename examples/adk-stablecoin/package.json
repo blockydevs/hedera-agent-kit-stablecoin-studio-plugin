@@ -1,0 +1,27 @@
+{
+  "name": "hedera-agent-stablecoin-example-adk",
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "test": "echo \"No tests specified for example package\"",
+    "adk:stablecoin-agent": "ts-node agent.ts"
+  },
+  "dependencies": {
+    "@google/adk": "0.6.1",
+    "@google/adk-devtools": "0.6.1",
+    "@hashgraph/hedera-agent-kit": "4.0.0",
+    "@hashgraph/hedera-agent-kit-adk": "4.0.0",
+    "@hiero-ledger/sdk": "2.81.0",
+    "dotenv": "^17.2.3",
+    "hak-stablecoin-studio-plugin": "file:../../",
+    "prompts": "2.4.2"
+  },
+  "author": "Hashgraph",
+  "license": "Apache-2.0",
+  "description": "Example agent using Hedera Agent Kit with Stablecoin Studio plugin and Google ADK",
+  "devDependencies": {
+    "@types/prompts": "2.4.9",
+    "ts-node": "10.9.2",
+    "typescript": "5.8.3"
+  }
+}

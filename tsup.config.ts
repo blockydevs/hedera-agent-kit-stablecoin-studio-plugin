@@ -1,5 +1,5 @@
-import * as path from 'node:path';
 import { defineConfig } from 'tsup';
+import * as path from 'node:path';
 
 const srcAlias = { '@': path.resolve(__dirname, 'src') };
 
@@ -11,8 +11,12 @@ export default defineConfig([
     dts: true,
     sourcemap: true,
     clean: true,
-    target: 'node18',
-    platform: 'node',
+    bundle: true,
+    external: ['@hiero-ledger/sdk'],
+    target: 'es2022',
+    outExtension() {
+      return { js: '.mjs' };
+    },
     esbuildOptions(options) {
       options.alias = srcAlias;
     },
@@ -21,10 +25,12 @@ export default defineConfig([
     entry: ['./src/index.ts'],
     outDir: 'dist/cjs',
     format: ['cjs'],
+    dts: true,
     sourcemap: true,
     clean: true,
-    target: 'node18',
-    platform: 'node',
+    bundle: true,
+    external: ['@hiero-ledger/sdk'],
+    target: 'node16',
     esbuildOptions(options) {
       options.alias = srcAlias;
     },

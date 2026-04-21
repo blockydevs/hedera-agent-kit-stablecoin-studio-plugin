@@ -1,14 +1,20 @@
 import { z } from 'zod';
-import { Client, Status } from '@hashgraph/sdk';
-import { AgentMode, Context, Tool, PromptGenerator } from '@hashgraph/hedera-agent-kit';
+import { Client, Status, Transaction } from '@hiero-ledger/sdk';
+import {
+  AgentMode,
+  Context,
+  BaseTool,
+  PromptGenerator,
+  handleTransaction,
+  RawTransactionResponse,
+  transactionToolOutputParser,
+} from '@hashgraph/hedera-agent-kit';
 import { StableCoin, DeleteRequest } from '@hashgraph/stablecoin-npm-sdk';
 import {
-  initSdk,
-  connectSdk,
-  resolveNetwork,
+  ensureSdkConnected,
+  hexToUint8Array,
   StablecoinStudioPluginConfig,
 } from '@/stablecoin-sdk-utils';
-import { stablecoinOutputParser } from '@/stablecoin-output-parser';
 
 export const DELETE_STABLECOIN_TOOL = 'delete_stablecoin_tool';
 
@@ -32,31 +38,56 @@ const deleteStablecoinParameters = (_context: Context = {}) =>
     tokenId: z.string().describe('The Hedera token ID of the stablecoin (e.g., "0.0.123456")'),
   });
 
-const deleteStablecoin = async (
-  client: Client,
-  context: Context,
-  params: z.infer<ReturnType<typeof deleteStablecoinParameters>>,
-  config: StablecoinStudioPluginConfig,
-) => {
-  try {
-    if (context.mode !== AgentMode.RETURN_BYTES && !config.privateKey) {
+const postProcess = (response: RawTransactionResponse) => {
+  return `Successfully deleted stablecoin.
+Transaction ID: ${response.transactionId}`;
+};
+
+export class DeleteStablecoinTool extends BaseTool {
+  method = DELETE_STABLECOIN_TOOL;
+  name = 'Delete Stablecoin';
+  description: string;
+  parameters: ReturnType<typeof deleteStablecoinParameters>;
+  outputParser = transactionToolOutputParser;
+
+  private config: StablecoinStudioPluginConfig;
+
+  constructor(context: Context, config: StablecoinStudioPluginConfig) {
+    super();
+    this.description = deleteStablecoinPrompt(context);
+    this.parameters = deleteStablecoinParameters(context);
+    this.config = config;
+  }
+
+  async normalizeParams(inputParams: any, context: Context, client: Client) {
+    const params = this.parameters.parse(inputParams);
+
+    if (context.mode !== AgentMode.RETURN_BYTES && !this.config.privateKey) {
       throw new Error(
         'privateKey is required in plugin config for AUTONOMOUS mode. Provide it via createStablecoinStudioPlugin({ privateKey: "..." }).',
       );
     }
 
-    const network = resolveNetwork(client, config);
-    await initSdk(network, config);
-    await connectSdk(network, config, context);
+    await ensureSdkConnected(client, this.config, context);
 
-    const request = new DeleteRequest({ tokenId: params.tokenId });
-    const response = await StableCoin.delete(request);
+    return new DeleteRequest({ tokenId: params.tokenId });
+  }
 
-    return {
-      raw: response,
-      humanMessage: `Stablecoin ${params.tokenId} deleted successfully. This action is irreversible.`,
-    };
-  } catch (error) {
+  async coreAction(request: DeleteRequest, _context: Context, _client: Client) {
+    const response = await StableCoin.buildDelete(request);
+    const bytes = hexToUint8Array(response.serializedTransaction);
+    return Transaction.fromBytes(bytes);
+  }
+
+  async shouldSecondaryAction() {
+    return true;
+  }
+
+  async secondaryAction(transaction: Transaction, client: Client, context: Context) {
+    return await handleTransaction(transaction, client, context, postProcess);
+  }
+
+  async handleError(error: unknown, _context: Context): Promise<any> {
     const desc = 'Failed to delete stablecoin';
     const message = desc + (error instanceof Error ? `: ${error.message}` : '');
     return {
@@ -64,16 +95,9 @@ const deleteStablecoin = async (
       humanMessage: message,
     };
   }
-};
+}
 
-const tool = (context: Context, config: StablecoinStudioPluginConfig): Tool => ({
-  method: DELETE_STABLECOIN_TOOL,
-  name: 'Delete Stablecoin',
-  description: deleteStablecoinPrompt(context),
-  parameters: deleteStablecoinParameters(context),
-  execute: (client: Client, ctx: Context, params: any) =>
-    deleteStablecoin(client, ctx, params, config),
-  outputParser: stablecoinOutputParser,
-});
+const tool = (context: Context, config: StablecoinStudioPluginConfig): BaseTool =>
+  new DeleteStablecoinTool(context, config);
 
 export default tool;

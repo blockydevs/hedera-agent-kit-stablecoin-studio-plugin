@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { Client, Status } from '@hashgraph/sdk';
+import { Client, Status } from '@hiero-ledger/sdk';
 import { AgentMode } from '@hashgraph/hedera-agent-kit';
 
 vi.mock('@hashgraph/stablecoin-npm-sdk', () => ({
@@ -7,7 +7,7 @@ vi.mock('@hashgraph/stablecoin-npm-sdk', () => ({
   ConnectRequest: vi.fn(),
   SupportedWallets: { CLIENT: 'CLIENT', EXTERNAL_HEDERA: 'EXTERNAL_HEDERA' },
   StableCoin: { unPause: vi.fn() },
-  PauseRequest: vi.fn(),
+  PauseRequest: vi.fn().mockImplementation(function (args) { Object.assign(this, args); }),
 }));
 vi.mock('@hashgraph/hedera-agent-kit', async importOriginal => {
   const original = await importOriginal<typeof import('@hashgraph/hedera-agent-kit')>();
