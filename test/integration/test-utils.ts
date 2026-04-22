@@ -13,6 +13,15 @@ import {
   ReleaseHoldRequest,
   ReclaimHoldRequest,
   CashInRequest,
+  PauseRequest,
+  BurnRequest,
+  WipeRequest,
+  GrantRoleRequest,
+  RevokeRoleRequest,
+  Role,
+  StableCoinRole,
+  UpdateRequest,
+  UpdateReserveAddressRequest,
 } from '@hashgraph/stablecoin-npm-sdk';
 import { Context, HederaMirrornodeServiceDefaultImpl, HederaBuilder, ExecuteStrategy } from '@hashgraph/hedera-agent-kit';
 import { initSdk, connectSdkClientMode, resolveNetwork, StablecoinStudioPluginConfig } from '@/stablecoin-sdk-utils';
@@ -253,13 +262,12 @@ export class HederaOperationsWrapper {
       privateKey: this.operatorPrivateKey!.toStringDer(),
     });
 
-    const req = {
+    const req = new UpdateReserveAddressRequest({
       tokenId: params.tokenId,
       reserveAddress: params.reserveAddress,
-      validate: () => [],
-    };
+    });
 
-    await StableCoin.updateReserveAddress(req as any);
+    await StableCoin.updateReserveAddress(req);
     return { status: 'SUCCESS' };
   }
 
@@ -284,6 +292,111 @@ export class HederaOperationsWrapper {
       tokenId: params.tokenId,
       targetId: params.accountId,
     }));
+    return { status: 'SUCCESS' };
+  }
+
+  async freezeAccount(params: { accountId: string; tokenId: string }) {
+    const network = resolveNetwork(this.client, { accountId: this.client.operatorAccountId!.toString() });
+    await connectSdkClientMode(network, {
+      accountId: this.client.operatorAccountId!.toString(),
+      privateKey: this.operatorPrivateKey!.toStringDer(),
+    });
+    await StableCoin.freeze(new FreezeAccountRequest({
+      tokenId: params.tokenId,
+      targetId: params.accountId,
+    }));
+    return { status: 'SUCCESS' };
+  }
+
+  async pauseStablecoin(params: { tokenId: string }) {
+    const network = resolveNetwork(this.client, { accountId: this.client.operatorAccountId!.toString() });
+    await connectSdkClientMode(network, {
+      accountId: this.client.operatorAccountId!.toString(),
+      privateKey: this.operatorPrivateKey!.toStringDer(),
+    });
+    await StableCoin.pause(new PauseRequest({ tokenId: params.tokenId }));
+    return { status: 'SUCCESS' };
+  }
+
+  async unpauseStablecoin(params: { tokenId: string }) {
+    const network = resolveNetwork(this.client, { accountId: this.client.operatorAccountId!.toString() });
+    await connectSdkClientMode(network, {
+      accountId: this.client.operatorAccountId!.toString(),
+      privateKey: this.operatorPrivateKey!.toStringDer(),
+    });
+    await StableCoin.unPause(new PauseRequest({ tokenId: params.tokenId }));
+    return { status: 'SUCCESS' };
+  }
+
+  async grantRole(params: { tokenId: string; targetId: string; role: string }) {
+    const network = resolveNetwork(this.client, { accountId: this.client.operatorAccountId!.toString() });
+    await connectSdkClientMode(network, {
+      accountId: this.client.operatorAccountId!.toString(),
+      privateKey: this.operatorPrivateKey!.toStringDer(),
+    });
+    await Role.grantRole(new GrantRoleRequest({
+      tokenId: params.tokenId,
+      targetId: params.targetId,
+      role: (StableCoinRole as any)[params.role],
+    }));
+    return { status: 'SUCCESS' };
+  }
+
+  async revokeRole(params: { tokenId: string; targetId: string; role: string }) {
+    const network = resolveNetwork(this.client, { accountId: this.client.operatorAccountId!.toString() });
+    await connectSdkClientMode(network, {
+      accountId: this.client.operatorAccountId!.toString(),
+      privateKey: this.operatorPrivateKey!.toStringDer(),
+    });
+    await Role.revokeRole(new RevokeRoleRequest({
+      tokenId: params.tokenId,
+      targetId: params.targetId,
+      role: (StableCoinRole as any)[params.role],
+    }));
+    return { status: 'SUCCESS' };
+  }
+
+  async wipeStablecoin(params: { tokenId: string; targetId: string; amount: string }) {
+    const network = resolveNetwork(this.client, { accountId: this.client.operatorAccountId!.toString() });
+    await connectSdkClientMode(network, {
+      accountId: this.client.operatorAccountId!.toString(),
+      privateKey: this.operatorPrivateKey!.toStringDer(),
+    });
+    await StableCoin.wipe(new WipeRequest({
+      tokenId: params.tokenId,
+      targetId: params.targetId,
+      amount: params.amount,
+    }));
+    return { status: 'SUCCESS' };
+  }
+
+  async burnStablecoin(params: { tokenId: string; amount: string }) {
+    const network = resolveNetwork(this.client, { accountId: this.client.operatorAccountId!.toString() });
+    await connectSdkClientMode(network, {
+      accountId: this.client.operatorAccountId!.toString(),
+      privateKey: this.operatorPrivateKey!.toStringDer(),
+    });
+    await StableCoin.burn(new BurnRequest({
+      tokenId: params.tokenId,
+      amount: params.amount,
+    }));
+    return { status: 'SUCCESS' };
+  }
+
+  async updateStablecoin(params: { tokenId: string; name?: string; symbol?: string; memo?: string }) {
+    const network = resolveNetwork(this.client, { accountId: this.client.operatorAccountId!.toString() });
+    await connectSdkClientMode(network, {
+      accountId: this.client.operatorAccountId!.toString(),
+      privateKey: this.operatorPrivateKey!.toStringDer(),
+    });
+    
+    const requestConfig: any = { tokenId: params.tokenId };
+    if (params.name !== undefined) requestConfig.name = params.name;
+    if (params.symbol !== undefined) requestConfig.symbol = params.symbol;
+    if (params.memo !== undefined) requestConfig.memo = params.memo;
+
+    const req = new UpdateRequest(requestConfig);
+    await StableCoin.update(req);
     return { status: 'SUCCESS' };
   }
 

@@ -70,11 +70,10 @@ export class UpdateReserveAddressStablecoinTool extends BaseTool {
 
     await ensureSdkConnected(client, this.config, context);
 
-    return {
+    return new UpdateReserveAddressRequest({
       tokenId: params.tokenId,
       reserveAddress: params.reserveAddress,
-      validate: () => [],
-    };
+    });
   }
 
   async coreAction(request: UpdateReserveAddressRequest, _context: Context, _client: Client) {

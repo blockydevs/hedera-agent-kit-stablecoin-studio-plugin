@@ -9,10 +9,9 @@ import {
   BALANCE_TIERS,
   wait,
 } from '../test-utils';
-import releaseHoldTool from '@/tools/supply/release-hold';
+import rescueHbarTool from '@/tools/supply/rescue-hbar-stablecoin';
 
-
-describe('Hold Release Operations Integration Tests', () => {
+describe('Rescue HBAR Stablecoin Integration Tests', () => {
   let operatorClient: Client;
   let executorClient: Client;
   let operatorWrapper: HederaOperationsWrapper;
@@ -35,7 +34,7 @@ describe('Hold Release Operations Integration Tests', () => {
       .createAccount({
         key: executorKey.publicKey,
         initialBalance: UsdToHbarService.usdToHbar(BALANCE_TIERS.ELEVATED),
-        accountMemo: 'executor account for Hold Release Integration Tests',
+        accountMemo: 'executor account for Rescue HBAR Integration Tests',
       })
       .then((resp) => resp.accountId!);
 
@@ -59,35 +58,18 @@ describe('Hold Release Operations Integration Tests', () => {
 
     // 1. Create a stablecoin
     tokenId = await executorWrapper.createStablecoin({
-      name: `Hold Test ${Date.now()}`,
+      name: `Rescue HBAR Test ${Date.now()}`,
       symbol: 'RHT',
       config,
       context,
     });
 
-    // 2. Associate the executor account
-    await executorWrapper.associateToken({
-      tokenId,
-      accountId: context.accountId!,
-    });
-
-    // wait for association to be indexed
-    await executorWrapper.waitForAssociation(context.accountId!, tokenId);
-
-    // Grant KYC to executor (token has a kycKey, so KYC is required before receiving tokens)
-    await executorWrapper.grantKyc({
-      accountId: context.accountId!,
-      tokenId,
-    });
-    
-    // wait for KYC to be indexed
-    await executorWrapper.waitForKyc(context.accountId!, tokenId);
-
-    // 3. Mint tokens to executor
-    await executorWrapper.cashIn({
-      tokenId,
-      targetId: executorAccountId.toString(),
-      amount: '100',
+    // Fund treasury with HBAR for rescue HBAR test
+    const info = await executorWrapper.getStablecoinInfo(tokenId);
+    const treasuryId = info.treasury!.toString();
+    await operatorWrapper.transferHbar({
+      to: treasuryId,
+      amount: 5,
     });
 
     await wait();
@@ -110,50 +92,14 @@ describe('Hold Release Operations Integration Tests', () => {
     }
   });
 
-  it('should create and release a hold', async () => {
-    // 1. Check initial balance
-    const initialBalance = await executorWrapper.getStablecoinBalance(
-      context.accountId!,
-      tokenId
-    );
+  it('should execute rescue HBAR', async () => {
+    const rescueHbar = rescueHbarTool(context, config);
 
-    // 2. Create a hold (1 hour expiration)
-    const expirationDate = (Math.floor(Date.now() / 1000) + 3600).toString();
-    const createRes = await executorWrapper.createHold({
+    // Rescuing HBAR should execute successfully
+    const result: any = await rescueHbar.execute(executorClient, context, {
       tokenId,
-      amount: '10',
-      escrow: context.accountId!,
-      expirationDate,
+      amount: '0.001',
     });
-    const holdId = createRes.holdId;
-    expect(holdId).toBeDefined();
-
-    await wait();
-
-    // 3. Verify balance decreased
-    const balanceAfterHold = await executorWrapper.getStablecoinBalance(
-      context.accountId!,
-      tokenId
-    );
-    expect(Number(balanceAfterHold)).toBe(Number(initialBalance) - 10);
-
-    // 4. Release the hold
-    const releaseHold = releaseHoldTool(context, config);
-    const releaseRes: any = await releaseHold.execute(executorClient, context, {
-      tokenId,
-      holdId: holdId!,
-      amount: '10',
-      sourceId: context.accountId!,
-    });
-    expect(releaseRes.humanMessage).toContain('Successfully released hold');
-
-    await wait();
-
-    // 5. Verify balance returned
-    const finalBalance = await executorWrapper.getStablecoinBalance(
-      context.accountId!,
-      tokenId
-    );
-    expect(finalBalance).toBe(initialBalance);
+    expect(result.humanMessage).toContain('Successfully rescued');
   });
 });

@@ -9,11 +9,9 @@ import {
   BALANCE_TIERS,
   wait,
 } from '../test-utils';
-import rescueHbarTool from '@/tools/supply/rescue-hbar-stablecoin';
+import revokeRoleTool from '@/tools/lifecycle/revoke-role-stablecoin';
 
-
-
-describe('Transfer and Rescue HBAR Integration Tests', () => {
+describe('Revoke Role Stablecoin Integration Tests', () => {
   let operatorClient: Client;
   let executorClient: Client;
   let operatorWrapper: HederaOperationsWrapper;
@@ -37,8 +35,7 @@ describe('Transfer and Rescue HBAR Integration Tests', () => {
       .createAccount({
         key: executorKey.publicKey,
         initialBalance: UsdToHbarService.usdToHbar(BALANCE_TIERS.ELEVATED),
-        accountMemo:
-          'executor account for Transfer and Rescue Integration Tests',
+        accountMemo: 'executor account for Revoke Role Integration Tests',
       })
       .then((resp) => resp.accountId!);
 
@@ -62,64 +59,30 @@ describe('Transfer and Rescue HBAR Integration Tests', () => {
 
     // 1. Create a stablecoin
     tokenId = await executorWrapper.createStablecoin({
-      name: `Transfer Rescue Test ${Date.now()}`,
-      symbol: 'TRF',
+      name: `Revoke Role Test ${Date.now()}`,
+      symbol: 'RVT',
       config,
       context,
     });
 
-    // 2. Associate the executor account
-    await executorWrapper.associateToken({
-      accountId: context.accountId!,
-      tokenId,
-    });
-
-    // 3. Create a test account (target)
+    // 2. Create a test account
     const newKey = PrivateKey.generateECDSA();
     userAccountId = await executorWrapper
       .createAccount({
         key: newKey.publicKey,
         initialBalance: UsdToHbarService.usdToHbar(BALANCE_TIERS.MINIMAL),
-        accountMemo: 'transfer target account',
+        accountMemo: 'role target account',
       })
       .then((resp) => resp.accountId!.toString());
 
     await executorWrapper.waitForAccount(userAccountId);
-
-    // 4. Associate the test account
-    await executorWrapper.associateToken({
-      accountId: userAccountId,
+    
+    // Grant role before testing revoke
+    await executorWrapper.grantRole({
       tokenId,
-      privateKey: newKey,
+      targetId: userAccountId,
+      role: 'CASHIN_ROLE',
     });
-
-    // wait for associations
-    await executorWrapper.waitForAssociation(context.accountId!, tokenId);
-    await executorWrapper.waitForAssociation(userAccountId, tokenId);
-
-    // Grant KYC to both
-    await executorWrapper.grantKyc({ accountId: context.accountId!, tokenId });
-    await executorWrapper.grantKyc({ accountId: userAccountId, tokenId });
-
-    // wait for KYC to be indexed
-    await executorWrapper.waitForKyc(context.accountId!, tokenId);
-    await executorWrapper.waitForKyc(userAccountId, tokenId);
-
-    // Fund treasury with HBAR for rescue HBAR test
-    const info = await executorWrapper.getStablecoinInfo(tokenId);
-    const treasuryId = info.treasury!.toString();
-    await operatorWrapper.transferHbar({
-      to: treasuryId,
-      amount: 5,
-    });
-
-    // 5. Mint tokens to executor
-    await executorWrapper.cashIn({
-      tokenId,
-      targetId: executorAccountId.toString(),
-      amount: '100',
-    });
-
     await wait();
   }, 120000);
 
@@ -140,33 +103,17 @@ describe('Transfer and Rescue HBAR Integration Tests', () => {
     }
   });
 
-  it('should transfer tokens from executor to user', async () => {
-    // Transfer 10 tokens
-    await executorWrapper.transfer({
+  it('should revoke a role from the account', async () => {
+    const revoke = revokeRoleTool(context, config);
+
+    // Revoke CASHIN_ROLE
+    const revokeRes: any = await revoke.execute(executorClient, context, {
       tokenId,
-      senderId: context.accountId!,
       targetId: userAccountId,
-      amount: '10',
+      role: 'CASHIN_ROLE',
     });
-    await wait();
-
-    // Final balance
-    const finalUserBalance = await executorWrapper.getStablecoinBalance(
-      userAccountId,
-      tokenId
+    expect(revokeRes.humanMessage).toContain(
+      'Successfully revoked role from account for stablecoin.',
     );
-    expect(Number(finalUserBalance)).toBe(10);
-  });
-
-  it('should execute rescue HBAR (base execution check)', async () => {
-    const rescueHbar = rescueHbarTool(context, config);
-
-    // Rescuing tokens should execute successfully as a transaction
-    const result: any = await rescueHbar.execute(executorClient, context, {
-      tokenId,
-      amount: '0.001',
-      targetId: context.accountId!,
-    });
-    expect(result.humanMessage).toContain('Successfully rescued');
   });
 });

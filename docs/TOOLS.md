@@ -444,31 +444,6 @@ Check KYC status of 0.0.789012 on token 0.0.123456
 
 ## Supply Tools
 
-### TRANSFER_STABLECOIN_TOOL
-
-**Supports Hooks & Policies**: ✅ Yes
-
-Transfers stablecoin tokens from one account to another on the Hedera network.
-
-#### Parameters
-
-| Parameter  | Type     | Required | Description                                                                 |
-|------------|----------|----------|-----------------------------------------------------------------------------|
-| `tokenId`  | `string` | ✅       | The Hedera token ID of the stablecoin (e.g., "0.0.123456").                |
-| `senderId` | `string` | ✅       | The Hedera account ID sending the tokens (e.g., "0.0.789012").             |
-| `receiverId`| `string`| ✅       | The Hedera account ID receiving the tokens (e.g., "0.0.345678").           |
-| `amount`   | `string` | ✅       | The amount of tokens to transfer in display units (e.g. "100.5").          |
-
-#### Example Prompts
-
-```
-Transfer 100.5 tokens from 0.0.789012 to 0.0.345678 for stablecoin 0.0.123456
-Send 50 tokens of 0.0.123456 from account 0.0.789012 to 0.0.345678
-Move 25.75 units from 0.0.789012 to 0.0.345678 on token 0.0.123456
-```
-
----
-
 ### CASH_IN_STABLECOIN_TOOL
 
 **Supports Hooks & Policies**: ✅ Yes

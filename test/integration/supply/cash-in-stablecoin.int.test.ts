@@ -10,10 +10,8 @@ import {
   wait,
 } from '../test-utils';
 import cashInTool from '@/tools/supply/cash-in-stablecoin';
-import burnTool from '@/tools/supply/burn-stablecoin';
-import associateTool from '@/tools/account/associate-stablecoin';
 
-describe('Cash-in and Burn Integration Tests', () => {
+describe('Cash-in Stablecoin Integration Tests', () => {
   let operatorClient: Client;
   let executorClient: Client;
   let operatorWrapper: HederaOperationsWrapper;
@@ -36,7 +34,7 @@ describe('Cash-in and Burn Integration Tests', () => {
       .createAccount({
         key: executorKey.publicKey,
         initialBalance: UsdToHbarService.usdToHbar(BALANCE_TIERS.ELEVATED),
-        accountMemo: 'executor account for Cash-in and Burn Integration Tests',
+        accountMemo: 'executor account for Cash-in Integration Tests',
       })
       .then((resp) => resp.accountId!);
 
@@ -59,18 +57,18 @@ describe('Cash-in and Burn Integration Tests', () => {
     };
 
     tokenId = await executorWrapper.createStablecoin({
-      name: `Supply Test ${Date.now()}`,
-      symbol: 'SPT',
+      name: `CashIn Test ${Date.now()}`,
+      symbol: 'CIN',
       config,
       context,
     });
 
-    // Associate the executor account
-    const associate = associateTool(context, config);
-    await associate.execute(executorClient, context, {
+    // Associate the executor account using wrapper
+    await executorWrapper.associateToken({
+      accountId: context.accountId!,
       tokenId,
-      targetId: context.accountId!,
-    });
+      privateKey: executorKey,
+    }).catch(() => {}); // might already be associated if creator
 
     // wait for association to be indexed
     await executorWrapper.waitForAssociation(context.accountId!, tokenId);
@@ -101,9 +99,8 @@ describe('Cash-in and Burn Integration Tests', () => {
     }
   });
 
-  it('should cash-in and then burn tokens', async () => {
+  it('should cash-in tokens to treasury', async () => {
     const cashIn = cashInTool(context, config);
-    const burn = burnTool(context, config);
 
     // Identify the treasury account
     const info = await executorWrapper.getStablecoinInfo(tokenId);
@@ -112,29 +109,19 @@ describe('Cash-in and Burn Integration Tests', () => {
     const amount = '100';
 
     // Cash-in (mint) to treasury
-    await cashIn.execute(executorClient, context, {
+    const result: any = await cashIn.execute(executorClient, context, {
       tokenId,
       amount,
       targetId: treasuryId,
     });
 
+    expect(result.humanMessage).toContain('Successfully minted tokens');
     await wait();
 
-    let balance = await executorWrapper.getStablecoinBalance(
+    const balance = await executorWrapper.getStablecoinBalance(
       treasuryId,
       tokenId
     );
     expect(balance.toString()).toBe('100');
-
-    // Burn
-    await burn.execute(executorClient, context, { tokenId, amount });
-
-    await wait()
-
-    balance = await executorWrapper.getStablecoinBalance(
-      treasuryId,
-      tokenId
-    );
-    expect(balance.toString()).toBe('0');
   });
 });

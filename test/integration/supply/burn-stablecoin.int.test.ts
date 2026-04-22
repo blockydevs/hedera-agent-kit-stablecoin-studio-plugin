@@ -9,12 +9,9 @@ import {
   BALANCE_TIERS,
   wait,
 } from '../test-utils';
-import rescueStablecoinTool from '@/tools/supply/rescue-stablecoin';
-import rescueHbarStablecoinTool from '@/tools/supply/rescue-hbar-stablecoin';
+import burnTool from '@/tools/supply/burn-stablecoin';
 
-
-
-describe('Rescue Operations Integration Tests', () => {
+describe('Burn Stablecoin Integration Tests', () => {
   let operatorClient: Client;
   let executorClient: Client;
   let operatorWrapper: HederaOperationsWrapper;
@@ -37,7 +34,7 @@ describe('Rescue Operations Integration Tests', () => {
       .createAccount({
         key: executorKey.publicKey,
         initialBalance: UsdToHbarService.usdToHbar(BALANCE_TIERS.ELEVATED),
-        accountMemo: 'executor account for Rescue Operations Integration Tests',
+        accountMemo: 'executor account for Burn Integration Tests',
       })
       .then((resp) => resp.accountId!);
 
@@ -60,62 +57,38 @@ describe('Rescue Operations Integration Tests', () => {
     };
 
     tokenId = await executorWrapper.createStablecoin({
-      name: `Rescue Test ${Date.now()}`,
-      symbol: 'RSC',
+      name: `Burn Test ${Date.now()}`,
+      symbol: 'BRN',
       config,
       context,
     });
 
-    // 2. Associate the executor account
+    // Associate the executor account using wrapper
     await executorWrapper.associateToken({
-      tokenId,
       accountId: context.accountId!,
-    });
+      tokenId,
+      privateKey: executorKey,
+    }).catch(() => {});
 
-    // 3. Wait for association and grant KYC
+    // wait for association to be indexed
     await executorWrapper.waitForAssociation(context.accountId!, tokenId);
+
+    // Grant KYC to executor
     await executorWrapper.grantKyc({
       accountId: context.accountId!,
       tokenId,
     });
     await executorWrapper.waitForKyc(context.accountId!, tokenId);
-
-    // 4. Fund treasury with HBAR for rescue HBAR test
-    // We need to know the treasury account ID.
+    
+    // Cash in tokens to burn them later
     const info = await executorWrapper.getStablecoinInfo(tokenId);
     const treasuryId = info.treasury!.toString();
-
-    // Send 5 HBAR from operator to treasury to ensure it has balance to rescue
-    await operatorWrapper.transferHbar({
-      to: treasuryId,
-      amount: 5,
-    });
-
-    // 5. Send tokens to the token contract for rescue tokens test
-    // To rescue tokens, they must be in the token contract address.
-    // First mint some tokens to executor.
     await executorWrapper.cashIn({
       tokenId,
-      targetId: context.accountId!,
       amount: '100',
-    });
-    await wait();
-
-    await executorWrapper.transfer({
-      tokenId,
       targetId: treasuryId,
-      amount: '60',
-      senderId: context.accountId!,
     });
-
-    const tokenAddress = info.proxyAddress?.toString() || info.evmProxyAddress?.toString() || '';
-    await executorWrapper.transfer({
-      tokenId,
-      targetId: tokenAddress,
-      amount: '10',
-      senderId: context.accountId!,
-    });
-
+    
     await wait();
   }, 120000);
 
@@ -136,27 +109,24 @@ describe('Rescue Operations Integration Tests', () => {
     }
   });
 
-  it('should rescue tokens (base test - execution check)', async () => {
-    const tool = rescueStablecoinTool(context, config);
+  it('should burn tokens from treasury', async () => {
+    const burn = burnTool(context, config);
 
-    // Rescuing tokens should execute successfully as a transaction
-    const result: any = await tool.execute(executorClient, context, {
-      tokenId,
-      amount: '1',
-      targetId: context.accountId!,
-    });
-    expect(result.humanMessage).toContain('Successfully rescued');
-  });
+    const info = await executorWrapper.getStablecoinInfo(tokenId);
+    const treasuryId = info.treasury!.toString();
 
-  it('should rescue HBAR (base test - execution check)', async () => {
-    const tool = rescueHbarStablecoinTool(context, config);
+    const amount = '100';
 
-    // Rescuing HBAR should execute successfully as a transaction
-    const result: any = await tool.execute(executorClient, context, {
-      tokenId,
-      amount: '0.01',
-      targetId: context.accountId!,
-    });
-    expect(result.humanMessage).toContain('Successfully rescued');
+    // Burn
+    const result: any = await burn.execute(executorClient, context, { tokenId, amount });
+    expect(result.humanMessage).toContain('Successfully burned');
+
+    await wait()
+
+    const balance = await executorWrapper.getStablecoinBalance(
+      treasuryId,
+      tokenId
+    );
+    expect(balance.toString()).toBe('0');
   });
 });

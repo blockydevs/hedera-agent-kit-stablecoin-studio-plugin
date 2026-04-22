@@ -9,17 +9,15 @@ import {
   BALANCE_TIERS,
   wait,
 } from '../test-utils';
-import grantRoleTool from '@/tools/lifecycle/grant-role-stablecoin';
-import revokeRoleTool from '@/tools/lifecycle/revoke-role-stablecoin';
+import createHoldTool from '@/tools/supply/create-hold';
 
-describe('Role Management Integration Tests', () => {
+describe('Create Hold Stablecoin Integration Tests', () => {
   let operatorClient: Client;
   let executorClient: Client;
   let operatorWrapper: HederaOperationsWrapper;
   let executorWrapper: HederaOperationsWrapper;
   let context: Context;
   let tokenId: string;
-  let userAccountId: string;
   let config: any;
 
   beforeAll(async () => {
@@ -36,7 +34,7 @@ describe('Role Management Integration Tests', () => {
       .createAccount({
         key: executorKey.publicKey,
         initialBalance: UsdToHbarService.usdToHbar(BALANCE_TIERS.ELEVATED),
-        accountMemo: 'executor account for Role Management Integration Tests',
+        accountMemo: 'executor account for Create Hold Integration Tests',
       })
       .then((resp) => resp.accountId!);
 
@@ -60,23 +58,37 @@ describe('Role Management Integration Tests', () => {
 
     // 1. Create a stablecoin
     tokenId = await executorWrapper.createStablecoin({
-      name: `Role Test ${Date.now()}`,
-      symbol: 'ROL',
+      name: `Hold Test ${Date.now()}`,
+      symbol: 'CHT',
       config,
       context,
     });
 
-    // 2. Create a test account
-    const newKey = PrivateKey.generateECDSA();
-    userAccountId = await executorWrapper
-      .createAccount({
-        key: newKey.publicKey,
-        initialBalance: UsdToHbarService.usdToHbar(BALANCE_TIERS.MINIMAL),
-        accountMemo: 'role target account',
-      })
-      .then((resp) => resp.accountId!.toString());
+    // 2. Associate the executor account
+    await executorWrapper.associateToken({
+      tokenId,
+      accountId: context.accountId!,
+    });
 
-    await executorWrapper.waitForAccount(userAccountId);
+    // wait for association to be indexed
+    await executorWrapper.waitForAssociation(context.accountId!, tokenId);
+
+    // Grant KYC to executor (token has a kycKey, so KYC is required before receiving tokens)
+    await executorWrapper.grantKyc({
+      accountId: context.accountId!,
+      tokenId,
+    });
+    
+    // wait for KYC to be indexed
+    await executorWrapper.waitForKyc(context.accountId!, tokenId);
+
+    // 3. Mint tokens to executor
+    await executorWrapper.cashIn({
+      tokenId,
+      targetId: executorAccountId.toString(),
+      amount: '100',
+    });
+
     await wait();
   }, 120000);
 
@@ -97,28 +109,33 @@ describe('Role Management Integration Tests', () => {
     }
   });
 
-  it('should grant and revoke roles', async () => {
-    const grant = grantRoleTool(context, config);
-    const revoke = revokeRoleTool(context, config);
+  it('should create a hold on tokens', async () => {
+    const createHold = createHoldTool(context, config);
 
-    // Grant CASHIN_ROLE
-    const grantRes: any = await grant.execute(executorClient, context, {
-      tokenId,
-      targetId: userAccountId,
-      role: 'CASHIN_ROLE',
-    });
-    expect(grantRes.humanMessage).toContain('granted successfully');
-    await wait();
-
-    // Revoke CASHIN_ROLE
-    const revokeRes: any = await revoke.execute(executorClient, context, {
-      tokenId,
-      targetId: userAccountId,
-      role: 'CASHIN_ROLE',
-    });
-    expect(revokeRes.humanMessage).toContain(
-      'Successfully revoked role from account for stablecoin.',
+    // 1. Check initial balance
+    const initialBalance = await executorWrapper.getStablecoinBalance(
+      context.accountId!,
+      tokenId
     );
+
+    // 2. Create a hold (1 hour expiration) using the tool
+    const expirationDate = (Math.floor(Date.now() / 1000) + 3600).toString();
+    const result: any = await createHold.execute(executorClient, context, {
+      tokenId,
+      amount: '10',
+      escrow: context.accountId!,
+      expirationDate,
+    });
+
+    expect(result.humanMessage).toContain('Hold created successfully');
+
     await wait();
+
+    // 3. Verify balance decreased
+    const balanceAfterHold = await executorWrapper.getStablecoinBalance(
+      context.accountId!,
+      tokenId
+    );
+    expect(Number(balanceAfterHold)).toBe(Number(initialBalance) - 10);
   });
 });

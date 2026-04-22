@@ -8,11 +8,9 @@ import {
   UsdToHbarService,
   BALANCE_TIERS,
 } from '../test-utils';
-import associateTool from '@/tools/account/associate-stablecoin';
 import isAssociatedTool from '@/tools/account/is-account-associated';
-import getBalanceTool from '@/tools/account/get-stablecoin-balance';
 
-describe('Account Operations Integration Tests', () => {
+describe('Is Account Associated Integration Tests', () => {
   let operatorClient: Client;
   let executorClient: Client;
   let operatorWrapper: HederaOperationsWrapper;
@@ -35,7 +33,7 @@ describe('Account Operations Integration Tests', () => {
       .createAccount({
         key: executorKey.publicKey,
         initialBalance: UsdToHbarService.usdToHbar(BALANCE_TIERS.ELEVATED),
-        accountMemo: 'executor account for Account Operations Integration Tests',
+        accountMemo: 'executor account for Is Associated Integration Tests',
       })
       .then((resp) => resp.accountId!);
 
@@ -57,12 +55,24 @@ describe('Account Operations Integration Tests', () => {
       privateKey: executorKey.toStringDer(),
     };
 
-    tokenId = await executorWrapper.createStablecoin({
-      name: `Account Ops Test ${Date.now()}`,
-      symbol: 'AOT',
-      config,
+    tokenId = await operatorWrapper.createStablecoin({
+      name: `Is Associated Test ${Date.now()}`,
+      symbol: 'IAT',
+      config: {
+          accountId: operatorClient.operatorAccountId!.toString(),
+          privateKey: process.env.PRIVATE_KEY!
+      },
       context,
     });
+
+    // Associate using wrapper
+    await executorWrapper.associateToken({
+        accountId: executorAccountId.toString(),
+        tokenId,
+        privateKey: executorKey
+    });
+
+    await executorWrapper.waitForAssociation(executorAccountId.toString(), tokenId);
   }, 120000);
 
   afterAll(async () => {
@@ -82,40 +92,14 @@ describe('Account Operations Integration Tests', () => {
     }
   });
 
-  it('should associate the agent account and check its status and balance', async () => {
-    const associate = associateTool(context, config);
+  it('should check if account is associated', async () => {
     const isAssociated = isAssociatedTool(context, config);
-    const getBalance = getBalanceTool(context, config);
 
-    // 1. Check initial status 
-    let statusRes: any = await isAssociated.execute(executorClient, context, {
+    const result: any = await isAssociated.execute(executorClient, context, {
       tokenId,
       targetId: context.accountId!,
     });
     
-    // 2. Associate (using the tool)
-    // NOTE: The creator might already be associated, but we test the tool flow.
-    await associate.execute(executorClient, context, {
-      tokenId,
-      targetId: context.accountId!,
-    });
-
-    // 3. Wait for indexing
-    await executorWrapper.waitForAssociation(context.accountId!, tokenId);
-
-    // 4. Check status again (should be true)
-    statusRes = await isAssociated.execute(executorClient, context, {
-      tokenId,
-      targetId: context.accountId!,
-    });
-    expect(statusRes.raw.isAssociated).toBe(true);
-
-    // 5. Get balance
-    const balanceRes: any = await getBalance.execute(executorClient, context, {
-      tokenId,
-      targetId: context.accountId!,
-    });
-    expect(balanceRes.raw.balance).toBeDefined();
-    expect(balanceRes.humanMessage).toContain('Balance of token');
+    expect(result.raw.isAssociated).toBe(true);
   });
 });

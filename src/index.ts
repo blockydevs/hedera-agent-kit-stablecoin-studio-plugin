@@ -45,9 +45,7 @@ import revokeRoleStablecoinTool, {
 import updateReserveAddressTool, {
   UPDATE_RESERVE_ADDRESS_STABLECOIN_TOOL,
 } from './tools/lifecycle/update-reserve-address';
-import transferStablecoinTool, {
-  TRANSFER_STABLECOIN_TOOL,
-} from './tools/supply/transfer-stablecoin';
+
 import createHoldTool, { CREATE_HOLD_STABLECOIN_TOOL } from './tools/supply/create-hold';
 import executeHoldTool, { EXECUTE_HOLD_STABLECOIN_TOOL } from './tools/supply/execute-hold';
 import releaseHoldTool, { RELEASE_HOLD_STABLECOIN_TOOL } from './tools/supply/release-hold';
@@ -93,7 +91,7 @@ export const createStablecoinStudioPlugin = (config: {
       grantRoleStablecoinTool(context, config),
       revokeRoleStablecoinTool(context, config),
       updateReserveAddressTool(context, config),
-      transferStablecoinTool(context, config),
+
       createHoldTool(context, config),
       executeHoldTool(context, config),
       releaseHoldTool(context, config),
@@ -127,7 +125,7 @@ export const stablecoinStudioPluginToolNames = {
   GRANT_ROLE_STABLECOIN_TOOL,
   REVOKE_ROLE_STABLECOIN_TOOL,
   UPDATE_RESERVE_ADDRESS_STABLECOIN_TOOL,
-  TRANSFER_STABLECOIN_TOOL,
+
   CREATE_HOLD_STABLECOIN_TOOL,
   EXECUTE_HOLD_STABLECOIN_TOOL,
   RELEASE_HOLD_STABLECOIN_TOOL,
@@ -160,10 +158,8 @@ export {
   GRANT_ROLE_STABLECOIN_TOOL,
   REVOKE_ROLE_STABLECOIN_TOOL,
   UPDATE_RESERVE_ADDRESS_STABLECOIN_TOOL,
-  TRANSFER_STABLECOIN_TOOL,
   CREATE_HOLD_STABLECOIN_TOOL,
   EXECUTE_HOLD_STABLECOIN_TOOL,
   RELEASE_HOLD_STABLECOIN_TOOL,
   RECLAIM_HOLD_STABLECOIN_TOOL,
 };
-

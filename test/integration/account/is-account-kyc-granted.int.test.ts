@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
-import { Client, PrivateKey } from '@hiero-ledger/sdk';
+import { Client, PrivateKey, AccountId } from '@hiero-ledger/sdk';
 import { AgentMode, type Context } from '@hashgraph/hedera-agent-kit';
 import {
   getOperatorClientForTests,
@@ -9,16 +9,16 @@ import {
   BALANCE_TIERS,
   wait,
 } from '../test-utils';
-import pauseStablecoinTool from '@/tools/lifecycle/pause-stablecoin';
-import unpauseStablecoinTool from '@/tools/lifecycle/unpause-stablecoin';
+import isKycGrantedTool from '@/tools/account/is-account-kyc-granted';
 
-describe('Pause/Unpause Stablecoin Integration Tests', () => {
+describe('Is Account KYC Granted Integration Tests', () => {
   let operatorClient: Client;
   let executorClient: Client;
   let operatorWrapper: HederaOperationsWrapper;
   let executorWrapper: HederaOperationsWrapper;
   let context: Context;
   let tokenId: string;
+  let userAccountId: string;
   let config: any;
 
   beforeAll(async () => {
@@ -29,13 +29,12 @@ describe('Pause/Unpause Stablecoin Integration Tests', () => {
       PrivateKey.fromStringECDSA(process.env.PRIVATE_KEY || '')
     );
 
-    // Create executor account
     const executorKey = PrivateKey.generateECDSA();
     const executorAccountId = await operatorWrapper
       .createAccount({
         key: executorKey.publicKey,
         initialBalance: UsdToHbarService.usdToHbar(BALANCE_TIERS.ELEVATED),
-        accountMemo: 'executor account for Pause Unpause Integration Tests',
+        accountMemo: 'executor account for Is KYC Granted Integration Tests',
       })
       .then((resp) => resp.accountId!);
 
@@ -58,11 +57,37 @@ describe('Pause/Unpause Stablecoin Integration Tests', () => {
     };
 
     tokenId = await executorWrapper.createStablecoin({
-      name: `Pause Test ${Date.now()}`,
-      symbol: 'PST',
+      name: `KYC Test ${Date.now()}`,
+      symbol: 'KYC',
       config,
       context,
     });
+
+    const newKey = PrivateKey.generateECDSA();
+    userAccountId = await executorWrapper
+      .createAccount({
+        key: newKey.publicKey,
+        initialBalance: UsdToHbarService.usdToHbar(BALANCE_TIERS.MINIMAL),
+        accountMemo: 'kyc target account',
+      })
+      .then((resp) => resp.accountId!.toString());
+
+    await executorWrapper.waitForAccount(userAccountId);
+
+    const userWrapper = new HederaOperationsWrapper(
+      getCustomClient(AccountId.fromString(userAccountId), newKey),
+      newKey
+    );
+    await userWrapper.associateToken({ accountId: userAccountId, tokenId, privateKey: newKey });
+    await userWrapper.waitForAssociation(userAccountId, tokenId);
+
+    await executorWrapper.grantKyc({
+      accountId: userAccountId,
+      tokenId,
+    });
+    await executorWrapper.waitForKyc(userAccountId, tokenId);
+
+    await wait(); 
   }, 120000);
 
   afterAll(async () => {
@@ -82,20 +107,14 @@ describe('Pause/Unpause Stablecoin Integration Tests', () => {
     }
   });
 
-  it('should pause and then unpause the stablecoin', async () => {
-    const pause = pauseStablecoinTool(context, config);
-    const unpause = unpauseStablecoinTool(context, config);
+  it('should check if KYC is granted', async () => {
+    const isKycGranted = isKycGrantedTool(context, config);
 
-    // Pause
-    await pause.execute(executorClient, context, { tokenId });
-    await wait();
-    let info = await executorWrapper.getStablecoinInfo(tokenId);
-    expect(info.paused).toBe(true);
-
-    // Unpause
-    await unpause.execute(executorClient, context, { tokenId });
-    await wait();
-    info = await executorWrapper.getStablecoinInfo(tokenId);
-    expect(info.paused).toBe(false);
+    const result: any = await isKycGranted.execute(executorClient, context, {
+      tokenId,
+      targetId: userAccountId,
+    });
+    
+    expect(result.raw.isKycGranted).toBe(true);
   });
 });

@@ -9,15 +9,9 @@ import {
   BALANCE_TIERS,
   wait,
 } from '../test-utils';
-import { initSdk, connectSdk } from '@/stablecoin-sdk-utils';
-import freezeTool from '@/tools/account/freeze-account';
 import unfreezeTool from '@/tools/account/unfreeze-account';
-import isFrozenTool from '@/tools/account/is-account-frozen';
-import grantKycTool from '@/tools/account/grant-kyc';
-import revokeKycTool from '@/tools/account/revoke-kyc';
-import isKycGrantedTool from '@/tools/account/is-account-kyc-granted';
 
-describe('Freeze and KYC Operations Integration Tests', () => {
+describe('Unfreeze Account Integration Tests', () => {
   let operatorClient: Client;
   let executorClient: Client;
   let operatorWrapper: HederaOperationsWrapper;
@@ -35,13 +29,12 @@ describe('Freeze and KYC Operations Integration Tests', () => {
       PrivateKey.fromStringECDSA(process.env.PRIVATE_KEY || '')
     );
 
-    // Create executor account
     const executorKey = PrivateKey.generateECDSA();
     const executorAccountId = await operatorWrapper
       .createAccount({
         key: executorKey.publicKey,
         initialBalance: UsdToHbarService.usdToHbar(BALANCE_TIERS.ELEVATED),
-        accountMemo: 'executor account for Freeze KYC Integration Tests',
+        accountMemo: 'executor account for Unfreeze Integration Tests',
       })
       .then((resp) => resp.accountId!);
 
@@ -63,27 +56,24 @@ describe('Freeze and KYC Operations Integration Tests', () => {
       privateKey: executorKey.toStringDer(),
     };
 
-    // 1. Create a stablecoin with freeze and KYC roles
     tokenId = await executorWrapper.createStablecoin({
-      name: `Freeze KYC Test ${Date.now()}`,
-      symbol: 'FKR',
+      name: `Unfreeze Test ${Date.now()}`,
+      symbol: 'UFRZ',
       config,
       context,
     });
 
-    // 2. Create a test account
     const newKey = PrivateKey.generateECDSA();
     userAccountId = await executorWrapper
       .createAccount({
         key: newKey.publicKey,
         initialBalance: UsdToHbarService.usdToHbar(BALANCE_TIERS.MINIMAL),
-        accountMemo: 'freeze/kyc target account',
+        accountMemo: 'unfreeze target account',
       })
       .then((resp) => resp.accountId!.toString());
 
     await executorWrapper.waitForAccount(userAccountId);
 
-    // 3. Associate the test account properly using its own key
     const userWrapper = new HederaOperationsWrapper(
       getCustomClient(AccountId.fromString(userAccountId), newKey),
       newKey
@@ -91,11 +81,13 @@ describe('Freeze and KYC Operations Integration Tests', () => {
     await userWrapper.associateToken({ accountId: userAccountId, tokenId, privateKey: newKey });
     await userWrapper.waitForAssociation(userAccountId, tokenId);
 
-    await wait(); // Additional safety wait for consistency across SDK handlers
-    
-    const network = 'testnet';
-    await initSdk(network, config);
-    await connectSdk(network, config, context);
+    // Freeze the account first to test unfreeze
+    await executorWrapper.freezeAccount({
+      tokenId,
+      accountId: userAccountId,
+    });
+
+    await wait(); 
   }, 120000);
 
   afterAll(async () => {
@@ -115,75 +107,14 @@ describe('Freeze and KYC Operations Integration Tests', () => {
     }
   });
 
-  it('should manage account freeze status', async () => {
-    const isFrozen = isFrozenTool(context, config);
-    const freeze = freezeTool(context, config);
+  it('should unfreeze account', async () => {
     const unfreeze = unfreezeTool(context, config);
 
-    // Initial status
-    let statusRes: any = await isFrozen.execute(executorClient, context, {
+    const result: any = await unfreeze.execute(executorClient, context, {
       tokenId,
       targetId: userAccountId,
     });
-    expect(statusRes.raw.isFrozen).toBe(false);
-
-    // Freeze
-    await freeze.execute(executorClient, context, {
-      tokenId,
-      targetId: userAccountId,
-    });
-    await wait();
-
-    statusRes = await isFrozen.execute(executorClient, context, {
-      tokenId,
-      targetId: userAccountId,
-    });
-    expect(statusRes.raw.isFrozen).toBe(true);
-
-    // Unfreeze
-    await unfreeze.execute(executorClient, context, {
-      tokenId,
-      targetId: userAccountId,
-    });
-    await wait(10000); // More time for mirror node
-
-    statusRes = await isFrozen.execute(executorClient, context, {
-      tokenId,
-      targetId: userAccountId,
-    });
-    expect(statusRes.raw.isFrozen).toBe(false);
-  });
-
-  it('should manage account KYC status', async () => {
-    const isKycGranted = isKycGrantedTool(context, config);
-    const grantKyc = grantKycTool(context, config);
-    const revokeKyc = revokeKycTool(context, config);
-
-    // Grant KYC
-    const grantRes: any = await grantKyc.execute(executorClient, context, {
-      tokenId,
-      targetId: userAccountId,
-    });
-    expect(grantRes.humanMessage).toContain('Successfully granted KYC to account for stablecoin');
-    await wait();
-
-    let statusRes: any = await isKycGranted.execute(executorClient, context, {
-      tokenId,
-      targetId: userAccountId,
-    });
-    expect(statusRes.raw.isKycGranted).toBe(true);
-
-    // Revoke KYC
-    await revokeKyc.execute(executorClient, context, {
-      tokenId,
-      targetId: userAccountId,
-    });
-    await wait();
-
-    statusRes = await isKycGranted.execute(executorClient, context, {
-      tokenId,
-      targetId: userAccountId,
-    });
-    expect(statusRes.raw.isKycGranted).toBe(false);
+    
+    expect(result.humanMessage).toContain('Successfully unfroze account');
   });
 });
