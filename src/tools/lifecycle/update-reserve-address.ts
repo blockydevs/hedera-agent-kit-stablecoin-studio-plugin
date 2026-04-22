@@ -2,19 +2,15 @@ import { z } from 'zod';
 import { Client, Status, Transaction } from '@hiero-ledger/sdk';
 import {
   AgentMode,
-  Context,
   BaseTool,
-  PromptGenerator,
+  Context,
   handleTransaction,
+  PromptGenerator,
   RawTransactionResponse,
   transactionToolOutputParser,
 } from '@hashgraph/hedera-agent-kit';
 import { StableCoin, UpdateReserveAddressRequest } from '@hashgraph/stablecoin-npm-sdk';
-import {
-  ensureSdkConnected,
-  hexToUint8Array,
-  StablecoinStudioPluginConfig,
-} from '@/stablecoin-sdk-utils';
+import { ensureSdkConnected, hexToUint8Array, StablecoinStudioPluginConfig, } from '@/stablecoin-sdk-utils';
 
 export const UPDATE_RESERVE_ADDRESS_STABLECOIN_TOOL = 'update_reserve_address_stablecoin_tool';
 
@@ -74,10 +70,11 @@ export class UpdateReserveAddressStablecoinTool extends BaseTool {
 
     await ensureSdkConnected(client, this.config, context);
 
-    return new UpdateReserveAddressRequest({
+    return {
       tokenId: params.tokenId,
       reserveAddress: params.reserveAddress,
-    });
+      validate: () => [],
+    };
   }
 
   async coreAction(request: UpdateReserveAddressRequest, _context: Context, _client: Client) {

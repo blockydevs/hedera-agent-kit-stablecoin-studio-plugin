@@ -85,7 +85,7 @@ describe('Delete Stablecoin Integration Tests', () => {
     const tool = deleteStablecoinTool(context, config);
 
     await tool.execute(executorClient, context, { tokenId });
-    await wait();
+    await wait(5000);
 
     const info = await executorWrapper.getStablecoinInfo(tokenId);
     expect(info.deleted).toBe(true);

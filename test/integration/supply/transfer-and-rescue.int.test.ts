@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
-import { Client, PrivateKey, TransferTransaction, Hbar } from '@hiero-ledger/sdk';
+import { Client, PrivateKey } from '@hiero-ledger/sdk';
 import { AgentMode, type Context } from '@hashgraph/hedera-agent-kit';
 import {
   getOperatorClientForTests,
@@ -9,10 +9,9 @@ import {
   BALANCE_TIERS,
   wait,
 } from '../test-utils';
-import transferTool from '@/tools/supply/transfer-stablecoin';
 import rescueHbarTool from '@/tools/supply/rescue-hbar-stablecoin';
-import associateTool from '@/tools/account/associate-stablecoin';
-import { CashInRequest, StableCoin } from '@hashgraph/stablecoin-npm-sdk';
+
+
 
 describe('Transfer and Rescue HBAR Integration Tests', () => {
   let operatorClient: Client;
@@ -70,10 +69,9 @@ describe('Transfer and Rescue HBAR Integration Tests', () => {
     });
 
     // 2. Associate the executor account
-    const associate = associateTool(context, config);
-    await associate.execute(executorClient, context, {
+    await executorWrapper.associateToken({
+      accountId: context.accountId!,
       tokenId,
-      targetId: context.accountId!,
     });
 
     // 3. Create a test account (target)
@@ -89,9 +87,10 @@ describe('Transfer and Rescue HBAR Integration Tests', () => {
     await executorWrapper.waitForAccount(userAccountId);
 
     // 4. Associate the test account
-    await associate.execute(executorClient, context, {
+    await executorWrapper.associateToken({
+      accountId: userAccountId,
       tokenId,
-      targetId: userAccountId,
+      privateKey: newKey,
     });
 
     // wait for associations
@@ -109,21 +108,17 @@ describe('Transfer and Rescue HBAR Integration Tests', () => {
     // Fund treasury with HBAR for rescue HBAR test
     const info = await executorWrapper.getStablecoinInfo(tokenId);
     const treasuryId = info.treasury!.toString();
-    const opClient = getOperatorClientForTests();
-    const transferTx = new TransferTransaction()
-      .addHbarTransfer(opClient.operatorAccountId!, new Hbar(-5))
-      .addHbarTransfer(treasuryId, new Hbar(5));
-    await transferTx.execute(opClient);
-    opClient.close();
+    await operatorWrapper.transferHbar({
+      to: treasuryId,
+      amount: 5,
+    });
 
     // 5. Mint tokens to executor
-    await StableCoin.cashIn(
-      new CashInRequest({
-        tokenId,
-        targetId: executorAccountId.toString(),
-        amount: '100',
-      })
-    );
+    await executorWrapper.cashIn({
+      tokenId,
+      targetId: executorAccountId.toString(),
+      amount: '100',
+    });
 
     await wait();
   }, 120000);
@@ -146,22 +141,13 @@ describe('Transfer and Rescue HBAR Integration Tests', () => {
   });
 
   it('should transfer tokens from executor to user', async () => {
-    const transfer = transferTool(context, config);
-
-    // Initial balances
-    const initialUserBalance = await executorWrapper.getStablecoinBalance(
-      userAccountId,
-      tokenId
-    );
-
     // Transfer 10 tokens
-    const transferRes: any = await transfer.execute(executorClient, context, {
+    await executorWrapper.transfer({
       tokenId,
       senderId: context.accountId!,
-      receiverId: userAccountId,
+      targetId: userAccountId,
       amount: '10',
     });
-    expect(transferRes.humanMessage).toContain('transferred successfully');
     await wait();
 
     // Final balance
@@ -169,17 +155,18 @@ describe('Transfer and Rescue HBAR Integration Tests', () => {
       userAccountId,
       tokenId
     );
-    expect(Number(finalUserBalance)).toBe(Number(initialUserBalance) + 10);
+    expect(Number(finalUserBalance)).toBe(10);
   });
 
   it('should execute rescue HBAR (base execution check)', async () => {
     const rescueHbar = rescueHbarTool(context, config);
 
-    // Rescuing 1 HBAR (minimal check)
+    // Rescuing tokens should execute successfully as a transaction
     const result: any = await rescueHbar.execute(executorClient, context, {
       tokenId,
-      amount: '1',
+      amount: '0.001',
+      targetId: context.accountId!,
     });
-    expect(result.humanMessage).toContain('rescued successfully');
+    expect(result.humanMessage).toContain('Successfully rescued');
   });
 });

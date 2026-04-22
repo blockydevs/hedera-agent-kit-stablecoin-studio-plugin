@@ -10,9 +10,8 @@ import {
   wait,
 } from '../test-utils';
 import reclaimHoldTool from '@/tools/supply/reclaim-hold';
-import createHoldTool from '@/tools/supply/create-hold';
-import associateTool from '@/tools/account/associate-stablecoin';
-import { CashInRequest, StableCoin } from '@hashgraph/stablecoin-npm-sdk';
+
+
 
 describe('Reclaim Hold Integration Tests', () => {
   let operatorClient: Client;
@@ -68,10 +67,9 @@ describe('Reclaim Hold Integration Tests', () => {
     });
 
     // 2. Associate the executor account
-    const associate = associateTool(context, config);
-    await associate.execute(executorClient, context, {
+    await executorWrapper.associateToken({
       tokenId,
-      targetId: context.accountId!,
+      accountId: context.accountId!,
     });
 
     // wait for association to be indexed
@@ -87,13 +85,11 @@ describe('Reclaim Hold Integration Tests', () => {
     await executorWrapper.waitForKyc(context.accountId!, tokenId);
 
     // 3. Mint some tokens to the executor
-    await StableCoin.cashIn(
-      new CashInRequest({
-        tokenId,
-        targetId: executorAccountId.toString(),
-        amount: '100',
-      })
-    );
+    await executorWrapper.cashIn({
+      tokenId,
+      targetId: executorAccountId.toString(),
+      amount: '100',
+    });
 
     await wait();
   }, 120000);
@@ -116,18 +112,17 @@ describe('Reclaim Hold Integration Tests', () => {
   });
 
   it('should fail to reclaim a hold that has not expired', async () => {
-    const createHold = createHoldTool(context, config);
     const reclaimHold = reclaimHoldTool(context, config);
 
     // 1. Create a hold with 1 hour expiration
     const expirationDate = (Math.floor(Date.now() / 1000) + 3600).toString();
-    const createRes: any = await createHold.execute(executorClient, context, {
+    const createRes = await executorWrapper.createHold({
       tokenId,
       amount: '10',
       escrow: context.accountId!,
       expirationDate,
     });
-    const holdId = createRes.raw.holdId;
+    const holdId = createRes.holdId;
 
     // 2. Attempt to reclaim
     const reclaimRes: any = await reclaimHold.execute(executorClient, context, {
@@ -141,7 +136,6 @@ describe('Reclaim Hold Integration Tests', () => {
   });
 
   it('should successfully reclaim an expired hold', async () => {
-    const createHold = createHoldTool(context, config);
     const reclaimHold = reclaimHoldTool(context, config);
 
     // 1. Check initial balance - wait for previous test holds to settle
@@ -151,15 +145,15 @@ describe('Reclaim Hold Integration Tests', () => {
       tokenId
     );
 
-    // 2. Create a hold with a very short expiration (2 seconds)
-    const expirationDate = (Math.floor(Date.now() / 1000) + 2).toString();
-    const createRes: any = await createHold.execute(executorClient, context, {
+    // 2. Create a hold that expires almost immediately (10 seconds)
+    const expirationDate = (Math.floor(Date.now() / 1000) + 10).toString();
+    const createRes = await executorWrapper.createHold({
       tokenId,
       amount: '20',
       escrow: context.accountId!,
       expirationDate,
     });
-    const holdId = createRes.raw.holdId;
+    const holdId = createRes.holdId;
 
     // 3. Wait for balance to sync and verify it decreased by 20 (held)
     console.log(`Hold created with ID: ${holdId}`);
@@ -172,8 +166,8 @@ describe('Reclaim Hold Integration Tests', () => {
     console.log(`Balance after hold: ${balanceAfterHold} (initial: ${initialBalance})`);
     expect(Number(balanceAfterHold)).toBe(Number(initialBalance) - 20);
 
-    // 4. Wait for expiration (total 5 seconds from creation)
-    await wait(5000);
+    // 4. Wait for it to expire
+    await wait(15000); // Wait 25 seconds from creation)
 
     // 5. Reclaim the hold
     const reclaimRes: any = await reclaimHold.execute(executorClient, context, {
@@ -183,6 +177,7 @@ describe('Reclaim Hold Integration Tests', () => {
     });
 
     expect(reclaimRes.humanMessage).toContain('Successfully reclaimed hold');
+    await wait();
 
     // 6. Verify balance returned to initial
     const finalBalance = await executorWrapper.getStablecoinBalance(
@@ -190,5 +185,5 @@ describe('Reclaim Hold Integration Tests', () => {
       tokenId
     );
     expect(finalBalance.toString()).toBe(initialBalance.toString());
-  }, 60000);
+  }, 120000);
 });

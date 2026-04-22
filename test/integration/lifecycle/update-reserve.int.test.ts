@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { Client, PrivateKey } from '@hiero-ledger/sdk';
 import { AgentMode, type Context } from '@hashgraph/hedera-agent-kit';
+import updateReserveAddressTool from '@/tools/lifecycle/update-reserve-address';
 import {
   getOperatorClientForTests,
   getCustomClient,
@@ -9,7 +10,7 @@ import {
   BALANCE_TIERS,
   wait,
 } from '../test-utils';
-import updateReserveAddressTool from '@/tools/lifecycle/update-reserve-address';
+
 
 describe('Update Reserve Address Integration Tests', () => {
   let operatorClient: Client;
@@ -84,14 +85,16 @@ describe('Update Reserve Address Integration Tests', () => {
   });
 
   it('should update the reserve address (base execution check)', async () => {
+    const info = await executorWrapper.getStablecoinInfo(tokenId);
+    const proxyAddress = info.proxyAddress?.toString() || info.evmProxyAddress?.toString() || '';
+    
     const tool = updateReserveAddressTool(context, config);
 
-    // Update to ourselves as a simple check
     const result: any = await tool.execute(executorClient, context, {
       tokenId,
-      reserveAddress: context.accountId!,
+      reserveAddress: proxyAddress,
     });
 
-    expect(result.humanMessage).toContain('updated successfully');
+    expect(result.humanMessage).toContain('Reserve address updated successfully');
   });
 });

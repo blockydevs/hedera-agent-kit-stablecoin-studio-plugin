@@ -1,4 +1,4 @@
-import { Client, AccountId, PrivateKey, LedgerId, TokenId, AccountInfoQuery, TokenInfoQuery, Hbar, TokenAssociateTransaction, TokenGrantKycTransaction, TokenUnfreezeTransaction } from '@hiero-ledger/sdk';
+import { Client, AccountId, PrivateKey, LedgerId, TokenId, AccountInfoQuery, TokenInfoQuery, Hbar, TokenAssociateTransaction, TransferTransaction } from '@hiero-ledger/sdk';
 import { z } from 'zod';
 import {
   StableCoin,
@@ -9,6 +9,10 @@ import {
   Account,
   KYCRequest,
   FreezeAccountRequest,
+  CreateHoldRequest,
+  ReleaseHoldRequest,
+  ReclaimHoldRequest,
+  CashInRequest,
 } from '@hashgraph/stablecoin-npm-sdk';
 import { Context, HederaMirrornodeServiceDefaultImpl, HederaBuilder, ExecuteStrategy } from '@hashgraph/hedera-agent-kit';
 import { initSdk, connectSdkClientMode, resolveNetwork, StablecoinStudioPluginConfig } from '@/stablecoin-sdk-utils';
@@ -128,6 +132,20 @@ export class HederaOperationsWrapper {
     };
   }
 
+  async transferHbar(params: { to: string; amount: number }) {
+    const transaction = new TransferTransaction()
+      .addHbarTransfer(this.client.operatorAccountId!, new Hbar(-params.amount))
+      .addHbarTransfer(params.to, new Hbar(params.amount));
+
+    const txResponse = await transaction.execute(this.client);
+    const receipt = await txResponse.getReceipt(this.client);
+
+    return {
+      status: receipt.status.toString(),
+      transactionId: txResponse.transactionId.toString(),
+    };
+  }
+
   async grantKyc(params: { accountId: string; tokenId: string }) {
     const network = resolveNetwork(this.client, { accountId: this.client.operatorAccountId!.toString() });
     await connectSdkClientMode(network, {
@@ -138,6 +156,121 @@ export class HederaOperationsWrapper {
       tokenId: params.tokenId,
       targetId: params.accountId,
     }));
+    return { status: 'SUCCESS' };
+  }
+
+  async cashIn(params: { tokenId: string; targetId: string; amount: string }) {
+    const network = resolveNetwork(this.client, { accountId: this.client.operatorAccountId!.toString() });
+    await connectSdkClientMode(network, {
+      accountId: this.client.operatorAccountId!.toString(),
+      privateKey: this.operatorPrivateKey!.toStringDer(),
+    });
+
+    await StableCoin.cashIn(
+      new CashInRequest({
+        tokenId: params.tokenId,
+        targetId: params.targetId,
+        amount: params.amount,
+      })
+    );
+    return { status: 'SUCCESS' };
+  }
+
+  async createHold(params: {
+    tokenId: string;
+    amount: string;
+    escrow: string;
+    expirationDate: string;
+    targetId?: string;
+  }) {
+    const network = resolveNetwork(this.client, { accountId: this.client.operatorAccountId!.toString() });
+    await connectSdkClientMode(network, {
+      accountId: this.client.operatorAccountId!.toString(),
+      privateKey: this.operatorPrivateKey!.toStringDer(),
+    });
+
+    const result = await StableCoin.createHold(
+      new CreateHoldRequest({
+        tokenId: params.tokenId,
+        amount: params.amount,
+        escrow: params.escrow,
+        expirationDate: params.expirationDate,
+        targetId: params.targetId,
+      })
+    );
+
+    return {
+      status: 'SUCCESS',
+      transactionId: result.transactionId?.toString(),
+      holdId: result.holdId ? Number(result.holdId.toString()) : undefined,
+    };
+  }
+
+  async releaseHold(params: {
+    tokenId: string;
+    holdId: number;
+    amount: string;
+    sourceId: string;
+  }) {
+    const network = resolveNetwork(this.client, { accountId: this.client.operatorAccountId!.toString() });
+    await connectSdkClientMode(network, {
+      accountId: this.client.operatorAccountId!.toString(),
+      privateKey: this.operatorPrivateKey!.toStringDer(),
+    });
+
+    await StableCoin.releaseHold(
+      new ReleaseHoldRequest({
+        tokenId: params.tokenId,
+        holdId: params.holdId,
+        amount: params.amount,
+        sourceId: params.sourceId,
+      })
+    );
+    return { status: 'SUCCESS' };
+  }
+
+  async reclaimHold(params: { tokenId: string; holdId: number; sourceId: string }) {
+    const network = resolveNetwork(this.client, { accountId: this.client.operatorAccountId!.toString() });
+    await connectSdkClientMode(network, {
+      accountId: this.client.operatorAccountId!.toString(),
+      privateKey: this.operatorPrivateKey!.toStringDer(),
+    });
+
+    await StableCoin.reclaimHold(
+      new ReclaimHoldRequest({
+        tokenId: params.tokenId,
+        holdId: params.holdId,
+        sourceId: params.sourceId,
+      })
+    );
+    return { status: 'SUCCESS' };
+  }
+
+  async updateReserveAddress(params: { tokenId: string; reserveAddress: string }) {
+    const network = resolveNetwork(this.client, { accountId: this.client.operatorAccountId!.toString() });
+    await connectSdkClientMode(network, {
+      accountId: this.client.operatorAccountId!.toString(),
+      privateKey: this.operatorPrivateKey!.toStringDer(),
+    });
+
+    const req = {
+      tokenId: params.tokenId,
+      reserveAddress: params.reserveAddress,
+      validate: () => [],
+    };
+
+    await StableCoin.updateReserveAddress(req as any);
+    return { status: 'SUCCESS' };
+  }
+
+  async transfer(params: { tokenId: string; targetId: string; amount: string; senderId?: string }) {
+    // We assume 6 decimals as per createStablecoin default
+    const amountBase = Math.round(Number(params.amount) * 1000000);
+    const tx = new TransferTransaction()
+      .addTokenTransfer(params.tokenId, params.senderId || this.client.operatorAccountId!.toString(), -amountBase)
+      .addTokenTransfer(params.tokenId, params.targetId, amountBase);
+
+    await tx.execute(this.client);
     return { status: 'SUCCESS' };
   }
 
@@ -154,7 +287,8 @@ export class HederaOperationsWrapper {
     return { status: 'SUCCESS' };
   }
 
-  async waitForAssociation(accountId: string, tokenId: string, maxRetries = 30) {
+  async waitForAssociation(accountId: string, tokenId: string, maxRetries = 5) {
+    await wait();
     const network = this.client.ledgerId?.isMainnet() ? 'mainnet' : 'testnet';
     const url = `https://${network}.mirrornode.hedera.com/api/v1/accounts/${accountId}/tokens?token.id=${tokenId}`;
 
@@ -176,7 +310,7 @@ export class HederaOperationsWrapper {
     throw new Error(`Timeout waiting for mirror node association between ${accountId} and ${tokenId}`);
   }
 
-  async waitForKyc(accountId: string, tokenId: string, maxRetries = 60) {
+  async waitForKyc(accountId: string, tokenId: string, maxRetries = 5) {
     const network = this.client.ledgerId?.isMainnet() ? 'mainnet' : 'testnet';
     const url = `https://${network}.mirrornode.hedera.com/api/v1/accounts/${accountId}/tokens?token.id=${tokenId}`;
 

@@ -92,7 +92,7 @@ describe('Update Stablecoin Integration Tests', () => {
       name: newName,
       symbol: newSymbol,
     });
-    await wait();
+    await wait(5000);
 
     const info = await executorWrapper.getStablecoinInfo(tokenId);
     expect(info.name).toBe(newName);

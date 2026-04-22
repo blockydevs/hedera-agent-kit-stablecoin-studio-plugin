@@ -11,8 +11,8 @@ import {
 } from '../test-utils';
 import rescueStablecoinTool from '@/tools/supply/rescue-stablecoin';
 import rescueHbarStablecoinTool from '@/tools/supply/rescue-hbar-stablecoin';
-import associateTool from '@/tools/account/associate-stablecoin';
-import { CashInRequest, StableCoin } from '@hashgraph/stablecoin-npm-sdk';
+
+
 
 describe('Rescue Operations Integration Tests', () => {
   let operatorClient: Client;
@@ -67,10 +67,9 @@ describe('Rescue Operations Integration Tests', () => {
     });
 
     // 2. Associate the executor account
-    const associate = associateTool(context, config);
-    await associate.execute(executorClient, context, {
+    await executorWrapper.associateToken({
       tokenId,
-      targetId: context.accountId!,
+      accountId: context.accountId!,
     });
 
     // 3. Wait for association and grant KYC
@@ -87,33 +86,35 @@ describe('Rescue Operations Integration Tests', () => {
     const treasuryId = info.treasury!.toString();
 
     // Send 5 HBAR from operator to treasury to ensure it has balance to rescue
-    const opClient = getOperatorClientForTests();
-    const { TransferTransaction, Hbar } = await import('@hiero-ledger/sdk');
-    const transferTx = new TransferTransaction()
-      .addHbarTransfer(opClient.operatorAccountId!, new Hbar(-5))
-      .addHbarTransfer(treasuryId, new Hbar(5));
-    await transferTx.execute(opClient);
-    opClient.close();
+    await operatorWrapper.transferHbar({
+      to: treasuryId,
+      amount: 5,
+    });
 
     // 5. Send tokens to the token contract for rescue tokens test
     // To rescue tokens, they must be in the token contract address.
     // First mint some tokens to executor.
-    await StableCoin.cashIn(
-      new CashInRequest({
-        tokenId,
-        targetId: context.accountId!,
-        amount: '10',
-      })
-    );
+    await executorWrapper.cashIn({
+      tokenId,
+      targetId: context.accountId!,
+      amount: '100',
+    });
     await wait();
 
-    // Then transfer them to the token contract directly (EVM address)
-    // The token address is needed.
-    const info2 = await executorWrapper.getStablecoinInfo(tokenId);
-    const tokenAddress = info2.proxyAddress?.toString() || info2.evmProxyAddress?.toString() || '';
+    await executorWrapper.transfer({
+      tokenId,
+      targetId: treasuryId,
+      amount: '60',
+      senderId: context.accountId!,
+    });
 
-    const txResp = await transferTx.execute(executorClient);
-    await txResp.getReceipt(executorClient);
+    const tokenAddress = info.proxyAddress?.toString() || info.evmProxyAddress?.toString() || '';
+    await executorWrapper.transfer({
+      tokenId,
+      targetId: tokenAddress,
+      amount: '10',
+      senderId: context.accountId!,
+    });
 
     await wait();
   }, 120000);
@@ -144,7 +145,7 @@ describe('Rescue Operations Integration Tests', () => {
       amount: '1',
       targetId: context.accountId!,
     });
-    expect(result.humanMessage).toContain('rescued successfully');
+    expect(result.humanMessage).toContain('Successfully rescued');
   });
 
   it('should rescue HBAR (base test - execution check)', async () => {
@@ -156,6 +157,6 @@ describe('Rescue Operations Integration Tests', () => {
       amount: '0.01',
       targetId: context.accountId!,
     });
-    expect(result.humanMessage).toContain('rescued successfully');
+    expect(result.humanMessage).toContain('Successfully rescued');
   });
 });

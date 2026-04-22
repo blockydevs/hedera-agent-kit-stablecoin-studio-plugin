@@ -10,7 +10,7 @@ import {
   wait,
 } from '../test-utils';
 import wipeStablecoinTool from '@/tools/supply/wipe-stablecoin';
-import associateStablecoinTool from '@/tools/account/associate-stablecoin';
+
 import { CashInRequest, StableCoin } from '@hashgraph/stablecoin-npm-sdk';
 
 describe('Wipe Stablecoin Integration Tests', () => {
@@ -85,7 +85,6 @@ describe('Wipe Stablecoin Integration Tests', () => {
 
   it('should wipe tokens from another account', async () => {
     const wipe = wipeStablecoinTool(context, config);
-    const associate = associateStablecoinTool(context, config);
 
     // 1. Create a dummy account (target)
     const newKey = PrivateKey.generateECDSA();
@@ -100,9 +99,10 @@ describe('Wipe Stablecoin Integration Tests', () => {
     await executorWrapper.waitForAccount(userAccountId);
 
     // 2. Associate user with token
-    await associate.execute(executorClient, context, {
+    await executorWrapper.associateToken({
       tokenId,
-      targetId: userAccountId,
+      accountId: userAccountId,
+      privateKey: newKey,
     });
 
     // wait for association to be indexed
@@ -138,7 +138,10 @@ describe('Wipe Stablecoin Integration Tests', () => {
       amount: '50',
       targetId: userAccountId,
     });
-    balance = await executorWrapper.getStablecoinBalance(userAccountId, tokenId, 0);
+
+    await wait();
+
+    balance = await executorWrapper.getStablecoinBalance(userAccountId, tokenId);
     expect(balance.toString()).toBe('0');
   });
 });

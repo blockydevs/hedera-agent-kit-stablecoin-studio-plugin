@@ -9,10 +9,8 @@ import {
   BALANCE_TIERS,
   wait,
 } from '../test-utils';
-import createHoldTool from '@/tools/supply/create-hold';
 import releaseHoldTool from '@/tools/supply/release-hold';
-import associateTool from '@/tools/account/associate-stablecoin';
-import { CashInRequest, StableCoin } from '@hashgraph/stablecoin-npm-sdk';
+
 
 describe('Hold Release Operations Integration Tests', () => {
   let operatorClient: Client;
@@ -68,10 +66,9 @@ describe('Hold Release Operations Integration Tests', () => {
     });
 
     // 2. Associate the executor account
-    const associate = associateTool(context, config);
-    await associate.execute(executorClient, context, {
+    await executorWrapper.associateToken({
       tokenId,
-      targetId: context.accountId!,
+      accountId: context.accountId!,
     });
 
     // wait for association to be indexed
@@ -87,13 +84,11 @@ describe('Hold Release Operations Integration Tests', () => {
     await executorWrapper.waitForKyc(context.accountId!, tokenId);
 
     // 3. Mint tokens to executor
-    await StableCoin.cashIn(
-      new CashInRequest({
-        tokenId,
-        targetId: executorAccountId.toString(),
-        amount: '100',
-      })
-    );
+    await executorWrapper.cashIn({
+      tokenId,
+      targetId: executorAccountId.toString(),
+      amount: '100',
+    });
 
     await wait();
   }, 120000);
@@ -116,9 +111,6 @@ describe('Hold Release Operations Integration Tests', () => {
   });
 
   it('should create and release a hold', async () => {
-    const createHold = createHoldTool(context, config);
-    const releaseHold = releaseHoldTool(context, config);
-
     // 1. Check initial balance
     const initialBalance = await executorWrapper.getStablecoinBalance(
       context.accountId!,
@@ -127,13 +119,13 @@ describe('Hold Release Operations Integration Tests', () => {
 
     // 2. Create a hold (1 hour expiration)
     const expirationDate = (Math.floor(Date.now() / 1000) + 3600).toString();
-    const createRes: any = await createHold.execute(executorClient, context, {
+    const createRes = await executorWrapper.createHold({
       tokenId,
       amount: '10',
       escrow: context.accountId!,
       expirationDate,
     });
-    const holdId = createRes.raw.holdId;
+    const holdId = createRes.holdId;
     expect(holdId).toBeDefined();
 
     await wait();
@@ -146,9 +138,10 @@ describe('Hold Release Operations Integration Tests', () => {
     expect(Number(balanceAfterHold)).toBe(Number(initialBalance) - 10);
 
     // 4. Release the hold
+    const releaseHold = releaseHoldTool(context, config);
     const releaseRes: any = await releaseHold.execute(executorClient, context, {
       tokenId,
-      holdId,
+      holdId: holdId!,
       amount: '10',
       sourceId: context.accountId!,
     });
