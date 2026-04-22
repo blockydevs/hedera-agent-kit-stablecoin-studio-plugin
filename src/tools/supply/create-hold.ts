@@ -4,10 +4,10 @@ import {
   AgentMode,
   Context,
   BaseTool,
-  PromptGenerator,
   RawTransactionResponse,
   transactionToolOutputParser,
 } from '@hashgraph/hedera-agent-kit';
+import { PromptGenerator } from '@/shared/utils/prompt-generator';
 import {
   StableCoin,
   CreateHoldRequest,
@@ -36,21 +36,29 @@ Parameters:
 - amount (str, required): The amount of tokens to hold in display units (e.g., "50.5"). The tool will handle parsing to base units.
 - escrow (str, required): The account ID of the escrow agent (who can execute/release).
 - expirationDate (str, required): Unix timestamp (seconds) when the hold expires.
-- targetId (str, optional): The account ID whose tokens are being held. Defaults to sender.
+- accountId (str, optional): The Hedera account ID for the hold.
 ${usageInstructions}
 `;
 };
 
-const createHoldParameters = (_context: Context = {}) =>
-  z.object({
+const createHoldParameters = (context: Context = {}) => {
+  const accountId = (context as any).accountId;
+  return z.object({
     tokenId: z.string().describe('The Hedera token ID of the stablecoin (e.g., "0.0.123456")'),
     amount: z
       .string()
-      .describe('The amount of tokens to hold in display units (human-readable, e.g. "50.5")'),
+      .describe('The amount of tokens to hold in display units (human-readable, e.g. "100.5")'),
     escrow: z.string().describe('The account ID of the escrow agent (e.g., "0.0.789012")'),
     expirationDate: z.string().describe('Unix timestamp (seconds) for expiration'),
-    targetId: z.string().optional().describe('The account ID whose tokens are being held'),
+    accountId: z
+      .string()
+      .optional()
+      .default(accountId)
+      .describe(
+        `The Hedera account ID for the hold (e.g., "0.0.789012"). Default: ${accountId || 'operator account'}`,
+      ),
   });
+};
 
 const postProcess = (response: RawTransactionResponse) => {
   return `Successfully created hold for stablecoin.

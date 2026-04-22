@@ -5,10 +5,10 @@ import {
   BaseTool,
   Context,
   handleTransaction,
-  PromptGenerator,
   RawTransactionResponse,
   transactionToolOutputParser,
 } from '@hashgraph/hedera-agent-kit';
+import { PromptGenerator } from '@/shared/utils/prompt-generator';
 import { StableCoin, UpdateReserveAddressRequest } from '@hashgraph/stablecoin-npm-sdk';
 import { ensureSdkConnected, hexToUint8Array, StablecoinStudioPluginConfig, } from '@/stablecoin-sdk-utils';
 
@@ -25,18 +25,24 @@ This tool updates the reserve address for a stablecoin on the Hedera network. Th
 
 Parameters:
 - tokenId (str, required): The Hedera token ID of the stablecoin (e.g., "0.0.123456").
-- reserveAddress (str, required): The new Hedera account ID or smart contract address to use as the reserve.
+- reserveAddress (str, optional): The new Hedera account ID or smart contract address to use as the reserve. Defaults to the account ID in the context.
 ${usageInstructions}
 `;
 };
 
-const updateReserveAddressParameters = (_context: Context = {}) =>
-  z.object({
+const updateReserveAddressParameters = (context: Context = {}) => {
+  const accountId = (context as any).accountId;
+  return z.object({
     tokenId: z.string().describe('The Hedera token ID of the stablecoin (e.g., "0.0.123456")'),
     reserveAddress: z
       .string()
-      .describe('The new reserve account ID or contract address (e.g., "0.0.789012")'),
+      .optional()
+      .default(accountId)
+      .describe(
+        `The new reserve address. Default: ${accountId || 'operator account'}`,
+      ),
   });
+};
 
 const postProcess = (response: RawTransactionResponse) => {
   return `Reserve address updated successfully.
@@ -87,6 +93,13 @@ export class UpdateReserveAddressStablecoinTool extends BaseTool {
   }
 
   async secondaryAction(transaction: Transaction, client: Client, context: Context) {
+    console.log('DEBUG Tool context.mode:', context.mode, 'AgentMode.RETURN_BYTES:', AgentMode.RETURN_BYTES);
+    if (context.mode === AgentMode.RETURN_BYTES) {
+      return {
+        raw: transaction,
+        humanMessage: 'Transaction ready for signing.',
+      };
+    }
     return await handleTransaction(transaction, client, context, postProcess);
   }
 

@@ -4,11 +4,11 @@ import {
   AgentMode,
   Context,
   BaseTool,
-  PromptGenerator,
   handleTransaction,
   RawTransactionResponse,
   transactionToolOutputParser,
 } from '@hashgraph/hedera-agent-kit';
+import { PromptGenerator } from '@/shared/utils/prompt-generator';
 import { StableCoin, ReleaseHoldRequest } from '@hashgraph/stablecoin-npm-sdk';
 import {
   initSdk,
@@ -33,18 +33,28 @@ Parameters:
 - tokenId (str, required): The Hedera token ID of the stablecoin (e.g., "0.0.123456").
 - holdId (number, required): The ID of the hold to release (e.g., 123).
 - amount (str, required): The amount of tokens to release (e.g., "50").
-- sourceId (str, required): The account ID from which the tokens were held (where they will be returned).
+- sourceId (str, optional): The account ID from which the tokens were held (where they will be returned).
 ${usageInstructions}
 `;
 };
 
-const releaseHoldParameters = (_context: Context = {}) =>
-  z.object({
+const releaseHoldParameters = (context: Context = {}) => {
+  const accountId = (context as any).accountId;
+  return z.object({
     tokenId: z.string().describe('The Hedera token ID of the stablecoin (e.g., "0.0.123456")'),
     holdId: z.number().int().describe('The ID of the hold to release'),
-    amount: z.string().describe('The amount of tokens to release (e.g., "50")'),
-    sourceId: z.string().describe('The source account ID to return tokens to'),
+    amount: z
+      .string()
+      .describe('The amount of tokens to release in display units (human-readable, e.g. "50.5")'),
+    sourceId: z
+      .string()
+      .optional()
+      .default(accountId)
+      .describe(
+        `The source account ID (origin of the hold). Default: ${accountId || 'operator account'}`,
+      ),
   });
+};
 
 const postProcess = (response: RawTransactionResponse) => {
   return `Successfully released hold for stablecoin.
@@ -99,6 +109,13 @@ export class ReleaseHoldStablecoinTool extends BaseTool {
   }
 
   async secondaryAction(transaction: Transaction, client: Client, context: Context) {
+    console.log('DEBUG Tool context.mode:', context.mode, 'AgentMode.RETURN_BYTES:', AgentMode.RETURN_BYTES);
+    if (context.mode === AgentMode.RETURN_BYTES) {
+      return {
+        raw: transaction,
+        humanMessage: 'Transaction ready for signing.',
+      };
+    }
     return await handleTransaction(transaction, client, context, postProcess);
   }
 

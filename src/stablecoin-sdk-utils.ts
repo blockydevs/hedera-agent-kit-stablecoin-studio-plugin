@@ -47,10 +47,11 @@ export async function initSdk(
 export async function connectSdk(
   network: string,
   config: StablecoinStudioPluginConfig,
-  _context: Context,
+  context: Context,
 ): Promise<void> {
+  const accountId = (context as any).accountId || config.accountId;
   const request = new ConnectRequest({
-    account: { accountId: config.accountId },
+    account: { accountId },
     network,
     wallet: SupportedWallets.EXTERNAL_HEDERA,
     mirrorNode: { baseUrl: `https://${network}.mirrornode.hedera.com/api/v1/` },

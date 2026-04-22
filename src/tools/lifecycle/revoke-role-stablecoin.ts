@@ -4,11 +4,11 @@ import {
   AgentMode,
   Context,
   BaseTool,
-  PromptGenerator,
   handleTransaction,
   RawTransactionResponse,
   transactionToolOutputParser,
 } from '@hashgraph/hedera-agent-kit';
+import { PromptGenerator } from '@/shared/utils/prompt-generator';
 import { Role, RevokeRoleRequest, StableCoinRole } from '@hashgraph/stablecoin-npm-sdk';
 import {
   ensureSdkConnected,
@@ -62,12 +62,20 @@ ${usageInstructions}
 `;
 };
 
-const revokeRoleParameters = (_context: Context = {}) =>
-  z.object({
+const revokeRoleParameters = (context: Context = {}) => {
+  const accountId = (context as any).accountId;
+  return z.object({
     tokenId: z.string().describe('The Hedera token ID of the stablecoin (e.g., "0.0.123456")'),
-    targetId: z.string().describe('The Hedera account ID to revoke the role from (e.g., "0.0.789012")'),
+    targetId: z
+      .string()
+      .optional()
+      .default(accountId)
+      .describe(
+        `The Hedera account ID to revoke the role from (e.g., "0.0.789012"). Default: ${accountId || 'operator account'}`,
+      ),
     role: z.enum(roles).describe('The role to revoke'),
   });
+};
 
 const postProcess = (response: RawTransactionResponse) => {
   return `Successfully revoked role from account for stablecoin.
@@ -119,6 +127,13 @@ export class RevokeRoleStablecoinTool extends BaseTool {
   }
 
   async secondaryAction(transaction: Transaction, client: Client, context: Context) {
+    console.log('DEBUG Tool context.mode:', context.mode, 'AgentMode.RETURN_BYTES:', AgentMode.RETURN_BYTES);
+    if (context.mode === AgentMode.RETURN_BYTES) {
+      return {
+        raw: transaction,
+        humanMessage: 'Transaction ready for signing.',
+      };
+    }
     return await handleTransaction(transaction, client, context, postProcess);
   }
 

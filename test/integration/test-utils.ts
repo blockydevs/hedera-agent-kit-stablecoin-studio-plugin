@@ -22,6 +22,8 @@ import {
   StableCoinRole,
   UpdateRequest,
   UpdateReserveAddressRequest,
+  CapabilitiesRequest,
+  StableCoinViewModel,
 } from '@hashgraph/stablecoin-npm-sdk';
 import { Context, HederaMirrornodeServiceDefaultImpl, HederaBuilder, ExecuteStrategy } from '@hashgraph/hedera-agent-kit';
 import { initSdk, connectSdkClientMode, resolveNetwork, StablecoinStudioPluginConfig } from '@/stablecoin-sdk-utils';
@@ -157,6 +159,8 @@ export class HederaOperationsWrapper {
 
   async grantKyc(params: { accountId: string; tokenId: string }) {
     const network = resolveNetwork(this.client, { accountId: this.client.operatorAccountId!.toString() });
+    await initSdk(network, { accountId: this.client.operatorAccountId!.toString() });
+    console.log('DEBUG grantKyc connecting with:', this.client.operatorAccountId!.toString());
     await connectSdkClientMode(network, {
       accountId: this.client.operatorAccountId!.toString(),
       privateKey: this.operatorPrivateKey!.toStringDer(),
@@ -166,6 +170,31 @@ export class HederaOperationsWrapper {
       targetId: params.accountId,
     }));
     return { status: 'SUCCESS' };
+  }
+
+  async waitForKyc(accountId: string, tokenId: string, maxRetries = 5) {
+    const network = this.client.ledgerId?.toString() === 'mainnet' ? 'mainnet' : 'testnet';
+    const url = `https://${network}.mirrornode.hedera.com/api/v1/accounts/${accountId}/tokens?token.id=${tokenId}`;
+
+    for (let i = 0; i < maxRetries; i++) {
+      try {
+        const response = await fetch(url);
+        if (response.ok) {
+          const data = await response.json();
+          if (data.tokens && data.tokens.length > 0) {
+            const token = data.tokens.find((t: any) => t.token_id === tokenId);
+            console.log(`DEBUG waitForKyc account: ${accountId}, token: ${tokenId}, status: ${token?.kyc_status}`);
+            if (token && token.kyc_status?.toUpperCase() === 'GRANTED') {
+              return true;
+            }
+          }
+        }
+      } catch (error) {
+        console.warn('Failed to poll mirror node for KYC:', error);
+      }
+      await wait(2000);
+    }
+    throw new Error(`Timeout waiting for KYC grant for account ${accountId} and token ${tokenId}`);
   }
 
   async cashIn(params: { tokenId: string; targetId: string; amount: string }) {
@@ -278,7 +307,8 @@ export class HederaOperationsWrapper {
       .addTokenTransfer(params.tokenId, params.senderId || this.client.operatorAccountId!.toString(), -amountBase)
       .addTokenTransfer(params.tokenId, params.targetId, amountBase);
 
-    await tx.execute(this.client);
+    const txResponse = await tx.execute(this.client);
+    await txResponse.getReceipt(this.client);
     return { status: 'SUCCESS' };
   }
 
@@ -389,7 +419,7 @@ export class HederaOperationsWrapper {
       accountId: this.client.operatorAccountId!.toString(),
       privateKey: this.operatorPrivateKey!.toStringDer(),
     });
-    
+
     const requestConfig: any = { tokenId: params.tokenId };
     if (params.name !== undefined) requestConfig.name = params.name;
     if (params.symbol !== undefined) requestConfig.symbol = params.symbol;
@@ -423,31 +453,6 @@ export class HederaOperationsWrapper {
     throw new Error(`Timeout waiting for mirror node association between ${accountId} and ${tokenId}`);
   }
 
-  async waitForKyc(accountId: string, tokenId: string, maxRetries = 5) {
-    const network = this.client.ledgerId?.isMainnet() ? 'mainnet' : 'testnet';
-    const url = `https://${network}.mirrornode.hedera.com/api/v1/accounts/${accountId}/tokens?token.id=${tokenId}`;
-
-    for (let i = 0; i < maxRetries; i++) {
-      try {
-        const response = await fetch(url);
-        if (response.ok) {
-          const data = await response.json();
-          if (data.tokens && data.tokens.length > 0) {
-            const token = data.tokens.find((t: any) => t.token_id === tokenId);
-            if (token && token.kyc_status === 'GRANTED') {
-              return true;
-            }
-          }
-        }
-      } catch (_e) {
-        // Ignore errors and retry
-      }
-      await new Promise((r) => setTimeout(r, 2000));
-    }
-    await new Promise((r) => setTimeout(r, 4000));
-    throw new Error(`Timeout waiting for mirror node KYC grant for ${accountId} and ${tokenId}`);
-  }
-
   async getAccountInfo(accountId: string) {
     const query = new AccountInfoQuery().setAccountId(AccountId.fromString(accountId));
     return await query.execute(this.client);
@@ -475,7 +480,7 @@ export class HederaOperationsWrapper {
     }
   }
 
-  async getStablecoinInfo(tokenId: string) {
+  async getStablecoinInfo(tokenId: string): Promise<StableCoinViewModel> {
     return await StableCoin.getInfo(new GetStableCoinDetailsRequest({ id: tokenId }));
   }
 
@@ -484,6 +489,22 @@ export class HederaOperationsWrapper {
       new GetAccountBalanceRequest({ targetId: accountId, tokenId }),
     );
     return response.value?.toString() ?? '0';
+  }
+
+  async getCapabilities(accountId: string, tokenId: string) {
+    const network = resolveNetwork(this.client, { accountId: this.client.operatorAccountId!.toString() });
+    await initSdk(network, { accountId: this.client.operatorAccountId!.toString() });
+    await connectSdkClientMode(network, {
+      accountId: this.client.operatorAccountId!.toString(),
+      privateKey: this.operatorPrivateKey!.toStringDer(),
+    });
+
+    return await StableCoin.capabilities(
+      new CapabilitiesRequest({
+        tokenId,
+        account: { accountId },
+      }),
+    );
   }
 
   async isTokenAssociated(accountId: string, tokenId: string): Promise<boolean> {

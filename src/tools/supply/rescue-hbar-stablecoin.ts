@@ -4,12 +4,12 @@ import {
   AgentMode,
   Context,
   BaseTool,
-  PromptGenerator,
   handleTransaction,
   RawTransactionResponse,
   transactionToolOutputParser,
 } from '@hashgraph/hedera-agent-kit';
-import { StableCoin, RescueHBARRequest } from '@hashgraph/stablecoin-npm-sdk';
+import { PromptGenerator } from '@/shared/utils/prompt-generator';
+import { RescueHBARRequest, StableCoin } from '@hashgraph/stablecoin-npm-sdk';
 import {
   ensureSdkConnected,
   hexToUint8Array,
@@ -25,22 +25,30 @@ const rescueHbarStablecoinPrompt = (context: Context = {}) => {
   return `
 ${contextSnippet}
 
-This tool rescues (recovers) HBAR from the stablecoin's smart contract treasury. Requires the rescue role.
+This tool rescues HBAR from the stablecoin contract to a specified account. Requires the rescue role.
 
 Parameters:
 - tokenId (str, required): The Hedera token ID of the stablecoin (e.g., "0.0.123456").
-- amount (str, required): The amount of HBAR to rescue (e.g., "10").
-- startDate (str, optional): ISO 8601 date for scheduling the operation.
+- targetId (str, optional): The Hedera account ID to receive rescued HBAR (e.g., "0.0.789012"). If not provided, defaults to the user account in context.
+- amount (str, required): The amount of HBAR to rescue (e.g., "10.5").
 ${usageInstructions}
 `;
 };
 
-const rescueHbarStablecoinParameters = (_context: Context = {}) =>
-  z.object({
+const rescueHbarStablecoinParameters = (context: Context = {}) => {
+  const accountId = (context as any).accountId;
+  return z.object({
     tokenId: z.string().describe('The Hedera token ID of the stablecoin (e.g., "0.0.123456")'),
-    amount: z.string().describe('The amount of HBAR to rescue (e.g., "10")'),
-    startDate: z.string().optional().describe('ISO 8601 date for scheduling the operation'),
+    targetId: z
+      .string()
+      .optional()
+      .default(accountId)
+      .describe(
+        `The Hedera account ID to receive rescued HBAR (e.g., "0.0.789012"). Default: ${accountId || 'operator account'}`,
+      ),
+    amount: z.string().describe('The amount of HBAR to rescue (e.g., "10.5")'),
   });
+};
 
 const postProcess = (response: RawTransactionResponse) => {
   return `Successfully rescued HBAR for stablecoin.
@@ -92,6 +100,13 @@ export class RescueHbarStablecoinTool extends BaseTool {
   }
 
   async secondaryAction(transaction: Transaction, client: Client, context: Context) {
+    console.log('DEBUG Tool context.mode:', context.mode, 'AgentMode.RETURN_BYTES:', AgentMode.RETURN_BYTES);
+    if (context.mode === AgentMode.RETURN_BYTES) {
+      return {
+        raw: transaction,
+        humanMessage: 'Transaction ready for signing.',
+      };
+    }
     return await handleTransaction(transaction, client, context, postProcess);
   }
 

@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { Client, Status } from '@hiero-ledger/sdk';
-import { Context, BaseTool, PromptGenerator } from '@hashgraph/hedera-agent-kit';
+import { Context, BaseTool } from '@hashgraph/hedera-agent-kit';
+import { PromptGenerator } from '@/shared/utils/prompt-generator';
 import { StableCoin, CapabilitiesRequest } from '@hashgraph/stablecoin-npm-sdk';
 import {
   initSdk,
@@ -23,18 +24,24 @@ This tool retrieves the capabilities and permissions of an account for a given s
 
 Parameters:
 - tokenId (str, required): The Hedera token ID of the stablecoin (e.g., "0.0.123456").
-- targetId (str, required): The Hedera account ID to check permissions for (e.g., "0.0.789012").
+- targetId (str, optional): The Hedera account ID to check capabilities for (e.g., "0.0.789012"). Defaults to the current session account if not provided.
 ${usageInstructions}
 `;
 };
 
-const getStablecoinCapabilitiesParameters = (_context: Context = {}) =>
-  z.object({
+const getStablecoinCapabilitiesParameters = (context: Context = {}) => {
+  const accountId = (context as any).accountId;
+  return z.object({
     tokenId: z.string().describe('The Hedera token ID of the stablecoin (e.g., "0.0.123456")'),
     targetId: z
       .string()
-      .describe('The Hedera account ID to check permissions for (e.g., "0.0.789012")'),
+      .optional()
+      .default(accountId)
+      .describe(
+        `The Hedera account ID to check capabilities for (e.g., "0.0.789012"). Default: ${accountId || 'operator account'}`,
+      ),
   });
+};
 
 export class GetStablecoinCapabilitiesTool extends BaseTool {
   method = GET_STABLECOIN_CAPABILITIES_TOOL;

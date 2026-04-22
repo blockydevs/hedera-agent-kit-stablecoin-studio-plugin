@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { Client, Status } from '@hiero-ledger/sdk';
-import { Context, BaseTool, PromptGenerator } from '@hashgraph/hedera-agent-kit';
+import { Context, BaseTool } from '@hashgraph/hedera-agent-kit';
+import { PromptGenerator } from '@/shared/utils/prompt-generator';
 import { StableCoin, GetStableCoinDetailsRequest } from '@hashgraph/stablecoin-npm-sdk';
 import { initSdk, resolveNetwork, StablecoinStudioPluginConfig } from '@/stablecoin-sdk-utils';
 

@@ -5,10 +5,10 @@ import {
   BaseTool,
   Context,
   handleTransaction,
-  PromptGenerator,
   RawTransactionResponse,
   transactionToolOutputParser,
 } from '@hashgraph/hedera-agent-kit';
+import { PromptGenerator } from '@/shared/utils/prompt-generator';
 import {
   Account,
   CreateRequest,
@@ -26,6 +26,7 @@ export const CREATE_STABLECOIN_TOOL = 'create_stablecoin_tool';
 
 const createStablecoinPrompt = (context: Context = {}) => {
   const contextSnippet = PromptGenerator.getContextSnippet(context);
+  const usageInstructions = PromptGenerator.getParameterUsageInstructions();
 
   return `
 ${contextSnippet}
@@ -40,7 +41,7 @@ REQUIRED PARAMETERS — ask ONLY for these if missing:
 ALL other parameters are optional. NEVER ask the user about them. Apply defaults silently:
 - decimals: 6, initialSupply: "0", supplyType: INFINITE, createReserve: false
 - initialSupply and maxSupply are in display units (human-readable), the tool will handle parsing to base units.
-- All role accounts default to operator account
+- All role accounts default to the user account in context.
 
 STATE MANAGEMENT:
 - When user requests changes, update ONLY the referenced fields. Preserve all other values exactly.
@@ -48,14 +49,18 @@ STATE MANAGEMENT:
 
 PLAN FORMAT:
 Show all parameters as a flat list (- Field: value), including required, optional, and role accounts. End with a confirmation request.
+${usageInstructions}
 `;
 };
 
 const toSupplyType = (type: string) =>
   type === 'FINITE' ? TokenSupplyType.FINITE : TokenSupplyType.INFINITE;
 
-const createStablecoinParameters = (_context: Context = {}, operatorAccount: string) =>
-  z.object({
+const createStablecoinParameters = (context: Context = {}, configOperatorAccount: string) => {
+  const accountId = (context as any).accountId || configOperatorAccount;
+  const accountDesc = accountId || 'operator account';
+
+  return z.object({
     name: z.string().describe('The name of the stablecoin (e.g., "USD Coin")'),
     symbol: z.string().describe('The token symbol (e.g., "USDC")'),
     decimals: z
@@ -90,54 +95,55 @@ const createStablecoinParameters = (_context: Context = {}, operatorAccount: str
     proxyOwnerAccount: z
       .string()
       .optional()
-      .default(operatorAccount)
-      .describe('Account ID for proxy owner. Default: operator account'),
+      .default(accountId)
+      .describe(`Account ID for proxy owner. Default: ${accountDesc}`),
     burnRoleAccount: z
       .string()
       .optional()
-      .default(operatorAccount)
-      .describe('Account ID for burn role. Default: operator account'),
+      .default(accountId)
+      .describe(`Account ID for burn role. Default: ${accountDesc}`),
     wipeRoleAccount: z
       .string()
       .optional()
-      .default(operatorAccount)
-      .describe('Account ID for wipe role. Default: operator account'),
+      .default(accountId)
+      .describe(`Account ID for wipe role. Default: ${accountDesc}`),
     rescueRoleAccount: z
       .string()
       .optional()
-      .default(operatorAccount)
-      .describe('Account ID for rescue role. Default: operator account'),
+      .default(accountId)
+      .describe(`Account ID for rescue role. Default: ${accountDesc}`),
     pauseRoleAccount: z
       .string()
       .optional()
-      .default(operatorAccount)
-      .describe('Account ID for pause role. Default: operator account'),
+      .default(accountId)
+      .describe(`Account ID for pause role. Default: ${accountDesc}`),
     freezeRoleAccount: z
       .string()
       .optional()
-      .default(operatorAccount)
-      .describe('Account ID for freeze role. Default: operator account'),
+      .default(accountId)
+      .describe(`Account ID for freeze role. Default: ${accountDesc}`),
     deleteRoleAccount: z
       .string()
       .optional()
-      .default(operatorAccount)
-      .describe('Account ID for delete role. Default: operator account'),
+      .default(accountId)
+      .describe(`Account ID for delete role. Default: ${accountDesc}`),
     kycRoleAccount: z
       .string()
       .optional()
-      .default(operatorAccount)
-      .describe('Account ID for KYC role. Default: operator account'),
+      .default(accountId)
+      .describe(`Account ID for KYC role. Default: ${accountDesc}`),
     cashInRoleAccount: z
       .string()
       .optional()
-      .default(operatorAccount)
-      .describe('Account ID for cash-in role. Default: operator account'),
+      .default(accountId)
+      .describe(`Account ID for cash-in role. Default: ${accountDesc}`),
     feeRoleAccount: z
       .string()
       .optional()
-      .default(operatorAccount)
-      .describe('Account ID for fee role. Default: operator account'),
+      .default(accountId)
+      .describe(`Account ID for fee role. Default: ${accountDesc}`),
   });
+};
 
 const postProcess = (response: RawTransactionResponse) => {
   const tokenId = response.tokenId?.toString();
@@ -193,6 +199,13 @@ export class CreateStablecoinTool extends BaseTool {
   }
 
   async secondaryAction(transaction: Transaction, client: Client, context: Context) {
+    console.log('DEBUG Tool context.mode:', context.mode, 'AgentMode.RETURN_BYTES:', AgentMode.RETURN_BYTES);
+    if (context.mode === AgentMode.RETURN_BYTES) {
+      return {
+        raw: transaction,
+        humanMessage: 'Transaction ready for signing.',
+      };
+    }
     return await handleTransaction(transaction, client, context, postProcess);
   }
 

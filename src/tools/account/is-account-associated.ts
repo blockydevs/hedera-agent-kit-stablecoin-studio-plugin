@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { Client, Status } from '@hiero-ledger/sdk';
-import { Context, BaseTool, PromptGenerator } from '@hashgraph/hedera-agent-kit';
+import { Context, BaseTool } from '@hashgraph/hedera-agent-kit';
+import { PromptGenerator } from '@/shared/utils/prompt-generator';
 import { StableCoin, IsAccountAssociatedTokenRequest } from '@hashgraph/stablecoin-npm-sdk';
 import { initSdk, resolveNetwork, StablecoinStudioPluginConfig } from '@/stablecoin-sdk-utils';
 
@@ -17,18 +18,24 @@ This tool checks whether a Hedera account is associated with a specific stableco
 
 Parameters:
 - tokenId (str, required): The Hedera token ID of the stablecoin (e.g., "0.0.123456").
-- targetId (str, required): The Hedera account ID to check association for (e.g., "0.0.789012").
+- targetId (str, optional): The Hedera account ID to check association for (e.g., "0.0.789012").
 ${usageInstructions}
 `;
 };
 
-const isAccountAssociatedParameters = (_context: Context = {}) =>
-  z.object({
+const isAccountAssociatedParameters = (context: Context = {}) => {
+  const accountId = (context as any).accountId;
+  return z.object({
     tokenId: z.string().describe('The Hedera token ID of the stablecoin (e.g., "0.0.123456")'),
     targetId: z
       .string()
-      .describe('The Hedera account ID to check association for (e.g., "0.0.789012")'),
+      .optional()
+      .default(accountId)
+      .describe(
+        `The Hedera account ID to check (e.g., "0.0.789012"). Default: ${accountId || 'operator account'}`,
+      ),
   });
+};
 
 export class IsAccountAssociatedTool extends BaseTool {
   method = IS_ACCOUNT_ASSOCIATED_TOOL;

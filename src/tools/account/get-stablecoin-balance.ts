@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { Client, Status } from '@hiero-ledger/sdk';
-import { Context, BaseTool, PromptGenerator } from '@hashgraph/hedera-agent-kit';
+import { Context, BaseTool } from '@hashgraph/hedera-agent-kit';
+import { PromptGenerator } from '@/shared/utils/prompt-generator';
 import {
   StableCoin,
   GetAccountBalanceRequest,
@@ -25,13 +26,19 @@ ${usageInstructions}
 `;
 };
 
-const getStablecoinBalanceParameters = (_context: Context = {}) =>
-  z.object({
+const getStablecoinBalanceParameters = (context: Context = {}) => {
+  const accountId = (context as any).accountId;
+  return z.object({
     tokenId: z.string().describe('The Hedera token ID of the stablecoin (e.g., "0.0.123456")'),
     targetId: z
       .string()
-      .describe('The Hedera account ID to check the balance for (e.g., "0.0.789012")'),
+      .optional()
+      .default(accountId)
+      .describe(
+        `The Hedera account ID to check the balance for (e.g., "0.0.789012"). Default: ${accountId || 'operator account'}`,
+      ),
   });
+};
 
 export class GetStablecoinBalanceTool extends BaseTool {
   method = GET_STABLECOIN_BALANCE_TOOL;

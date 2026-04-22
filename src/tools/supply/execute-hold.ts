@@ -4,11 +4,11 @@ import {
   AgentMode,
   Context,
   BaseTool,
-  PromptGenerator,
   handleTransaction,
   RawTransactionResponse,
   transactionToolOutputParser,
 } from '@hashgraph/hedera-agent-kit';
+import { PromptGenerator } from '@/shared/utils/prompt-generator';
 import {
   StableCoin,
   ExecuteHoldRequest,
@@ -42,16 +42,24 @@ ${usageInstructions}
 `;
 };
 
-const executeHoldParameters = (_context: Context = {}) =>
-  z.object({
+const executeHoldParameters = (context: Context = {}) => {
+  const accountId = (context as any).accountId;
+  return z.object({
     tokenId: z.string().describe('The Hedera token ID of the stablecoin (e.g., "0.0.123456")'),
     holdId: z.number().int().describe('The ID of the hold to execute'),
     amount: z
       .string()
       .describe('The amount of tokens to execute in display units (human-readable, e.g. "50.5")'),
-    sourceId: z.string().describe('The source account ID (origin of the hold)'),
+    sourceId: z
+      .string()
+      .optional()
+      .default(accountId)
+      .describe(
+        `The source account ID (origin of the hold). Default: ${accountId || 'operator account'}`,
+      ),
     targetId: z.string().optional().describe('The destination account ID to receive tokens'),
   });
+};
 
 const postProcess = (response: RawTransactionResponse) => {
   return `Successfully executed hold for stablecoin.
@@ -107,6 +115,13 @@ export class ExecuteHoldStablecoinTool extends BaseTool {
   }
 
   async secondaryAction(transaction: Transaction, client: Client, context: Context) {
+    console.log('DEBUG Tool context.mode:', context.mode, 'AgentMode.RETURN_BYTES:', AgentMode.RETURN_BYTES);
+    if (context.mode === AgentMode.RETURN_BYTES) {
+      return {
+        raw: transaction,
+        humanMessage: 'Transaction ready for signing.',
+      };
+    }
     return await handleTransaction(transaction, client, context, postProcess);
   }
 

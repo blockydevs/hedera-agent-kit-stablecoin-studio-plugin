@@ -4,11 +4,11 @@ import {
   AgentMode,
   Context,
   BaseTool,
-  PromptGenerator,
   handleTransaction,
   RawTransactionResponse,
   transactionToolOutputParser,
 } from '@hashgraph/hedera-agent-kit';
+import { PromptGenerator } from '@/shared/utils/prompt-generator';
 import { StableCoin, AssociateTokenRequest } from '@hashgraph/stablecoin-npm-sdk';
 import {
   ensureSdkConnected,
@@ -29,18 +29,24 @@ This tool associates a stablecoin token with a Hedera account. An account must b
 
 Parameters:
 - tokenId (str, required): The Hedera token ID of the stablecoin (e.g., "0.0.123456").
-- targetId (str, required): The Hedera account ID to associate with the token (e.g., "0.0.789012").
+- targetId (str, optional): The Hedera account ID to associate with the token (e.g., "0.0.789012"). If not provided, defaults to the user account in context.
 ${usageInstructions}
 `;
 };
 
-const associateStablecoinParameters = (_context: Context = {}) =>
-  z.object({
+const associateStablecoinParameters = (context: Context = {}) => {
+  const accountId = (context as any).accountId;
+  return z.object({
     tokenId: z.string().describe('The Hedera token ID of the stablecoin (e.g., "0.0.123456")'),
     targetId: z
       .string()
-      .describe('The Hedera account ID to associate with the token (e.g., "0.0.789012")'),
+      .optional()
+      .default(accountId)
+      .describe(
+        `The Hedera account ID to associate with the token (e.g., "0.0.789012"). Default: ${accountId || 'operator account'}`,
+      ),
   });
+};
 
 const postProcess = (response: RawTransactionResponse) => {
   return `Successfully associated account with stablecoin.
@@ -98,6 +104,13 @@ export class AssociateStablecoinTool extends BaseTool {
   }
 
   async secondaryAction(transaction: Transaction, client: Client, context: Context) {
+    console.log('DEBUG Tool context.mode:', context.mode, 'AgentMode.RETURN_BYTES:', AgentMode.RETURN_BYTES);
+    if (context.mode === AgentMode.RETURN_BYTES) {
+      return {
+        raw: transaction,
+        humanMessage: 'Transaction ready for signing.',
+      };
+    }
     return await handleTransaction(transaction, client, context, postProcess);
   }
 

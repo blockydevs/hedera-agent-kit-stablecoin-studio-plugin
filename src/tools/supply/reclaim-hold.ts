@@ -4,11 +4,11 @@ import {
   AgentMode,
   Context,
   BaseTool,
-  PromptGenerator,
   handleTransaction,
   RawTransactionResponse,
   transactionToolOutputParser,
 } from '@hashgraph/hedera-agent-kit';
+import { PromptGenerator } from '@/shared/utils/prompt-generator';
 import { StableCoin, ReclaimHoldRequest } from '@hashgraph/stablecoin-npm-sdk';
 import {
   initSdk,
@@ -37,12 +37,20 @@ ${usageInstructions}
 `;
 };
 
-const reclaimHoldParameters = (_context: Context = {}) =>
-  z.object({
+const reclaimHoldParameters = (context: Context = {}) => {
+  const accountId = (context as any).accountId;
+  return z.object({
     tokenId: z.string().describe('The Hedera token ID of the stablecoin (e.g., "0.0.123456")'),
     holdId: z.number().int().describe('The ID of the hold to reclaim'),
-    sourceId: z.string().describe('The source account ID (origin) to return tokens to'),
+    sourceId: z
+      .string()
+      .optional()
+      .default(accountId)
+      .describe(
+        `The source account ID (origin) to return tokens to. Default: ${accountId || 'operator account'}`,
+      ),
   });
+};
 
 const postProcess = (response: RawTransactionResponse) => {
   return `Successfully reclaimed hold for stablecoin.
@@ -99,6 +107,13 @@ export class ReclaimHoldStablecoinTool extends BaseTool {
   }
 
   async secondaryAction(transaction: Transaction, client: Client, context: Context) {
+    console.log('DEBUG Tool context.mode:', context.mode, 'AgentMode.RETURN_BYTES:', AgentMode.RETURN_BYTES);
+    if (context.mode === AgentMode.RETURN_BYTES) {
+      return {
+        raw: transaction,
+        humanMessage: 'Transaction ready for signing.',
+      };
+    }
     return await handleTransaction(transaction, client, context, postProcess);
   }
 

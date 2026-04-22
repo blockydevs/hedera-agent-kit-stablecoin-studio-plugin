@@ -4,15 +4,12 @@ import {
   AgentMode,
   Context,
   BaseTool,
-  PromptGenerator,
   handleTransaction,
   RawTransactionResponse,
   transactionToolOutputParser,
 } from '@hashgraph/hedera-agent-kit';
-import {
-  StableCoin,
-  RescueRequest,
-} from '@hashgraph/stablecoin-npm-sdk';
+import { PromptGenerator } from '@/shared/utils/prompt-generator';
+import { StableCoin, RescueRequest } from '@hashgraph/stablecoin-npm-sdk';
 import {
   ensureSdkConnected,
   hexToUint8Array,
@@ -28,24 +25,32 @@ const rescueStablecoinPrompt = (context: Context = {}) => {
   return `
 ${contextSnippet}
 
-This tool rescues (recovers) stablecoin tokens from the token's smart contract treasury. Requires the rescue role.
+This tool rescues stablecoin tokens from the contract to a specified account. Requires the rescue role.
 
 Parameters:
 - tokenId (str, required): The Hedera token ID of the stablecoin (e.g., "0.0.123456").
+- targetId (str, optional): The Hedera account ID to receive rescued tokens (e.g., "0.0.789012"). If not provided, defaults to the user account in context.
 - amount (str, required): The amount of tokens to rescue in display units (e.g., "100.5"). The tool will handle parsing to base units.
-- startDate (str, optional): ISO 8601 date for scheduling the operation.
 ${usageInstructions}
 `;
 };
 
-const rescueStablecoinParameters = (_context: Context = {}) =>
-  z.object({
+const rescueStablecoinParameters = (context: Context = {}) => {
+  const accountId = (context as any).accountId;
+  return z.object({
     tokenId: z.string().describe('The Hedera token ID of the stablecoin (e.g., "0.0.123456")'),
+    targetId: z
+      .string()
+      .optional()
+      .default(accountId)
+      .describe(
+        `The Hedera account ID to receive rescued tokens (e.g., "0.0.789012"). Default: ${accountId || 'operator account'}`,
+      ),
     amount: z
       .string()
       .describe('The amount of tokens to rescue in display units (human-readable, e.g. "100.5")'),
-    startDate: z.string().optional().describe('ISO 8601 date for scheduling the operation'),
   });
+};
 
 const postProcess = (response: RawTransactionResponse) => {
   return `Successfully rescued tokens for stablecoin.
@@ -97,6 +102,13 @@ export class RescueStablecoinTool extends BaseTool {
   }
 
   async secondaryAction(transaction: Transaction, client: Client, context: Context) {
+    console.log('DEBUG Tool context.mode:', context.mode, 'AgentMode.RETURN_BYTES:', AgentMode.RETURN_BYTES);
+    if (context.mode === AgentMode.RETURN_BYTES) {
+      return {
+        raw: transaction,
+        humanMessage: 'Transaction ready for signing.',
+      };
+    }
     return await handleTransaction(transaction, client, context, postProcess);
   }
 
