@@ -9,7 +9,6 @@ import {
   resolveNetwork,
   StablecoinStudioPluginConfig,
 } from '@/stablecoin-sdk-utils';
-import { stablecoinOutputParser } from '@/stablecoin-output-parser';
 
 export const IS_ACCOUNT_KYC_GRANTED_TOOL = 'is_account_kyc_granted_tool';
 
@@ -48,7 +47,6 @@ export class IsAccountKycGrantedTool extends BaseTool {
   name = 'Is Account KYC Granted';
   description: string;
   parameters: ReturnType<typeof isAccountKycGrantedParameters>;
-  outputParser = stablecoinOutputParser;
 
   private config: StablecoinStudioPluginConfig;
 

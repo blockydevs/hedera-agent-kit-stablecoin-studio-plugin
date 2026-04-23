@@ -9,7 +9,6 @@ import {
   resolveNetwork,
   StablecoinStudioPluginConfig,
 } from '@/stablecoin-sdk-utils';
-import { stablecoinOutputParser } from '@/stablecoin-output-parser';
 
 export const GET_STABLECOIN_CAPABILITIES_TOOL = 'get_stablecoin_capabilities_tool';
 
@@ -48,7 +47,6 @@ export class GetStablecoinCapabilitiesTool extends BaseTool {
   name = 'Get Stablecoin Capabilities';
   description: string;
   parameters: ReturnType<typeof getStablecoinCapabilitiesParameters>;
-  outputParser = stablecoinOutputParser;
 
   private config: StablecoinStudioPluginConfig;
 

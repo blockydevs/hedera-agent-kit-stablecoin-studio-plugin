@@ -97,7 +97,6 @@ export class UnfreezeAccountTool extends BaseTool {
   }
 
   async secondaryAction(transaction: Transaction, client: Client, context: Context) {
-    console.log('DEBUG Tool context.mode:', context.mode, 'AgentMode.RETURN_BYTES:', AgentMode.RETURN_BYTES);
     if (context.mode === AgentMode.RETURN_BYTES) {
       return {
         raw: transaction,

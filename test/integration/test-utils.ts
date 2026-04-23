@@ -29,7 +29,7 @@ import { Context, HederaMirrornodeServiceDefaultImpl, HederaBuilder, ExecuteStra
 import { initSdk, connectSdkClientMode, resolveNetwork, StablecoinStudioPluginConfig } from '@/stablecoin-sdk-utils';
 import { STABLECOIN_CONFIG_ID, STABLECOIN_CONFIG_VERSION } from '@/constants';
 
-export const MIRROR_NODE_DELAY = 4000;
+export const MIRROR_NODE_DELAY = 6000;
 
 export const wait = (ms: number = MIRROR_NODE_DELAY) =>
   new Promise((resolve) => setTimeout(resolve, ms));

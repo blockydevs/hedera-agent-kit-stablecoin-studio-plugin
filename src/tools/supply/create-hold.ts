@@ -4,7 +4,6 @@ import {
   AgentMode,
   Context,
   BaseTool,
-  RawTransactionResponse,
   transactionToolOutputParser,
 } from '@hashgraph/hedera-agent-kit';
 import { PromptGenerator } from '@/shared/utils/prompt-generator';
@@ -60,11 +59,6 @@ const createHoldParameters = (context: Context = {}) => {
   });
 };
 
-const postProcess = (response: RawTransactionResponse) => {
-  return `Successfully created hold for stablecoin.
-Transaction ID: ${response.transactionId}`;
-};
-
 export class CreateHoldStablecoinTool extends BaseTool {
   method = CREATE_HOLD_STABLECOIN_TOOL;
   name = 'Create Hold';
@@ -99,7 +93,7 @@ export class CreateHoldStablecoinTool extends BaseTool {
       amount: params.amount,
       escrow: params.escrow,
       expirationDate: params.expirationDate,
-      targetId: params.targetId,
+      targetId: params.accountId,
     });
   }
 
@@ -113,7 +107,14 @@ export class CreateHoldStablecoinTool extends BaseTool {
     return true;
   }
 
-  async secondaryAction(transaction: Transaction, client: Client, _context: Context) {
+  async secondaryAction(transaction: Transaction, client: Client, context: Context) {
+    if (context.mode === AgentMode.RETURN_BYTES) {
+      return {
+        raw: transaction,
+        humanMessage: 'Transaction ready for signing.',
+      };
+    }
+
     const response = await transaction.execute(client);
     const record = await response.getRecord(client);
     const receipt = record.receipt;
@@ -128,13 +129,13 @@ export class CreateHoldStablecoinTool extends BaseTool {
       holdId: holdId,
     };
 
-    const postProcessed = `Hold created successfully.
+    const humanMessage = `Hold created successfully.
 Hold ID: ${holdId || 'N/A'}
 Transaction ID: ${raw.transactionId}`;
 
     return {
       raw,
-      humanMessage: postProcessed,
+      humanMessage,
     };
   }
 
