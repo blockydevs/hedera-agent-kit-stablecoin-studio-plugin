@@ -3,12 +3,12 @@ import { Client, PrivateKey } from '@hiero-ledger/sdk';
 import { 
     createLangchainTestSetup, 
     LangchainTestSetup 
-} from './setup';
+} from '../setup';
 import { 
     HederaOperationsWrapper, 
     UsdToHbarService, 
     BALANCE_TIERS 
-} from '../integration/test-utils';
+} from '../../integration/test-utils';
 
 function extractTokenId(agentResult: any): string {
     const messages = agentResult.messages;
@@ -61,6 +61,8 @@ describe('Create Stablecoin E2E Tests', () => {
     });
     
     if (!resp.accountId) throw new Error('Failed to create executor account');
+
+    await operatorWrapper.waitForAccount(resp.accountId.toString());
 
     executorClient = Client.forTestnet().setOperator(resp.accountId, executorAccountKey);
 
