@@ -29,23 +29,14 @@ This tool rescues HBAR from the stablecoin contract to a specified account. Requ
 
 Parameters:
 - tokenId (str, required): The Hedera token ID of the stablecoin (e.g., "0.0.123456").
-- targetId (str, optional): The Hedera account ID to receive rescued HBAR (e.g., "0.0.789012"). If not provided, defaults to the user account in context.
 - amount (str, required): The amount of HBAR to rescue (e.g., "10.5").
 ${usageInstructions}
 `;
 };
 
-const rescueHbarStablecoinParameters = (context: Context = {}) => {
-  const accountId = (context as any).accountId;
+const rescueHbarStablecoinParameters = (_context: Context = {}) => {
   return z.object({
     tokenId: z.string().describe('The Hedera token ID of the stablecoin (e.g., "0.0.123456")'),
-    targetId: z
-      .string()
-      .optional()
-      .default(accountId)
-      .describe(
-        `The Hedera account ID to receive rescued HBAR (e.g., "0.0.789012"). Default: ${accountId || 'operator account'}`,
-      ),
     amount: z.string().describe('The amount of HBAR to rescue (e.g., "10.5")'),
   });
 };
@@ -85,7 +76,6 @@ export class RescueHbarStablecoinTool extends BaseTool {
     return new RescueHBARRequest({
       tokenId: params.tokenId,
       amount: params.amount,
-      startDate: params.startDate,
     });
   }
 

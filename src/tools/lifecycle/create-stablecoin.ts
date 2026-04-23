@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { Client, Status, Transaction } from '@hiero-ledger/sdk';
+import { Client, Status, Transaction, TransactionRecord } from '@hiero-ledger/sdk';
 import {
   AgentMode,
   BaseTool,
@@ -16,6 +16,7 @@ import {
   StablecoinStudioPluginConfig,
 } from '@/stablecoin-sdk-utils';
 import { STABLECOIN_CONFIG_ID, STABLECOIN_CONFIG_VERSION } from '@/constants';
+import { extractTokenIdFromFactoryRecord } from '@/shared/utils/token-utils';
 
 export const CREATE_STABLECOIN_TOOL = 'create_stablecoin_tool';
 
@@ -193,8 +194,34 @@ export class CreateStablecoinTool extends BaseTool {
     return true;
   }
 
+  /**
+   * Extends the default transaction response by extracting the created Token ID from 
+   * the transaction record.
+   * 
+   * This is required because `StableCoin.buildCreate(request)` generates a 
+   * `ContractExecuteTransaction`. Unlike native token creation, the resulting 
+   * Token ID is not present in the receipt and must be parsed from the 
+   * contract function result bytes.
+   *
+   * @param raw - The initial transaction response.
+   * @param record - The transaction record containing contract execution results.
+   * @returns The response extended with the parsed Token ID.
+   */
+  extendResponse = async (
+    raw: RawTransactionResponse,
+    record: TransactionRecord,
+  ): Promise<RawTransactionResponse> => {
+    return { ...raw, tokenId: extractTokenIdFromFactoryRecord(record) };
+  };
+
   async secondaryAction(transaction: Transaction, client: Client, context: Context) {
-    return await handleTransaction(transaction, client, context, postProcess);
+    return await handleTransaction(
+      transaction,
+      client,
+      context,
+      postProcess,
+      this.extendResponse,
+    );
   }
 
   async handleError(error: unknown, _context: Context): Promise<any> {

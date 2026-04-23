@@ -6,6 +6,7 @@ import {
   TopicId,
   Transaction,
   TransactionId,
+  TransactionRecord,
 } from '@hiero-ledger/sdk';
 import { AgentMode, Context } from '@hashgraph/hedera-agent-kit';
 
@@ -15,6 +16,10 @@ interface TxModeStrategy {
     client: Client,
     context: Context,
     postProcess?: (response: RawTransactionResponse) => unknown,
+    extendResponse?: (
+      raw: RawTransactionResponse,
+      record: TransactionRecord,
+    ) => RawTransactionResponse | Promise<RawTransactionResponse>,
   ): Promise<unknown>;
 }
 
@@ -42,10 +47,16 @@ export class ExecuteStrategy implements TxModeStrategy {
     client: Client,
     _context: Context,
     postProcess: (response: RawTransactionResponse) => string = this.defaultPostProcess,
+    extendResponse?: (
+      raw: RawTransactionResponse,
+      record: TransactionRecord,
+    ) => RawTransactionResponse | Promise<RawTransactionResponse>,
   ) {
     const submit = await tx.execute(client);
     const receipt = await submit.getReceipt(client);
-    const rawTransactionResponse: RawTransactionResponse = {
+    console.log('Transaction executed. Receipt:', receipt);
+
+    let rawTransactionResponse: RawTransactionResponse = {
       status: receipt.status.toString(),
       accountId: receipt.accountId,
       tokenId: receipt.tokenId,
@@ -53,6 +64,13 @@ export class ExecuteStrategy implements TxModeStrategy {
       topicId: receipt.topicId,
       scheduleId: receipt.scheduleId,
     };
+
+    // override the response with custom details extractor
+    if (extendResponse) {
+      const record = await submit.getRecord(client);
+      rawTransactionResponse = await extendResponse(rawTransactionResponse, record);
+    }
+
     return {
       raw: rawTransactionResponse,
       humanMessage: postProcess(rawTransactionResponse),
@@ -61,7 +79,16 @@ export class ExecuteStrategy implements TxModeStrategy {
 }
 
 class ReturnBytesStrategy implements TxModeStrategy {
-  async handle(tx: Transaction, client: Client, context: Context) {
+  async handle(
+    tx: Transaction,
+    client: Client,
+    context: Context,
+    _postProcess?: (response: RawTransactionResponse) => string,
+    _extendResponse?: (
+      raw: RawTransactionResponse,
+      record: TransactionRecord,
+    ) => RawTransactionResponse | Promise<RawTransactionResponse>,
+  ) {
     if (!context.accountId)
       throw new Error('Account ID is required in context for RETURN_BYTES mode');
 
@@ -93,7 +120,11 @@ export const handleTransaction = async (
   client: Client,
   context: Context,
   postProcess?: (response: RawTransactionResponse) => string,
+  extendResponse?: (
+    raw: RawTransactionResponse,
+    record: TransactionRecord,
+  ) => RawTransactionResponse | Promise<RawTransactionResponse>,
 ) => {
   const strategy = getStrategyFromContext(context);
-  return await strategy.handle(tx, client, context, postProcess);
+  return await strategy.handle(tx, client, context, postProcess, extendResponse);
 };

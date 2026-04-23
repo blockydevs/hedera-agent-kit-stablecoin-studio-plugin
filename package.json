@@ -53,6 +53,8 @@
     "@eslint/js": "9.31.0",
     "@hashgraph/hedera-agent-kit": "4.0.0",
     "@hiero-ledger/sdk": "2.81.0",
+    "@langchain/core": "1.1.24",
+    "@langchain/openai": "1.2.7",
     "@typescript-eslint/eslint-plugin": "8.37.0",
     "@typescript-eslint/parser": "8.37.0",
     "@vitest/coverage-v8": "4.0.16",
@@ -60,12 +62,14 @@
     "eslint-config-prettier": "10.1.5",
     "eslint-plugin-prettier": "5.5.1",
     "globals": "16.3.0",
+    "langchain": "1.2.24",
     "prettier": "3.6.2",
     "tsup": "8.5.0",
     "typescript": "5.8.3",
     "typescript-eslint": "8.37.0",
     "vitest": "4.0.16",
-    "zod": "3.25.76"
+    "zod": "3.25.76",
+    "@hashgraph/hedera-agent-kit-langchain": "1.0.0"
   },
   "files": [
     "dist/**/*"

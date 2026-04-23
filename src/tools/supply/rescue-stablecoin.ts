@@ -35,17 +35,9 @@ ${usageInstructions}
 `;
 };
 
-const rescueStablecoinParameters = (context: Context = {}) => {
-  const accountId = (context as any).accountId;
+const rescueStablecoinParameters = (_context: Context = {}) => {
   return z.object({
     tokenId: z.string().describe('The Hedera token ID of the stablecoin (e.g., "0.0.123456")'),
-    targetId: z
-      .string()
-      .optional()
-      .default(accountId)
-      .describe(
-        `The Hedera account ID to receive rescued tokens (e.g., "0.0.789012"). Default: ${accountId || 'operator account'}`,
-      ),
     amount: z
       .string()
       .describe('The amount of tokens to rescue in display units (human-readable, e.g. "100.5")'),
@@ -87,7 +79,6 @@ export class RescueStablecoinTool extends BaseTool {
     return new RescueRequest({
       tokenId: params.tokenId,
       amount: params.amount,
-      startDate: params.startDate,
     });
   }
 
