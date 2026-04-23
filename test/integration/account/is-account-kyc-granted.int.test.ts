@@ -63,6 +63,13 @@ describe('Is Account KYC Granted Integration Tests', () => {
       context,
     });
 
+    // Associate the executor (agent) account
+    await executorWrapper.associateToken({
+      accountId: executorAccountId.toString(),
+      tokenId,
+    });
+    await executorWrapper.waitForAssociation(executorAccountId.toString(), tokenId);
+
     const newKey = PrivateKey.generateECDSA();
     userAccountId = await executorWrapper
       .createAccount({
@@ -107,12 +114,29 @@ describe('Is Account KYC Granted Integration Tests', () => {
     }
   });
 
-  it('should check if KYC is granted', async () => {
+  it('should check if KYC is granted using explicit targetId', async () => {
     const isKycGranted = isKycGrantedTool(context, config);
 
     const result: any = await isKycGranted.execute(executorClient, context, {
       tokenId,
       targetId: userAccountId,
+    });
+    
+    expect(result.raw.isKycGranted).toBe(true);
+  });
+
+  it('should check if KYC is granted using default targetId', async () => {
+    // Grant KYC to executor (agent) first
+    await executorWrapper.grantKyc({
+      accountId: context.accountId!,
+      tokenId,
+    });
+    await executorWrapper.waitForKyc(context.accountId!, tokenId);
+
+    const isKycGranted = isKycGrantedTool(context, config);
+
+    const result: any = await isKycGranted.execute(executorClient, context, {
+      tokenId,
     });
     
     expect(result.raw.isKycGranted).toBe(true);

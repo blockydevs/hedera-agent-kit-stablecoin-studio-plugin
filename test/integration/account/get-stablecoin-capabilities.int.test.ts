@@ -72,7 +72,7 @@ describe('Capabilities Integration Tests', () => {
     }
   });
 
-  it('should return the capabilities for the creator account', async () => {
+  it('should return the capabilities for the creator account using explicit targetId', async () => {
 
     console.log(
       `Executor account ${config.accountId} created and configured for Capabilities Integration Tests`,
@@ -91,6 +91,19 @@ describe('Capabilities Integration Tests', () => {
     const result: any = await tool.execute(operatorClient, context, {
       tokenId,
       targetId: context.accountId!,
+    });
+
+    expect(result.raw.capabilities).toBeDefined();
+    expect(result.raw.capabilities.canBurn).toBe(true);
+    expect(result.raw.capabilities.canMint).toBe(true);
+    expect(result.humanMessage).toContain('Capabilities for account');
+  });
+
+  it('should return the capabilities for the creator account using default targetId', async () => {
+    const tool = getStablecoinCapabilitiesTool(context, config);
+
+    const result: any = await tool.execute(operatorClient, context, {
+      tokenId,
     });
 
     expect(result.raw.capabilities).toBeDefined();

@@ -63,6 +63,13 @@ describe('Grant KYC Integration Tests', () => {
       context,
     });
 
+    // Associate the executor (agent) account
+    await executorWrapper.associateToken({
+      accountId: executorAccountId.toString(),
+      tokenId,
+    });
+    await executorWrapper.waitForAssociation(executorAccountId.toString(), tokenId);
+
     const newKey = PrivateKey.generateECDSA();
     userAccountId = await executorWrapper
       .createAccount({
@@ -101,12 +108,22 @@ describe('Grant KYC Integration Tests', () => {
     }
   });
 
-  it('should grant KYC to account', async () => {
+  it('should grant KYC to account with explicit targetId', async () => {
     const grantKyc = grantKycTool(context, config);
 
     const result: any = await grantKyc.execute(executorClient, context, {
       tokenId,
       targetId: userAccountId,
+    });
+    
+    expect(result.humanMessage).toContain('Successfully granted KYC');
+  });
+
+  it('should grant KYC to account with default targetId', async () => {
+    const grantKyc = grantKycTool(context, config);
+
+    const result: any = await grantKyc.execute(executorClient, context, {
+      tokenId,
     });
     
     expect(result.humanMessage).toContain('Successfully granted KYC');

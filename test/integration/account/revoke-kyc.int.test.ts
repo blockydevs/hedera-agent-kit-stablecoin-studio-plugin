@@ -63,6 +63,13 @@ describe('Revoke KYC Integration Tests', () => {
       context,
     });
 
+    // Associate the executor (agent) account
+    await executorWrapper.associateToken({
+      accountId: executorAccountId.toString(),
+      tokenId,
+    });
+    await executorWrapper.waitForAssociation(executorAccountId.toString(), tokenId);
+
     const newKey = PrivateKey.generateECDSA();
     userAccountId = await executorWrapper
       .createAccount({
@@ -108,12 +115,29 @@ describe('Revoke KYC Integration Tests', () => {
     }
   });
 
-  it('should revoke KYC from account', async () => {
+  it('should revoke KYC from account with explicit targetId', async () => {
     const revokeKyc = revokeKycTool(context, config);
 
     const result: any = await revokeKyc.execute(executorClient, context, {
       tokenId,
       targetId: userAccountId,
+    });
+    
+    expect(result.humanMessage).toContain('Successfully revoked KYC');
+  });
+
+  it('should revoke KYC from account with default targetId', async () => {
+    // Grant KYC to executor (agent) first
+    await executorWrapper.grantKyc({
+      accountId: context.accountId!,
+      tokenId,
+    });
+    await executorWrapper.waitForKyc(context.accountId!, tokenId);
+
+    const revokeKyc = revokeKycTool(context, config);
+
+    const result: any = await revokeKyc.execute(executorClient, context, {
+      tokenId,
     });
     
     expect(result.humanMessage).toContain('Successfully revoked KYC');

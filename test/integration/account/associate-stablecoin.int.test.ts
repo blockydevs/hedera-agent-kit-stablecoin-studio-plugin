@@ -83,13 +83,12 @@ describe('Associate Stablecoin Integration Tests', () => {
     }
   });
 
-  it('should associate the agent account', async () => {
+  it('should associate the agent account using default targetId', async () => {
     const associate = associateTool(context, config);
 
-    // Associate (using the tool)
+    // Associate (using the tool without targetId)
     await associate.execute(executorClient, context, {
       tokenId,
-      targetId: context.accountId!,
     });
 
     // Wait for indexing
@@ -97,6 +96,34 @@ describe('Associate Stablecoin Integration Tests', () => {
 
     // Verify
     const isAssociated = await executorWrapper.isTokenAssociated(context.accountId!, tokenId);
+    expect(isAssociated).toBe(true);
+  });
+
+  it('should associate the agent account using explicit targetId', async () => {
+    // Note: We need a new token because the account is already associated from the previous test
+    const newTokenId = await operatorWrapper.createStablecoin({
+      name: `Associate Test Explicit ${Date.now()}`,
+      symbol: 'ASTE',
+      config: {
+          accountId: operatorClient.operatorAccountId!.toString(),
+          privateKey: process.env.PRIVATE_KEY!
+      },
+      context,
+    });
+
+    const associate = associateTool(context, config);
+
+    // Associate (using the tool with explicit targetId)
+    await associate.execute(executorClient, context, {
+      tokenId: newTokenId,
+      targetId: context.accountId!,
+    });
+
+    // Wait for indexing
+    await executorWrapper.waitForAssociation(context.accountId!, newTokenId);
+
+    // Verify
+    const isAssociated = await executorWrapper.isTokenAssociated(context.accountId!, newTokenId);
     expect(isAssociated).toBe(true);
   });
 });

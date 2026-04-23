@@ -63,6 +63,13 @@ describe('Unfreeze Account Integration Tests', () => {
       context,
     });
 
+    // Associate the executor (agent) account
+    await executorWrapper.associateToken({
+      accountId: executorAccountId.toString(),
+      tokenId,
+    });
+    await executorWrapper.waitForAssociation(executorAccountId.toString(), tokenId);
+
     const newKey = PrivateKey.generateECDSA();
     userAccountId = await executorWrapper
       .createAccount({
@@ -107,12 +114,29 @@ describe('Unfreeze Account Integration Tests', () => {
     }
   });
 
-  it('should unfreeze account', async () => {
+  it('should unfreeze account with explicit targetId', async () => {
     const unfreeze = unfreezeTool(context, config);
 
     const result: any = await unfreeze.execute(executorClient, context, {
       tokenId,
       targetId: userAccountId,
+    });
+    
+    expect(result.humanMessage).toContain('Successfully unfroze account');
+  });
+
+  it('should unfreeze account with default targetId', async () => {
+    // Freeze the agent account first to test unfreeze
+    await executorWrapper.freezeAccount({
+      tokenId,
+      accountId: context.accountId!,
+    });
+    await wait();
+
+    const unfreeze = unfreezeTool(context, config);
+
+    const result: any = await unfreeze.execute(executorClient, context, {
+      tokenId,
     });
     
     expect(result.humanMessage).toContain('Successfully unfroze account');

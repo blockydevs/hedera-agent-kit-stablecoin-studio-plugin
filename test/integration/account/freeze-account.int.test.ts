@@ -63,6 +63,13 @@ describe('Freeze Account Integration Tests', () => {
       context,
     });
 
+    // Associate the executor (agent) account
+    await executorWrapper.associateToken({
+      accountId: executorAccountId.toString(),
+      tokenId,
+    });
+    await executorWrapper.waitForAssociation(executorAccountId.toString(), tokenId);
+
     const newKey = PrivateKey.generateECDSA();
     userAccountId = await executorWrapper
       .createAccount({
@@ -101,7 +108,7 @@ describe('Freeze Account Integration Tests', () => {
     }
   });
 
-  it('should freeze account', async () => {
+  it('should freeze account with explicit targetId', async () => {
     const freeze = freezeTool(context, config);
 
     const result: any = await freeze.execute(executorClient, context, {
@@ -110,7 +117,15 @@ describe('Freeze Account Integration Tests', () => {
     });
     
     expect(result.humanMessage).toContain('Successfully froze account');
+  });
 
-    // To verify, we could check isFrozen state via mirror node, but testing tool execution is primary
+  it('should freeze account with default targetId', async () => {
+    const freeze = freezeTool(context, config);
+
+    const result: any = await freeze.execute(executorClient, context, {
+      tokenId,
+    });
+    
+    expect(result.humanMessage).toContain('Successfully froze account');
   });
 });

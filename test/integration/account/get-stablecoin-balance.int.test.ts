@@ -126,12 +126,27 @@ describe('Get Stablecoin Balance Integration Tests', () => {
     }
   });
 
-  it('should return the correct balance for the creator account in display units', async () => {
+  it('should return the correct balance for the creator account using explicit targetId', async () => {
     const tool = getBalanceTool(context, config);
 
     const params = {
       tokenId,
       targetId: context.accountId!,
+    };
+
+    const result: any = await tool.execute(executorClient, context, params);
+
+    expect(result.humanMessage).toContain(`Balance of token ${tokenId}`);
+    expect(result.humanMessage).toContain(initialSupply);
+    expect(result.raw.balance.toString()).toBe(initialSupply);
+    expect(result.raw.balanceRaw.toString()).toBe(initialSupplyBase);
+  });
+
+  it('should return the correct balance for the creator account using default targetId', async () => {
+    const tool = getBalanceTool(context, config);
+
+    const params = {
+      tokenId,
     };
 
     const result: any = await tool.execute(executorClient, context, params);

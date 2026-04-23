@@ -63,6 +63,13 @@ describe('Is Account Frozen Integration Tests', () => {
       context,
     });
 
+    // Associate the executor (agent) account
+    await executorWrapper.associateToken({
+      accountId: executorAccountId.toString(),
+      tokenId,
+    });
+    await executorWrapper.waitForAssociation(executorAccountId.toString(), tokenId);
+
     const newKey = PrivateKey.generateECDSA();
     userAccountId = await executorWrapper
       .createAccount({
@@ -107,12 +114,30 @@ describe('Is Account Frozen Integration Tests', () => {
     }
   });
 
-  it('should check if account is frozen', async () => {
+  it('should check if account is frozen using explicit targetId', async () => {
     const isFrozen = isFrozenTool(context, config);
 
     const result: any = await isFrozen.execute(executorClient, context, {
       tokenId,
       targetId: userAccountId,
+    });
+    
+    expect(result.raw.isFrozen).toBe(true);
+  });
+
+  it('should check if account is frozen using default targetId', async () => {
+    // Note: The agent account was frozen in the freeze-account test if it ran before this
+    // But it's better to ensure it's frozen here if we want to be sure
+    await executorWrapper.freezeAccount({
+        tokenId,
+        accountId: context.accountId!,
+    });
+    await wait();
+
+    const isFrozen = isFrozenTool(context, config);
+
+    const result: any = await isFrozen.execute(executorClient, context, {
+      tokenId,
     });
     
     expect(result.raw.isFrozen).toBe(true);

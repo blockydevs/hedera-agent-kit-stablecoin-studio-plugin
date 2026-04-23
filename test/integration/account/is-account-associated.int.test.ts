@@ -92,12 +92,22 @@ describe('Is Account Associated Integration Tests', () => {
     }
   });
 
-  it('should check if account is associated', async () => {
+  it('should check if account is associated using explicit targetId', async () => {
     const isAssociated = isAssociatedTool(context, config);
 
     const result: any = await isAssociated.execute(executorClient, context, {
       tokenId,
       targetId: context.accountId!,
+    });
+    
+    expect(result.raw.isAssociated).toBe(true);
+  });
+
+  it('should check if account is associated using default targetId', async () => {
+    const isAssociated = isAssociatedTool(context, config);
+
+    const result: any = await isAssociated.execute(executorClient, context, {
+      tokenId,
     });
     
     expect(result.raw.isAssociated).toBe(true);
