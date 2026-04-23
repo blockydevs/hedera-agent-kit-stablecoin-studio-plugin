@@ -80,15 +80,13 @@ describe('Lifecycle Return Bytes Mode Integration Tests', () => {
   it('should return transaction bytes for pause and allow external signing', async () => {
     const pause = pauseTool(context, config);
 
-    const result = await pause.execute(operatorClient, context, {
+    const result: any = await pause.execute(operatorClient, context, {
       tokenId,
     });
 
-    expect(result.raw).toBeDefined();
-    expect(result.raw).toBeInstanceOf(Transaction);
-    expect(result.humanMessage).toContain('Transaction ready for signing');
+    expect(result.raw.bytes).toBeDefined();
 
-    const transaction = result.raw as Transaction;
+    const transaction = Transaction.fromBytes(result.raw.bytes);
     console.log('DEBUG transaction type:', transaction.constructor.name);
     console.log('DEBUG transaction.sign type:', typeof transaction.sign);
     await transaction.sign(adminKey);
@@ -104,12 +102,12 @@ describe('Lifecycle Return Bytes Mode Integration Tests', () => {
   it('should return transaction bytes for unpause and allow external signing', async () => {
     const unpause = unpauseTool(context, config);
 
-    const result = await unpause.execute(operatorClient, context, {
+    const result: any = await unpause.execute(operatorClient, context, {
       tokenId,
     });
 
-    expect(result.raw).toBeDefined();
-    const transaction = result.raw as Transaction;
+    expect(result.raw.bytes).toBeDefined();
+    const transaction = Transaction.fromBytes(result.raw.bytes);
     await transaction.sign(adminKey);
     const response = await transaction.execute(operatorClient);
     await response.getReceipt(operatorClient);
@@ -125,13 +123,13 @@ describe('Lifecycle Return Bytes Mode Integration Tests', () => {
     const update = updateTool(context, config);
     const newName = `Updated RB ${Date.now()}`;
 
-    const result = await update.execute(operatorClient, context, {
+    const result: any = await update.execute(operatorClient, context, {
       tokenId,
       name: newName,
     });
 
-    expect(result.raw).toBeDefined();
-    const transaction = result.raw as Transaction;
+    expect(result.raw.bytes).toBeDefined();
+    const transaction = Transaction.fromBytes(result.raw.bytes);
     await transaction.sign(adminKey);
     const response = await transaction.execute(operatorClient);
     await response.getReceipt(operatorClient);
@@ -146,14 +144,14 @@ describe('Lifecycle Return Bytes Mode Integration Tests', () => {
     const grantRole = grantRoleTool(context, config);
     const targetAccountId = operatorClient.operatorAccountId!.toString();
 
-    const result = await grantRole.execute(operatorClient, context, {
+    const result: any = await grantRole.execute(operatorClient, context, {
       tokenId,
       targetId: targetAccountId,
       role: 'CASHIN_ROLE',
     });
 
-    expect(result.raw).toBeDefined();
-    const transaction = result.raw as Transaction;
+    expect(result.raw.bytes).toBeDefined();
+    const transaction = Transaction.fromBytes(result.raw.bytes);
     await transaction.sign(adminKey);
     const response = await transaction.execute(operatorClient);
     await response.getReceipt(operatorClient);

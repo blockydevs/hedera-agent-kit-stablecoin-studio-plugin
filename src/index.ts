@@ -51,7 +51,6 @@ import executeHoldTool, { EXECUTE_HOLD_STABLECOIN_TOOL } from './tools/supply/ex
 import releaseHoldTool, { RELEASE_HOLD_STABLECOIN_TOOL } from './tools/supply/release-hold';
 import reclaimHoldTool, { RECLAIM_HOLD_STABLECOIN_TOOL } from './tools/supply/reclaim-hold';
 
-
 export type { StablecoinStudioPluginConfig } from './stablecoin-sdk-utils';
 
 export const createStablecoinStudioPlugin = (config: {
@@ -131,7 +130,6 @@ export const stablecoinStudioPluginToolNames = {
   RELEASE_HOLD_STABLECOIN_TOOL,
   RECLAIM_HOLD_STABLECOIN_TOOL,
 } as const;
-
 
 export {
   GET_STABLECOIN_INFO_TOOL,

@@ -4,13 +4,12 @@ import {
   AgentMode,
   Context,
   BaseTool,
+  RawTransactionResponse,
   transactionToolOutputParser,
 } from '@hashgraph/hedera-agent-kit';
+import { handleTransaction } from '@/shared/handle-transaction';
 import { PromptGenerator } from '@/shared/utils/prompt-generator';
-import {
-  StableCoin,
-  CreateHoldRequest,
-} from '@hashgraph/stablecoin-npm-sdk';
+import { StableCoin, CreateHoldRequest } from '@hashgraph/stablecoin-npm-sdk';
 import {
   initSdk,
   connectSdk,
@@ -57,6 +56,11 @@ const createHoldParameters = (context: Context = {}) => {
         `The Hedera account ID for the hold (e.g., "0.0.789012"). Default: ${accountId || 'operator account'}`,
       ),
   });
+};
+
+const postProcess = (response: RawTransactionResponse) => {
+  return `Hold created successfully.
+Transaction ID: ${response.transactionId}`;
 };
 
 export class CreateHoldStablecoinTool extends BaseTool {
@@ -108,35 +112,7 @@ export class CreateHoldStablecoinTool extends BaseTool {
   }
 
   async secondaryAction(transaction: Transaction, client: Client, context: Context) {
-    if (context.mode === AgentMode.RETURN_BYTES) {
-      return {
-        raw: transaction,
-        humanMessage: 'Transaction ready for signing.',
-      };
-    }
-
-    const response = await transaction.execute(client);
-    const record = await response.getRecord(client);
-    const receipt = record.receipt;
-
-    // The CreateHold function in the contract returns the hold ID (uint256)
-    const holdIdRaw = record.contractFunctionResult?.getUint256(0);
-    const holdId = holdIdRaw ? Number(holdIdRaw.toString()) : undefined;
-
-    const raw: any = {
-      status: receipt.status.toString(),
-      transactionId: response.transactionId.toString(),
-      holdId: holdId,
-    };
-
-    const humanMessage = `Hold created successfully.
-Hold ID: ${holdId || 'N/A'}
-Transaction ID: ${raw.transactionId}`;
-
-    return {
-      raw,
-      humanMessage,
-    };
+    return await handleTransaction(transaction, client, context, postProcess);
   }
 
   async handleError(error: unknown, _context: Context): Promise<any> {

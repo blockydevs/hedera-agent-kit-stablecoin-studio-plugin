@@ -108,7 +108,7 @@ describe('Supply Return Bytes Mode Integration Tests', () => {
   it('should return transaction bytes for cash-in and allow external signing', async () => {
     const cashIn = cashInTool(context, config);
 
-    const result = await cashIn.execute(operatorNonKeyClient, context, {
+    const result: any = await cashIn.execute(operatorNonKeyClient, context, {
       tokenId,
       amount: '100',
       // targetId should default to context.accountId (executorAccountId)
@@ -116,8 +116,8 @@ describe('Supply Return Bytes Mode Integration Tests', () => {
 
     console.log(JSON.stringify(result, null, 2));
 
-    expect(result.raw).toBeDefined();
-    const transaction = result.raw as Transaction;
+    expect(result.raw.bytes).toBeDefined();
+    const transaction = Transaction.fromBytes(result.raw.bytes);
 
     // Sign with executor key
     try {
@@ -141,27 +141,28 @@ describe('Supply Return Bytes Mode Integration Tests', () => {
 
     // Cash in to treasury first so we have tokens to burn
     const cashIn = cashInTool(context, config);
-    const cashInResult = await cashIn.execute(operatorNonKeyClient, context, {
+    const cashInResult: any = await cashIn.execute(operatorNonKeyClient, context, {
       tokenId,
       amount: '50',
       targetId: treasuryId,
     });
-    const cashInTx = cashInResult.raw as Transaction;
+    expect(cashInResult.raw.bytes).toBeDefined();
+    const cashInTx = Transaction.fromBytes(cashInResult.raw.bytes);
     await cashInTx.sign(executorKey);
     await cashInTx.execute(fundingClient);
     await wait(5000);
 
     const burn = burnTool(context, config);
 
-    const result = await burn.execute(operatorNonKeyClient, context, {
+    const result: any = await burn.execute(operatorNonKeyClient, context, {
       tokenId,
       amount: '40',
     });
 
     console.log(JSON.stringify(result, null, 2));
 
-    expect(result.raw).toBeDefined();
-    const transaction = result.raw as Transaction;
+    expect(result.raw.bytes).toBeDefined();
+    const transaction = Transaction.fromBytes(result.raw.bytes);
     try {
       await transaction.sign(executorKey);
       const response = await transaction.execute(fundingClient);
@@ -214,7 +215,7 @@ describe('Supply Return Bytes Mode Integration Tests', () => {
     // 2. Use wipe tool in RB mode
     const wipe = wipeTool(context, config);
 
-    const result = await wipe.execute(operatorNonKeyClient, context, {
+    const result: any = await wipe.execute(operatorNonKeyClient, context, {
       tokenId,
       targetId: targetAccountId,
       amount: '15',
@@ -222,8 +223,8 @@ describe('Supply Return Bytes Mode Integration Tests', () => {
 
     console.log(JSON.stringify(result, null, 2))
 
-    expect(result.raw).toBeDefined();
-    const transaction = result.raw as Transaction;
+    expect(result.raw.bytes).toBeDefined();
+    const transaction = Transaction.fromBytes(result.raw.bytes);
     try {
       await transaction.sign(executorKey);
       const response = await transaction.execute(fundingClient);

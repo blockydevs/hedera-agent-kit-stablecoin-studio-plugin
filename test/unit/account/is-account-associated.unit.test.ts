@@ -35,6 +35,10 @@ vi.mock('@/stablecoin-sdk-utils', () => ({
   ensureSdkConnected: vi.fn(),
 }));
 
+vi.mock('@/shared/handle-transaction', () => ({
+  handleTransaction: vi.fn(),
+}));
+
 import toolFactory, { IS_ACCOUNT_ASSOCIATED_TOOL } from '@/tools/account/is-account-associated';
 
 const makeClient = () => Client.forNetwork({});

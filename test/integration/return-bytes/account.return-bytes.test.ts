@@ -79,16 +79,13 @@ describe('Account Return Bytes Mode Integration Tests', () => {
     const associate = associateTool(context, config);
 
     // 1. Get transaction from tool (RETURN_BYTES mode)
-    const result = await associate.execute(operatorClient, context, {
+    const result: any = await associate.execute(operatorClient, context, {
       tokenId,
       // targetId should default to context.accountId
     });
 
-    expect(result.raw).toBeDefined();
-    expect(result.raw).toBeInstanceOf(Transaction);
-    expect(result.humanMessage).toContain('Transaction ready for signing');
-
-    const transaction = result.raw as Transaction;
+    expect(result.raw.bytes).toBeDefined();
+    const transaction = Transaction.fromBytes(result.raw.bytes);
 
     // 2. Externally sign and execute
     await transaction.sign(executorKey);

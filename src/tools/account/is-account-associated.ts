@@ -52,11 +52,7 @@ export class IsAccountAssociatedTool extends BaseTool {
     this.config = config;
   }
 
-  async normalizeParams(
-    inputParams: any,
-    _context: Context,
-    client: Client,
-  ) {
+  async normalizeParams(inputParams: any, _context: Context, client: Client) {
     const params = this.parameters.parse(inputParams);
 
     const network = resolveNetwork(client, this.config);
@@ -94,6 +90,7 @@ export class IsAccountAssociatedTool extends BaseTool {
   }
 }
 
-const tool = (context: Context, config: StablecoinStudioPluginConfig): BaseTool => new IsAccountAssociatedTool(context, config);
+const tool = (context: Context, config: StablecoinStudioPluginConfig): BaseTool =>
+  new IsAccountAssociatedTool(context, config);
 
 export default tool;

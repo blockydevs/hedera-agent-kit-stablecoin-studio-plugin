@@ -35,6 +35,10 @@ vi.mock('@/stablecoin-sdk-utils', () => ({
   ensureSdkConnected: vi.fn(),
 }));
 
+vi.mock('@/shared/handle-transaction', () => ({
+  handleTransaction: vi.fn(),
+}));
+
 import toolFactory, { IS_ACCOUNT_KYC_GRANTED_TOOL } from '@/tools/account/is-account-kyc-granted';
 
 const makeClient = () => Client.forNetwork({});

@@ -11,12 +11,12 @@ vi.mock('@hiero-ledger/sdk', async (importOriginal) => {
       fromBytes: vi.fn(() => ({
         sign: vi.fn().mockReturnThis(),
         execute: vi.fn().mockResolvedValue({
+          transactionId: { toString: () => '0.0.1001@123.456' },
+          getRecord: vi.fn().mockResolvedValue({
+            receipt: { status: { toString: () => 'SUCCESS' } },
             transactionId: { toString: () => '0.0.1001@123.456' },
-            getRecord: vi.fn().mockResolvedValue({
-                receipt: { status: { toString: () => 'SUCCESS' } },
-                transactionId: { toString: () => '0.0.1001@123.456' },
-                contractFunctionResult: { getUint256: () => ({ toString: () => '123' }) },
-            }),
+            contractFunctionResult: { getUint256: () => ({ toString: () => '123' }) },
+          }),
         }),
       })),
     },
@@ -39,14 +39,14 @@ vi.mock('@hashgraph/hedera-agent-kit', async importOriginal => {
   return {
     ...original,
     AgentMode: {
-        AUTONOMOUS: 'autonomous',
-        RETURN_BYTES: 'returnBytes',
+      AUTONOMOUS: 'autonomous',
+      RETURN_BYTES: 'returnBytes',
     },
     PromptGenerator: {
       getContextSnippet: vi.fn(() => 'CTX'),
       getParameterUsageInstructions: vi.fn(() => 'USAGE'),
     },
-    handleTransaction: vi.fn(),
+
   };
 });
 
@@ -56,6 +56,10 @@ vi.mock('@/stablecoin-sdk-utils', () => ({
   resolveNetwork: vi.fn(() => 'testnet'),
   ensureSdkConnected: vi.fn(),
   hexToUint8Array: vi.fn(hex => Buffer.from(hex, 'hex')),
+}));
+
+vi.mock('@/shared/handle-transaction', () => ({
+  handleTransaction: vi.fn(),
 }));
 
 import toolFactory, { CREATE_HOLD_STABLECOIN_TOOL } from '@/tools/supply/create-hold';
@@ -82,14 +86,22 @@ describe('create-hold tool (unit)', () => {
     const client = makeClient();
 
     const { StableCoin } = await import('@hashgraph/stablecoin-npm-sdk');
+    const { handleTransaction } = await import('@/shared/handle-transaction');
+
+
     const fakeTxBytes = '1234';
     (StableCoin.buildCreateHold as any).mockResolvedValue({ serializedTransaction: fakeTxBytes });
-    
+
+    const fakeResponse = {
+      raw: { transactionId: '0.0.1001@123.456', status: Status.Success },
+      humanMessage: 'Hold created successfully.\nTransaction ID: 0.0.1001@123.456',
+    };
+    (handleTransaction as any).mockResolvedValue(fakeResponse);
+
     const params = { tokenId: '0.0.5555', amount: '100', escrow: '0.0.6666', expirationDate: '1700000000' };
     const res: any = await tool.execute(client, autonomousContext, params);
 
-    expect(res.humanMessage).toContain('Hold created successfully.');
-    expect(res.raw.holdId).toBe(123);
+    expect(res).toEqual(fakeResponse);
     expect(StableCoin.buildCreateHold).toHaveBeenCalled();
   });
 
@@ -98,14 +110,18 @@ describe('create-hold tool (unit)', () => {
     const client = makeClient();
 
     const { StableCoin } = await import('@hashgraph/stablecoin-npm-sdk');
+    const { handleTransaction } = await import('@/shared/handle-transaction');
+
     const fakeTxBytes = '1234';
     (StableCoin.buildCreateHold as any).mockResolvedValue({ serializedTransaction: fakeTxBytes });
+
+    const fakeReturnBytesResponse = { bytes: new Uint8Array([1, 2, 3]) };
+    (handleTransaction as any).mockResolvedValue(fakeReturnBytesResponse);
 
     const params = { tokenId: '0.0.5555', amount: '100', escrow: '0.0.6666', expirationDate: '1700000000' };
     const res: any = await tool.execute(client, returnBytesContext, params);
 
-    expect(res.humanMessage).toBe('Transaction ready for signing.');
-    expect(res.raw).toBeDefined();
+    expect(res).toEqual(fakeReturnBytesResponse);
   });
 
   it('should handle missing privateKey in autonomous mode', async () => {

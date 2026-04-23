@@ -35,6 +35,10 @@ vi.mock('@/stablecoin-sdk-utils', () => ({
   ensureSdkConnected: vi.fn(),
 }));
 
+vi.mock('@/shared/handle-transaction', () => ({
+  handleTransaction: vi.fn(),
+}));
+
 import toolFactory, { IS_ACCOUNT_FROZEN_TOOL } from '@/tools/account/is-account-frozen';
 
 const makeClient = () => Client.forNetwork({});

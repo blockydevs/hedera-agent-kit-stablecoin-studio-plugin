@@ -22,7 +22,10 @@ export function toBaseUnit(amount: string | number | BigNumber, decimals: number
  * @param decimals - The number of decimals the token uses.
  * @returns The human-readable token amount as BigNumber.
  */
-export function toDisplayUnit(baseAmount: string | number | BigNumber, decimals: number): BigNumber {
+export function toDisplayUnit(
+  baseAmount: string | number | BigNumber,
+  decimals: number,
+): BigNumber {
   const baseAmountBN = new BigNumber(baseAmount);
   const divisor = new BigNumber(10).pow(decimals);
   return baseAmountBN.dividedBy(divisor);

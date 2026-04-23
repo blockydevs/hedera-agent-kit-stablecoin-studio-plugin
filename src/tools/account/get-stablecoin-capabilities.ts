@@ -70,7 +70,11 @@ export class GetStablecoinCapabilitiesTool extends BaseTool {
     });
   }
 
-  async coreAction(request: CapabilitiesRequest, _context: Context, _client: Client): Promise<{ raw: Record<string, any>; humanMessage: string }> {
+  async coreAction(
+    request: CapabilitiesRequest,
+    _context: Context,
+    _client: Client,
+  ): Promise<{ raw: Record<string, any>; humanMessage: string }> {
     const capabilities = await StableCoin.capabilities(request);
 
     // Map capabilities to boolean flags for easier matching in tests/UI
@@ -87,7 +91,7 @@ export class GetStablecoinCapabilitiesTool extends BaseTool {
 
     const granted: string[] = [];
 
-    capabilities.capabilities.forEach((c) => {
+    capabilities.capabilities.forEach(c => {
       // In the SDK, all returned capabilities are by definition 'granted' or 'available'
       // to the account, but we should verify if the API actually implies that.
       // Based on StableCoinService.ts, listCapabilities only contains what the account CAN do.

@@ -4,13 +4,17 @@ import {
   AgentMode,
   BaseTool,
   Context,
-  handleTransaction,
   RawTransactionResponse,
   transactionToolOutputParser,
 } from '@hashgraph/hedera-agent-kit';
+import { handleTransaction } from '@/shared/handle-transaction';
 import { PromptGenerator } from '@/shared/utils/prompt-generator';
 import { StableCoin, UpdateReserveAddressRequest } from '@hashgraph/stablecoin-npm-sdk';
-import { ensureSdkConnected, hexToUint8Array, StablecoinStudioPluginConfig, } from '@/stablecoin-sdk-utils';
+import {
+  ensureSdkConnected,
+  hexToUint8Array,
+  StablecoinStudioPluginConfig,
+} from '@/stablecoin-sdk-utils';
 
 export const UPDATE_RESERVE_ADDRESS_STABLECOIN_TOOL = 'update_reserve_address_stablecoin_tool';
 
@@ -38,9 +42,7 @@ const updateReserveAddressParameters = (context: Context = {}) => {
       .string()
       .optional()
       .default(accountId)
-      .describe(
-        `The new reserve address. Default: ${accountId || 'operator account'}`,
-      ),
+      .describe(`The new reserve address. Default: ${accountId || 'operator account'}`),
   });
 };
 
@@ -93,12 +95,6 @@ export class UpdateReserveAddressStablecoinTool extends BaseTool {
   }
 
   async secondaryAction(transaction: Transaction, client: Client, context: Context) {
-    if (context.mode === AgentMode.RETURN_BYTES) {
-      return {
-        raw: transaction,
-        humanMessage: 'Transaction ready for signing.',
-      };
-    }
     return await handleTransaction(transaction, client, context, postProcess);
   }
 

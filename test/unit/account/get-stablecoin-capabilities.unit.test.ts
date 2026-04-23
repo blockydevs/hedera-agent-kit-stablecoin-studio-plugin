@@ -35,6 +35,10 @@ vi.mock('@/stablecoin-sdk-utils', () => ({
   ensureSdkConnected: vi.fn(),
 }));
 
+vi.mock('@/shared/handle-transaction', () => ({
+  handleTransaction: vi.fn(),
+}));
+
 import toolFactory, { GET_STABLECOIN_CAPABILITIES_TOOL } from '@/tools/account/get-stablecoin-capabilities';
 
 const makeClient = () => Client.forNetwork({});

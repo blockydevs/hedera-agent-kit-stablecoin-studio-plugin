@@ -28,8 +28,7 @@ vi.mock('@hashgraph/stablecoin-npm-sdk', () => {
   };
 });
 
-vi.mock('@hashgraph/hedera-agent-kit', async importOriginal => {
-  const original = await importOriginal<typeof import('@hashgraph/hedera-agent-kit')>();
+vi.mock('@hashgraph/hedera-agent-kit', async importOriginal => {const original = await importOriginal<typeof import('@hashgraph/hedera-agent-kit')>();
   return {
     ...original,
     AgentMode: {
@@ -40,9 +39,8 @@ vi.mock('@hashgraph/hedera-agent-kit', async importOriginal => {
       getContextSnippet: vi.fn(() => 'CTX'),
       getParameterUsageInstructions: vi.fn(() => 'USAGE'),
     },
-    handleTransaction: vi.fn(),
-  };
-});
+    
+  };});
 
 vi.mock('@/stablecoin-sdk-utils', () => ({
   initSdk: vi.fn(),
@@ -50,6 +48,10 @@ vi.mock('@/stablecoin-sdk-utils', () => ({
   resolveNetwork: vi.fn(() => 'testnet'),
   ensureSdkConnected: vi.fn(),
   hexToUint8Array: vi.fn(hex => Buffer.from(hex, 'hex')),
+}));
+
+vi.mock('@/shared/handle-transaction', () => ({
+  handleTransaction: vi.fn(),
 }));
 
 import toolFactory, { GRANT_ROLE_STABLECOIN_TOOL } from '@/tools/lifecycle/grant-role-stablecoin';
@@ -76,7 +78,7 @@ describe('grant-role-stablecoin tool (unit)', () => {
     const client = makeClient();
 
     const { Role } = await import('@hashgraph/stablecoin-npm-sdk');
-    const { handleTransaction } = await import('@hashgraph/hedera-agent-kit');
+    const { handleTransaction } = await import('@/shared/handle-transaction');
 
     const fakeTxBytes = '1234';
     (Role.buildGrantRole as any).mockResolvedValue({ serializedTransaction: fakeTxBytes });
@@ -99,14 +101,18 @@ describe('grant-role-stablecoin tool (unit)', () => {
     const client = makeClient();
 
     const { Role } = await import('@hashgraph/stablecoin-npm-sdk');
+    const { handleTransaction } = await import('@/shared/handle-transaction');
+
     const fakeTxBytes = '1234';
     (Role.buildGrantRole as any).mockResolvedValue({ serializedTransaction: fakeTxBytes });
+
+    const fakeReturnBytesResponse = { bytes: new Uint8Array([1, 2, 3]) };
+    (handleTransaction as any).mockResolvedValueOnce(fakeReturnBytesResponse);
 
     const params = { tokenId: '0.0.5555', targetId: '0.0.6666', role: 'WIPE_ROLE' };
     const res: any = await tool.execute(client, returnBytesContext, params);
 
-    expect(res.humanMessage).toBe('Transaction ready for signing.');
-    expect(res.raw).toBeDefined();
+    expect(res).toEqual(fakeReturnBytesResponse);
   });
 
   it('should handle missing privateKey in autonomous mode', async () => {
