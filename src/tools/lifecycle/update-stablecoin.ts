@@ -31,7 +31,7 @@ Parameters:
 - tokenId (str, required): The Hedera token ID of the stablecoin to update (e.g., "0.0.123456").
 - name (str, optional): New name for the stablecoin.
 - symbol (str, optional): New symbol for the stablecoin.
-- memo (str, optional): New memo for the stablecoin (max 100 characters).
+- metadata (str, optional): New metadata for the stablecoin (max 100 characters).
 ${usageInstructions}
 `;
 };
@@ -41,7 +41,7 @@ const updateStablecoinParameters = (_context: Context = {}) =>
     tokenId: z.string().describe('The Hedera token ID of the stablecoin (e.g., "0.0.123456")'),
     name: z.string().optional().describe('New name for the stablecoin'),
     symbol: z.string().optional().describe('New symbol for the stablecoin'),
-    memo: z.string().max(100).optional().describe('New memo (max 100 characters)'),
+    metadata: z.string().max(100).optional().describe('New metadata (max 100 characters)'),
   });
 
 const postProcess = (response: RawTransactionResponse) => {
@@ -79,7 +79,7 @@ export class UpdateStablecoinTool extends BaseTool {
     const requestConfig: any = { tokenId: params.tokenId };
     if (params.name !== undefined) requestConfig.name = params.name;
     if (params.symbol !== undefined) requestConfig.symbol = params.symbol;
-    if (params.memo !== undefined) requestConfig.memo = params.memo;
+    if (params.metadata !== undefined) requestConfig.metadata = params.metadata;
 
     return new UpdateRequest(requestConfig);
   }

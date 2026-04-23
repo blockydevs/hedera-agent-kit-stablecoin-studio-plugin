@@ -81,21 +81,24 @@ describe('Update Stablecoin Integration Tests', () => {
     }
   });
 
-  it('should update stablecoin name and symbol', async () => {
+  it('should update stablecoin name, symbol and memo', async () => {
     const tool = updateStablecoinTool(context, config);
 
     const newName = `Updated Token ${Date.now()}`;
     const newSymbol = 'NEW';
+    const newMetadata = 'Updated metadata';
 
     await tool.execute(executorClient, context, {
       tokenId,
       name: newName,
       symbol: newSymbol,
+      metadata: newMetadata,
     });
     await wait(5000);
 
     const info = await executorWrapper.getStablecoinInfo(tokenId);
     expect(info.name).toBe(newName);
     expect(info.symbol).toBe(newSymbol);
+    expect(info.metadata).toBe(newMetadata);
   });
 });

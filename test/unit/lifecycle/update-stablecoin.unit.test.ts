@@ -92,7 +92,36 @@ describe('update-stablecoin tool (unit)', () => {
     const res: any = await tool.execute(client, autonomousContext, params);
 
     expect(res).toEqual(fakeResponse);
-    expect(StableCoin.buildUpdate).toHaveBeenCalled();
+    expect(StableCoin.buildUpdate).toHaveBeenCalledWith(expect.objectContaining({
+        tokenId: '0.0.5555',
+        name: 'NewName'
+    }));
+  });
+
+  it('should update metadata successfully', async () => {
+    const tool = toolFactory(autonomousContext, config);
+    const client = makeClient();
+
+    const { StableCoin } = await import('@hashgraph/stablecoin-npm-sdk');
+    const { handleTransaction } = await import('@/shared/handle-transaction');
+
+    const fakeTxBytes = '1234';
+    (StableCoin.buildUpdate as any).mockResolvedValue({ serializedTransaction: fakeTxBytes });
+    
+    const fakeResponse = {
+      raw: { transactionId: '0.0.1001@123.456', status: Status.Success },
+      humanMessage: 'Successfully updated stablecoin.',
+    };
+    (handleTransaction as any).mockResolvedValue(fakeResponse);
+
+    const params = { tokenId: '0.0.5555', metadata: 'Updated metadata' };
+    const res: any = await tool.execute(client, autonomousContext, params);
+
+    expect(res).toEqual(fakeResponse);
+    expect(StableCoin.buildUpdate).toHaveBeenCalledWith(expect.objectContaining({
+        tokenId: '0.0.5555',
+        metadata: 'Updated metadata'
+    }));
   });
 
   it('should return transaction in return-bytes mode', async () => {

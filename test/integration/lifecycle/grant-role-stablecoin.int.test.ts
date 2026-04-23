@@ -10,6 +10,7 @@ import {
   wait,
 } from '../test-utils';
 import grantRoleTool from '@/tools/lifecycle/grant-role-stablecoin';
+import { StableCoinRole } from '@hashgraph/stablecoin-npm-sdk';
 
 describe('Grant Role Stablecoin Integration Tests', () => {
   let operatorClient: Client;
@@ -106,5 +107,11 @@ describe('Grant Role Stablecoin Integration Tests', () => {
       role: 'CASHIN_ROLE',
     });
     expect(grantRes.humanMessage).toContain('granted successfully');
+
+    await wait(10000);
+
+    // Verify role granted
+    const hasCashInRole = await executorWrapper.hasRole(userAccountId, tokenId, StableCoinRole.CASHIN_ROLE);
+    expect(hasCashInRole).toBe(true);
   });
 });

@@ -89,5 +89,10 @@ describe('Get Stablecoin Info Integration Tests', () => {
     expect(result.humanMessage).toContain(tokenId);
     expect(result.raw.tokenId).toBe(tokenId);
     expect(result.raw.details.name).toContain('Info Test');
+    expect(result.raw.details.symbol).toBe('INF');
+    expect(result.raw.details.decimals).toBe(6);
+    expect(result.raw.details.totalSupply).toBeDefined();
+    expect(result.raw.details.adminKey).toBeDefined();
+    expect(result.raw.details.supplyKey).toBeDefined();
   });
 });

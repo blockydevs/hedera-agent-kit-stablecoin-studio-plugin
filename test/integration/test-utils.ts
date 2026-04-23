@@ -23,6 +23,7 @@ import {
   UpdateRequest,
   UpdateReserveAddressRequest,
   CapabilitiesRequest,
+  HasRoleRequest,
   StableCoinViewModel,
 } from '@hashgraph/stablecoin-npm-sdk';
 import { Context, HederaMirrornodeServiceDefaultImpl, HederaBuilder, ExecuteStrategy } from '@hashgraph/hedera-agent-kit';
@@ -492,8 +493,12 @@ export class HederaOperationsWrapper {
   }
 
   async getCapabilities(accountId: string, tokenId: string) {
-    const network = resolveNetwork(this.client, { accountId: this.client.operatorAccountId!.toString() });
-    await initSdk(network, { accountId: this.client.operatorAccountId!.toString() });
+    const network = resolveNetwork(this.client, {
+      accountId: this.client.operatorAccountId!.toString(),
+    });
+    await initSdk(network, {
+      accountId: this.client.operatorAccountId!.toString(),
+    });
     await connectSdkClientMode(network, {
       accountId: this.client.operatorAccountId!.toString(),
       privateKey: this.operatorPrivateKey!.toStringDer(),
@@ -503,7 +508,28 @@ export class HederaOperationsWrapper {
       new CapabilitiesRequest({
         tokenId,
         account: { accountId },
-      }),
+      })
+    );
+  }
+
+  async hasRole(accountId: string, tokenId: string, role: any) {
+    const network = resolveNetwork(this.client, {
+      accountId: this.client.operatorAccountId!.toString(),
+    });
+    await initSdk(network, {
+      accountId: this.client.operatorAccountId!.toString(),
+    });
+    await connectSdkClientMode(network, {
+      accountId: this.client.operatorAccountId!.toString(),
+      privateKey: this.operatorPrivateKey!.toStringDer(),
+    });
+
+    return await Role.hasRole(
+      new HasRoleRequest({
+        tokenId,
+        targetId: accountId,
+        role,
+      })
     );
   }
 
