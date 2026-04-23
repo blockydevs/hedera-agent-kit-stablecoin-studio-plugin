@@ -124,4 +124,29 @@ describe('Cash-in Stablecoin Integration Tests', () => {
     );
     expect(balance.toString()).toBe('100');
   });
+
+  it('should cash-in tokens to the default targetId (executor)', async () => {
+    const cashIn = cashInTool(context, config);
+    const amount = '50';
+
+    const initialBalance = await executorWrapper.getStablecoinBalance(
+      context.accountId!,
+      tokenId
+    );
+
+    // Cash-in (mint) to default targetId (executor)
+    const result: any = await cashIn.execute(executorClient, context, {
+      tokenId,
+      amount,
+    });
+
+    expect(result.humanMessage).toContain('Successfully minted tokens');
+    await wait();
+
+    const finalBalance = await executorWrapper.getStablecoinBalance(
+      context.accountId!,
+      tokenId
+    );
+    expect(Number(finalBalance)).toBe(Number(initialBalance) + 50);
+  });
 });

@@ -129,4 +129,30 @@ describe('Burn Stablecoin Integration Tests', () => {
     );
     expect(balance.toString()).toBe('0');
   });
+
+  it('should accept optional startDate for burn', async () => {
+    const burn = burnTool(context, config);
+    
+    // Mint some tokens first to treasury
+    const info = await executorWrapper.getStablecoinInfo(tokenId);
+    const treasuryId = info.treasury!.toString();
+    await executorWrapper.cashIn({
+      tokenId,
+      amount: '10',
+      targetId: treasuryId,
+    });
+    await wait();
+
+    const amount = '10';
+    // Provide a startDate (current time)
+    // Note: Scheduling usually requires more setup, but we're testing if the tool handles the param.
+    const startDate = new Date().toISOString();
+
+    const result: any = await burn.execute(executorClient, context, { 
+      tokenId, 
+      amount,
+      startDate 
+    });
+    expect(result.humanMessage).toContain('Successfully burned');
+  });
 });

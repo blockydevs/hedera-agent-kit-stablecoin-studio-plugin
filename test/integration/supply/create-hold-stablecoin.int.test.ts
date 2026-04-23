@@ -112,13 +112,13 @@ describe('Create Hold Stablecoin Integration Tests', () => {
   it('should create a hold on tokens', async () => {
     const createHold = createHoldTool(context, config);
 
-    // 1. Check initial balance
+    // 1. Check the initial balance
     const initialBalance = await executorWrapper.getStablecoinBalance(
       context.accountId!,
       tokenId
     );
 
-    // 2. Create a hold (1 hour expiration) using the tool
+    // 2. Create a hold (1-hour expiration) using the tool
     const expirationDate = (Math.floor(Date.now() / 1000) + 3600).toString();
     const result: any = await createHold.execute(executorClient, context, {
       tokenId,
@@ -137,5 +137,35 @@ describe('Create Hold Stablecoin Integration Tests', () => {
       tokenId
     );
     expect(Number(balanceAfterHold)).toBe(Number(initialBalance) - 10);
+  });
+
+  it('should create a hold using explicit accountId', async () => {
+    const createHold = createHoldTool(context, config);
+
+    // 1. Create a hold for the executor account explicitly
+    const accountId = context.accountId!;
+    
+    const initialBalance = await executorWrapper.getStablecoinBalance(
+      accountId,
+      tokenId
+    );
+
+    const expirationDate = (Math.floor(Date.now() / 1000) + 3600).toString();
+    const result: any = await createHold.execute(executorClient, context, {
+      tokenId,
+      amount: '5',
+      escrow: context.accountId!,
+      expirationDate,
+      accountId: accountId,
+    });
+
+    expect(result.humanMessage).toContain('Hold created successfully');
+    await wait(10000);
+
+    const finalBalance = await executorWrapper.getStablecoinBalance(
+      accountId,
+      tokenId
+    );
+    expect(Number(finalBalance)).toBe(Number(initialBalance) - 5);
   });
 });

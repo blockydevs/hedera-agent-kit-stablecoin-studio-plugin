@@ -64,6 +64,20 @@ describe('Wipe Stablecoin Integration Tests', () => {
       config,
       context,
     });
+
+    // 2. Associate the executor account
+    await executorWrapper.associateToken({
+      tokenId,
+      accountId: context.accountId!,
+    });
+    await executorWrapper.waitForAssociation(context.accountId!, tokenId);
+
+    // 3. Grant KYC to executor
+    await executorWrapper.grantKyc({
+      accountId: context.accountId!,
+      tokenId,
+    });
+    await executorWrapper.waitForKyc(context.accountId!, tokenId);
   }, 120000);
 
   afterAll(async () => {
@@ -143,5 +157,31 @@ describe('Wipe Stablecoin Integration Tests', () => {
 
     balance = await executorWrapper.getStablecoinBalance(userAccountId, tokenId);
     expect(balance.toString()).toBe('0');
+  });
+
+  it('should wipe tokens from the executor account (default targetId)', async () => {
+    const wipe = wipeStablecoinTool(context, config);
+
+    // 1. Mint tokens to executor first
+    await executorWrapper.cashIn({
+      tokenId,
+      targetId: context.accountId!,
+      amount: '10',
+    });
+    await wait();
+
+    let balance = await executorWrapper.getStablecoinBalance(context.accountId!, tokenId);
+    const initialBalance = Number(balance);
+
+    // 2. Wipe from executor using default targetId
+    await wipe.execute(executorClient, context, {
+      tokenId,
+      amount: '10',
+    });
+
+    await wait();
+
+    balance = await executorWrapper.getStablecoinBalance(context.accountId!, tokenId);
+    expect(Number(balance)).toBe(initialBalance - 10);
   });
 });

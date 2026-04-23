@@ -25,11 +25,10 @@ const rescueStablecoinPrompt = (context: Context = {}) => {
   return `
 ${contextSnippet}
 
-This tool rescues stablecoin tokens from the contract to a specified account. Requires the rescue role.
+This tool rescues stablecoin tokens from the contract to the treasury account. Requires the rescue role.
 
 Parameters:
 - tokenId (str, required): The Hedera token ID of the stablecoin (e.g., "0.0.123456").
-- targetId (str, optional): The Hedera account ID to receive rescued tokens (e.g., "0.0.789012"). If not provided, defaults to the user account in context.
 - amount (str, required): The amount of tokens to rescue in display units (e.g., "100.5"). The tool will handle parsing to base units.
 ${usageInstructions}
 `;

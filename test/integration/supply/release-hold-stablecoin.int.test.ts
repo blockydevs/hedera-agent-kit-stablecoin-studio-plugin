@@ -149,4 +149,42 @@ describe('Hold Release Operations Integration Tests', () => {
     );
     expect(Number(finalBalance)).toBe(Number(balanceBeforeRelease) + 10);
   });
+
+  it('should release a hold using default sourceId', async () => {
+    // 1. Create a hold (1 hour expiration)
+    const expirationDate = (Math.floor(Date.now() / 1000) + 3600).toString();
+    const createRes = await executorWrapper.createHold({
+      tokenId,
+      amount: '5',
+      escrow: context.accountId!,
+      expirationDate,
+    });
+    const holdId = createRes.holdId;
+
+    await wait();
+
+    // 2. Check balance before release
+    const balanceBeforeRelease = await executorWrapper.getStablecoinBalance(
+      context.accountId!,
+      tokenId
+    );
+
+    // 3. Release the hold using the tool (default sourceId)
+    const releaseHold = releaseHoldTool(context, config);
+    const releaseRes: any = await releaseHold.execute(executorClient, context, {
+      tokenId,
+      holdId: holdId!,
+      amount: '5',
+    });
+    expect(releaseRes.humanMessage).toContain('Successfully released hold');
+
+    await wait();
+
+    // 4. Verify balance returned
+    const finalBalance = await executorWrapper.getStablecoinBalance(
+      context.accountId!,
+      tokenId
+    );
+    expect(Number(finalBalance)).toBe(Number(balanceBeforeRelease) + 5);
+  });
 });
