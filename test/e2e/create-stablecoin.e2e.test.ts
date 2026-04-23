@@ -132,4 +132,73 @@ describe('Create Stablecoin E2E Tests', () => {
     // totalSupply is returned in display units so the same as input of the tool call
     expect(info.totalSupply?.toString()).toBe('1000');
   }, 240000);
+
+  it('should create a finite supply stablecoin with max supply', async () => {
+    const tokenName = `E2E_Finite_${Date.now()}`;
+    const tokenSymbol = `E2EF`;
+    const input = `Create a finite supply stablecoin named "${tokenName}" (${tokenSymbol}) with initial supply 100 and max supply 1000. Proceed immediately.`;
+
+    let result = await testSetup.agent.invoke({
+      messages: [{ role: 'user', content: input }],
+    });
+
+    const messages = result.messages;
+    const toolCalled = messages.some((m: any) => m._getType() === 'tool');
+
+    if (!toolCalled) {
+        result = await testSetup.agent.invoke({
+            messages: [
+                ...result.messages,
+                { role: 'user', content: 'yes' }
+            ],
+        });
+    }
+
+    const tokenId = extractTokenId(result);
+
+    const info = await executorWrapper.getStablecoinInfo(tokenId);
+    expect(info.name).toBe(tokenName);
+    // Verify supply type and max supply
+    // info.maxSupply is BigDecimal in the SDK, so toString() works
+    expect(info.maxSupply?.toString()).toBe('1000');
+    expect(info.totalSupply?.toString()).toBe('100');
+  }, 240000);
+
+  it('should create a stablecoin with custom burn role account', async () => {
+    // Create another account to be the burner
+    const burnerKey = PrivateKey.generateECDSA();
+    const burnerAccount = await executorWrapper.createAccount({
+        key: burnerKey.publicKey,
+        initialBalance: UsdToHbarService.usdToHbar(BALANCE_TIERS.MINIMAL),
+        accountMemo: 'burner account for E2E Test',
+    });
+    const burnerId = burnerAccount.accountId!.toString();
+
+    const tokenName = `E2E_Role_${Date.now()}`;
+    const tokenSymbol = `E2ER`;
+    const input = `Create a stablecoin named "${tokenName}" (${tokenSymbol}) and set the burn role to account ${burnerId}. Proceed immediately.`;
+
+    let result = await testSetup.agent.invoke({
+      messages: [{ role: 'user', content: input }],
+    });
+
+    const messages = result.messages;
+    const toolCalled = messages.some((m: any) => m._getType() === 'tool');
+
+    if (!toolCalled) {
+        result = await testSetup.agent.invoke({
+            messages: [
+                ...result.messages,
+                { role: 'user', content: 'yes' }
+            ],
+        });
+    }
+
+    const tokenId = extractTokenId(result);
+
+    // Verify capabilities of the burner account
+    const capabilities = await executorWrapper.getCapabilities(burnerId, tokenId);
+    const hasBurnRole = capabilities.capabilities.some(c => c.operation === 'Burn');
+    expect(hasBurnRole).toBe(true);
+  }, 240000);
 });

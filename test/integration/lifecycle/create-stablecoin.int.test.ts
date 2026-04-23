@@ -33,7 +33,7 @@ describe('Create Stablecoin Integration Tests', () => {
     const executorAccountId = await operatorWrapper
       .createAccount({
         key: executorKey.publicKey,
-        initialBalance: UsdToHbarService.usdToHbar(BALANCE_TIERS.ELEVATED),
+        initialBalance: UsdToHbarService.usdToHbar(BALANCE_TIERS.MAXIMUM),
         accountMemo: 'executor account for Create Stablecoin Integration Tests',
       })
       .then((resp) => resp.accountId!);
@@ -104,5 +104,86 @@ describe('Create Stablecoin Integration Tests', () => {
     expect(info.decimals).toBe(params.decimals);
     expect(info.treasury).toBeDefined();
     expect(info.treasury!.toString()).not.toBe('0.0.0');
+  });
+
+  it('should create a stablecoin with finite supply and max supply', async () => {
+    const tool = createStablecoinTool(context, config);
+
+    const name = `Finite Token ${Date.now()}`;
+    const params = {
+      name,
+      symbol: 'FTT',
+      decimals: 8,
+      initialSupply: '500',
+      maxSupply: '1000',
+      supplyType: 'FINITE' as const,
+    };
+
+    const result: any = await tool.execute(executorClient, context, params);
+
+    expect(result.humanMessage).toContain('Stablecoin created successfully');
+    await wait();
+
+    const tokenId =
+      result.raw?.tokenId?.toString() ||
+      (await executorWrapper.getLatestTokenId(context.accountId!, name));
+
+    const info: StableCoinViewModel = await executorWrapper.getStablecoinInfo(
+      tokenId
+    );
+
+    expect(info.name).toBe(params.name);
+    expect(info.decimals).toBe(params.decimals);
+    expect(info.totalSupply?.toString()).toBe('500');
+    expect(info.maxSupply?.toString()).toBe('1000');
+  });
+
+  it('should create a stablecoin with custom role accounts', async () => {
+    const tool = createStablecoinTool(context, config);
+
+    // Create a second account for roles
+    const otherKey = PrivateKey.generateECDSA();
+    const otherAccount = await operatorWrapper.createAccount({
+      key: otherKey.publicKey,
+      initialBalance: UsdToHbarService.usdToHbar(BALANCE_TIERS.MINIMAL),
+    });
+    const otherId = otherAccount.accountId!.toString();
+    await operatorWrapper.waitForAccount(otherId);
+
+    const name = `Roles Token ${Date.now()}`;
+    const params = {
+      name,
+      symbol: 'RTT',
+      burnRoleAccount: otherId,
+      wipeRoleAccount: otherId,
+      rescueRoleAccount: otherId,
+      pauseRoleAccount: otherId,
+      freezeRoleAccount: otherId,
+      deleteRoleAccount: otherId,
+      kycRoleAccount: otherId,
+      cashInRoleAccount: otherId,
+      feeRoleAccount: otherId,
+    };
+
+    const result: any = await tool.execute(executorClient, context, params);
+
+    expect(result.humanMessage).toContain('Stablecoin created successfully');
+    await wait();
+
+    const tokenId =
+      result.raw?.tokenId?.toString() ||
+      (await executorWrapper.getLatestTokenId(context.accountId!, name));
+
+    // Verify capabilities of the other account
+    const capabilities = await executorWrapper.getCapabilities(otherId, tokenId);
+    
+    const operations = capabilities.capabilities.map(c => c.operation);
+    expect(operations).toContain('Burn');
+    expect(operations).toContain('Wipe');
+    expect(operations).toContain('Rescue');
+    expect(operations).toContain('Pause');
+    expect(operations).toContain('Freeze');
+    expect(operations).toContain('Delete');
+    expect(operations).toContain('Cash_in');
   });
 });
