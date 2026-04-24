@@ -124,6 +124,31 @@ describe('update-stablecoin tool (unit)', () => {
     }));
   });
 
+  it('should update memo successfully', async () => {
+    const tool = toolFactory(autonomousContext, config);
+    const client = makeClient();
+
+    const { StableCoin } = await import('@hashgraph/stablecoin-npm-sdk');
+    const { handleTransaction } = await import('@/shared/handle-transaction');
+
+    (StableCoin.buildUpdate as any).mockResolvedValue({ serializedTransaction: '1234' });
+    
+    const fakeResponse = {
+      raw: { transactionId: '0.0.1001@123.456', status: Status.Success },
+      humanMessage: 'Successfully updated stablecoin.',
+    };
+    (handleTransaction as any).mockResolvedValue(fakeResponse);
+
+    const params = { tokenId: '0.0.5555', memo: 'Updated memo' };
+    const res: any = await tool.execute(client, autonomousContext, params);
+
+    expect(res).toEqual(fakeResponse);
+    expect(StableCoin.buildUpdate).toHaveBeenCalledWith(expect.objectContaining({
+        tokenId: '0.0.5555',
+        memo: 'Updated memo'
+    }));
+  });
+
   it('should return transaction in return-bytes mode', async () => {
     const tool = toolFactory(returnBytesContext, config);
     const client = makeClient();

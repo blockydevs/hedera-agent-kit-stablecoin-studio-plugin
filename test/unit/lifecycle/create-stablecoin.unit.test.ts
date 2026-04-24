@@ -97,6 +97,40 @@ describe('create-stablecoin tool (unit)', () => {
     expect(StableCoin.buildCreate).toHaveBeenCalled();
   });
 
+  it('should pass new optional parameters to the SDK', async () => {
+    const tool = toolFactory(autonomousContext, config);
+    const client = makeClient();
+    const { StableCoin } = await import('@hashgraph/stablecoin-npm-sdk');
+    
+    (StableCoin.buildCreate as any).mockResolvedValue({ serializedTransaction: '1234' });
+
+    const params = { 
+      name: 'Test', 
+      symbol: 'TST',
+      memo: 'test memo',
+      metadata: 'test metadata',
+      freezeDefault: true,
+      autoRenewAccount: '0.0.789',
+      autoRenewPeriod: 8000000,
+      cashInRoleAllowance: '5000',
+      holdCreatorRoleAccount: '0.0.1002'
+    };
+    
+    await tool.execute(client, autonomousContext, params);
+
+    expect(StableCoin.buildCreate).toHaveBeenCalledWith(expect.objectContaining({
+      name: 'Test',
+      symbol: 'TST',
+      memo: 'test memo',
+      metadata: 'test metadata',
+      freezeDefault: true,
+      autoRenewAccount: '0.0.789',
+      autoRenewPeriod: 8000000,
+      cashInRoleAllowance: '5000',
+      holdCreatorRoleAccount: '0.0.1002'
+    }));
+  });
+
   it('should return transaction in return-bytes mode', async () => {
     const tool = toolFactory(returnBytesContext, config);
     const client = makeClient();

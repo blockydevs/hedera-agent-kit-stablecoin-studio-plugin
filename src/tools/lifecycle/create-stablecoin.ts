@@ -83,6 +83,24 @@ const createStablecoinParameters = (context: Context = {}, configOperatorAccount
       .default('INFINITE')
       .describe('Supply type. Default: INFINITE')
       .transform(toSupplyType),
+    metadata: z.string().optional().describe('Token metadata (arbitrary data)'),
+    freezeDefault: z
+      .boolean()
+      .optional()
+      .default(false)
+      .describe('Whether accounts are frozen by default for this token. Default: false'),
+    autoRenewAccount: z
+      .string()
+      .optional()
+      .describe('Account ID for auto-renew charges (e.g., "0.0.789012")'),
+    autoRenewPeriod: z
+      .number()
+      .optional()
+      .describe('Auto-renew period in seconds (e.g., 7776000 for 90 days)'),
+    cashInRoleAllowance: z
+      .string()
+      .optional()
+      .describe('Initial allowance for the cash-in role in display units (e.g., "1000")'),
     createReserve: z
       .boolean()
       .optional()
@@ -138,6 +156,11 @@ const createStablecoinParameters = (context: Context = {}, configOperatorAccount
       .optional()
       .default(accountId)
       .describe(`Account ID for fee role. Default: ${accountDesc}`),
+    holdCreatorRoleAccount: z
+      .string()
+      .optional()
+      .default(accountId)
+      .describe(`Account ID for hold creator role. Default: ${accountDesc}`),
   });
 };
 

@@ -7,7 +7,7 @@ import {
 import {
   HederaOperationsWrapper,
   UsdToHbarService,
-  BALANCE_TIERS
+  BALANCE_TIERS,
 } from '../../integration/test-utils';
 
 function extractTokenId(testSetup: any, result: any) {
@@ -175,15 +175,10 @@ describe('Create Stablecoin E2E Tests', () => {
       });
     }
 
-    console.log(`RESP(should create a finite supply stablecoin with max supply): ${JSON.stringify(result, null, 2)}`);
-
-
     const tokenId = extractTokenId(testSetup, result);
 
     const info = await executorWrapper.getStablecoinInfo(tokenId);
     expect(info.name).toBe(tokenName);
-    // Verify supply type and max supply
-    // info.maxSupply is BigDecimal in the SDK, so toString() works
     expect(info.maxSupply?.toString()).toBe('1000');
     expect(info.totalSupply?.toString()).toBe('100');
   }, 240000);
@@ -217,11 +212,6 @@ describe('Create Stablecoin E2E Tests', () => {
         ],
       });
     }
-
-    console.log(
-      `RESP(should create a stablecoin with custom burn role account): ${JSON.stringify(result, null, 2)}`,
-    );
-
 
     const tokenId = extractTokenId(testSetup, result);
 

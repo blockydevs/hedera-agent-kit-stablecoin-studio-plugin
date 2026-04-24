@@ -31,7 +31,7 @@ Parameters:
 - tokenId (str, required): The Hedera token ID of the stablecoin to update (e.g., "0.0.123456").
 - name (str, optional): New name for the stablecoin.
 - symbol (str, optional): New symbol for the stablecoin.
-- metadata (str, optional): New metadata for the stablecoin (max 100 characters).
+- metadata (str, optional): New metadata for the stablecoin (arbitrary data).
 ${usageInstructions}
 `;
 };
@@ -41,7 +41,7 @@ const updateStablecoinParameters = (_context: Context = {}) =>
     tokenId: z.string().describe('The Hedera token ID of the stablecoin (e.g., "0.0.123456")'),
     name: z.string().optional().describe('New name for the stablecoin'),
     symbol: z.string().optional().describe('New symbol for the stablecoin'),
-    metadata: z.string().max(100).optional().describe('New metadata (max 100 characters)'),
+    metadata: z.string().optional().describe('New metadata (arbitrary data)'),
   });
 
 const postProcess = (response: RawTransactionResponse) => {
