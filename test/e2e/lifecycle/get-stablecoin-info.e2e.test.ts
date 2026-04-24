@@ -48,7 +48,7 @@ describe('Get Stablecoin Info E2E Tests', () => {
       },
       context: { accountId: resp.accountId.toString() } as any,
     });
-  }, 120000);
+  });
 
   afterAll(async () => {
     if (executorClient && operatorClient) {
@@ -80,5 +80,5 @@ describe('Get Stablecoin Info E2E Tests', () => {
     expect(content.raw.tokenId).toBe(tokenId);
     expect(content.raw.details.name).toContain('Info_E2E');
     expect(content.raw.details.symbol).toBe('IE2E');
-  }, 240000);
+  });
 });

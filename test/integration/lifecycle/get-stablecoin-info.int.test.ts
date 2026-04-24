@@ -61,7 +61,7 @@ describe('Get Stablecoin Info Integration Tests', () => {
       config,
       context,
     });
-  }, 120000);
+  });
 
   afterAll(async () => {
     if (executorClient && operatorClient) {

@@ -66,7 +66,7 @@ describe('Unpause Stablecoin Integration Tests', () => {
     // Pause the stablecoin via wrapper before testing unpause tool
     await executorWrapper.pauseStablecoin({ tokenId });
     await wait();
-  }, 120000);
+  });
 
   afterAll(async () => {
     if (executorClient && operatorClient) {

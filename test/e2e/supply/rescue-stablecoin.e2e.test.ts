@@ -99,7 +99,7 @@ describe('Rescue Stablecoin E2E Tests', () => {
         });
 
         await wait();
-    }, 240000);
+    });
 
     afterAll(async () => {
         if (executorClient && operatorClient) {
@@ -156,5 +156,5 @@ describe('Rescue Stablecoin E2E Tests', () => {
         // 5 rescued from contract back to treasury.
         // Total in treasury should be 100 + 5 = 105.
         expect(balance.toString()).toBe('105');
-    }, 240000);
+    });
 });

@@ -62,7 +62,7 @@ describe('Update Stablecoin Integration Tests', () => {
       config,
       context,
     });
-  }, 120000);
+  });
 
   afterAll(async () => {
     if (executorClient && operatorClient) {
@@ -81,7 +81,7 @@ describe('Update Stablecoin Integration Tests', () => {
     }
   });
 
-  it('should update stablecoin name, symbol and memo', async () => {
+  it('should update stablecoin name and symbol', async () => {
     const tool = updateStablecoinTool(context, config);
 
     const newName = `Updated Token ${Date.now()}`;

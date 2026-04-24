@@ -75,7 +75,7 @@ describe('Execute Hold Integration Tests', () => {
 
     // Grant KYC to executor
     await executorWrapper.grantKyc({
-      accountId: context.accountId!,
+      targetId: context.accountId!,
       tokenId,
     });
 
@@ -90,7 +90,7 @@ describe('Execute Hold Integration Tests', () => {
     });
 
     await wait();
-  }, 120000);
+  });
 
   afterAll(async () => {
     if (executorClient && operatorClient) {
@@ -177,7 +177,7 @@ describe('Execute Hold Integration Tests', () => {
 
     // Grant KYC to recipient
     await executorWrapper.grantKyc({
-      accountId: recipientAccountId,
+      targetId: recipientAccountId,
       tokenId,
     });
     await executorWrapper.waitForKyc(recipientAccountId, tokenId);

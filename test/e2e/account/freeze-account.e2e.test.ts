@@ -72,7 +72,7 @@ describe('Freeze Account E2E Tests', () => {
     await targetWrapper.waitForAssociation(targetAccountId, tokenId);
 
     await wait();
-  }, 240000);
+  });
 
   afterAll(async () => {
     if (executorClient && operatorClient) {
@@ -144,5 +144,5 @@ describe('Freeze Account E2E Tests', () => {
       messages: [{ role: 'user', content: checkInput2 }],
     });
     expect(result.messages[result.messages.length - 1].content.toLowerCase()).toContain('not frozen');
-  }, 360000);
+  });
 });

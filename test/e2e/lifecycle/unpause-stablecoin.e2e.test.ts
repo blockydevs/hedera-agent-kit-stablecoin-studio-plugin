@@ -52,7 +52,7 @@ describe('Unpause Stablecoin E2E Tests', () => {
     // Pause it first using wrapper
     await executorWrapper.pauseStablecoin({ tokenId });
     await wait();
-  }, 120000);
+  });
 
   afterAll(async () => {
     if (executorClient && operatorClient) {
@@ -98,5 +98,5 @@ describe('Unpause Stablecoin E2E Tests', () => {
 
     const info = await executorWrapper.getStablecoinInfo(tokenId);
     expect(info.paused).toBe(false);
-  }, 240000);
+  });
 });

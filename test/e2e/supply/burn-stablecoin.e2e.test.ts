@@ -86,7 +86,7 @@ describe('Burn Stablecoin E2E Tests', () => {
     });
 
     await wait();
-  }, 240000);
+  });
 
   afterAll(async () => {
     if (executorClient && operatorClient) {
@@ -138,5 +138,5 @@ describe('Burn Stablecoin E2E Tests', () => {
 
     // Initial supply was 1000, burned 100, should be 900
     expect(balance.toString()).toBe('900');
-  }, 240000);
+  });
 });

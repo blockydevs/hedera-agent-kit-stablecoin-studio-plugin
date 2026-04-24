@@ -55,7 +55,7 @@ describe('Create Stablecoin Integration Tests', () => {
       accountId: executorAccountId.toString(),
       privateKey: executorKey.toStringDer(),
     };
-  }, 120000);
+  });
 
   afterAll(async () => {
     if (executorClient && operatorClient) {

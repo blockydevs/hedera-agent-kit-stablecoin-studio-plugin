@@ -48,7 +48,7 @@ describe('Update Reserve Address E2E Tests', () => {
       },
       context: { accountId: resp.accountId.toString() } as any,
     });
-  }, 120000);
+  });
 
   afterAll(async () => {
     if (executorClient && operatorClient) {
@@ -87,8 +87,6 @@ describe('Update Reserve Address E2E Tests', () => {
       });
     }
 
-    console.log(`RESP(should update the reserve address): ${JSON.stringify(result, null, 2)}`)
-
     await wait();
 
     // Verify via Stablecoin Studio SDK info (though reserve address might not be in basic info, 
@@ -96,5 +94,5 @@ describe('Update Reserve Address E2E Tests', () => {
     const parsedResponse = testSetup.responseParser.parseNewToolMessages(result);
     expect(parsedResponse[0]).toBeDefined();
     expect(parsedResponse[0].parsedData.humanMessage.toLowerCase()).toContain('successfully');
-  }, 240000);
+  });
 });

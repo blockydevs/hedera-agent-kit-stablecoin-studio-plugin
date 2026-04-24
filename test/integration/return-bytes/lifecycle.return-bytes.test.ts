@@ -61,7 +61,7 @@ describe('Lifecycle Return Bytes Mode Integration Tests', () => {
       },
       context,
     });
-  }, 120000);
+  });
 
   afterAll(async () => {
     if (operatorClient) {

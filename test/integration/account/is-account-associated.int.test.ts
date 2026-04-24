@@ -73,7 +73,7 @@ describe('Is Account Associated Integration Tests', () => {
     });
 
     await executorWrapper.waitForAssociation(executorAccountId.toString(), tokenId);
-  }, 120000);
+  });
 
   afterAll(async () => {
     if (executorClient && operatorClient) {

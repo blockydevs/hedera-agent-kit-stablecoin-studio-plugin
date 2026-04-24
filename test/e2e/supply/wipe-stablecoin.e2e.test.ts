@@ -99,7 +99,7 @@ describe('Wipe Stablecoin E2E Tests', () => {
     });
 
     await wait();
-  }, 240000);
+  });
 
   afterAll(async () => {
     if (executorClient && operatorClient) {
@@ -159,5 +159,5 @@ describe('Wipe Stablecoin E2E Tests', () => {
     const balance = await executorWrapper.getStablecoinBalance(targetAccountId, tokenId);
     // Started with 100, wiped 50, should be 50
     expect(balance.toString()).toBe('50');
-  }, 240000);
+  });
 });

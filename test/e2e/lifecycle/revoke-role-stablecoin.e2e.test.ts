@@ -68,7 +68,7 @@ describe('Revoke Role Stablecoin E2E Tests', () => {
       role: 'BURN_ROLE',
     });
     await wait();
-  }, 120000);
+  });
 
   afterAll(async () => {
     if (executorClient && operatorClient) {
@@ -118,9 +118,6 @@ describe('Revoke Role Stablecoin E2E Tests', () => {
     }
 
     const parsedResponse = testSetup.responseParser.parseNewToolMessages(result);
-    console.log(
-      `RESP(should revoke BURN_ROLE from an account): ${JSON.stringify(result, null, 2)}`,
-    );
     expect(parsedResponse[0]).toBeDefined();
     expect(parsedResponse[0].parsedData.humanMessage.toLowerCase()).toContain('successfully');
 
@@ -134,5 +131,5 @@ describe('Revoke Role Stablecoin E2E Tests', () => {
     }
 
     expect(hasBurnRole).toBe(false);
-  }, 240000);
+  });
 });

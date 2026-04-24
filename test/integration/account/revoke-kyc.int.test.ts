@@ -90,13 +90,13 @@ describe('Revoke KYC Integration Tests', () => {
 
     // Grant KYC first so we can revoke it
     await executorWrapper.grantKyc({
-      accountId: userAccountId,
+      targetId: userAccountId,
       tokenId,
     });
     await executorWrapper.waitForKyc(userAccountId, tokenId);
 
     await wait(); 
-  }, 120000);
+  });
 
   afterAll(async () => {
     if (executorClient && operatorClient) {
@@ -129,7 +129,7 @@ describe('Revoke KYC Integration Tests', () => {
   it('should revoke KYC from account with default targetId', async () => {
     // Grant KYC to executor (agent) first
     await executorWrapper.grantKyc({
-      accountId: context.accountId!,
+      targetId: context.accountId!,
       tokenId,
     });
     await executorWrapper.waitForKyc(context.accountId!, tokenId);

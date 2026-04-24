@@ -79,7 +79,7 @@ describe('Hold Stablecoin E2E Tests', () => {
     });
 
     await wait();
-  }, 240000);
+  });
 
   afterAll(async () => {
     if (executorClient && operatorClient) {
@@ -128,7 +128,7 @@ describe('Hold Stablecoin E2E Tests', () => {
 
     const balanceAfterHold = await executorWrapper.getStablecoinBalance(executorClient.operatorAccountId!.toString(), tokenId);
     expect(Number(balanceAfterHold)).toBe(Number(initialBalance) - 50);
-  }, 240000);
+  });
 
   it('should execute a hold via agent', async () => {
     // 1. Create a hold via wrapper to get holdId
@@ -175,7 +175,7 @@ describe('Hold Stablecoin E2E Tests', () => {
     const finalBalance = await executorWrapper.getStablecoinBalance(executorClient.operatorAccountId!.toString(), tokenId);
     // Tokens were held (removed from balance) and now executed (returned to target, which is executor by default or same as source in this case)
     expect(Number(finalBalance)).toBe(Number(balanceBeforeExec) + 30);
-  }, 240000);
+  });
 
   it('should release a hold via agent', async () => {
     // 1. Create a hold via wrapper
@@ -219,5 +219,5 @@ describe('Hold Stablecoin E2E Tests', () => {
 
     const finalBalance = await executorWrapper.getStablecoinBalance(executorClient.operatorAccountId!.toString(), tokenId);
     expect(Number(finalBalance)).toBe(Number(balanceBeforeRelease) + 20);
-  }, 240000);
+  });
 });

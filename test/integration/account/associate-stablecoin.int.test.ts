@@ -64,7 +64,7 @@ describe('Associate Stablecoin Integration Tests', () => {
       },
       context,
     });
-  }, 120000);
+  });
 
   afterAll(async () => {
     if (executorClient && operatorClient) {

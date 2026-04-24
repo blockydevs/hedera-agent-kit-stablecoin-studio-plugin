@@ -75,12 +75,12 @@ describe('Cash-in Stablecoin Integration Tests', () => {
 
     // Grant KYC to executor
     await executorWrapper.grantKyc({
-      accountId: context.accountId!,
+      targetId: context.accountId!,
       tokenId,
     });
     await executorWrapper.waitForKyc(context.accountId!, tokenId);
     await wait();
-  }, 120000);
+  });
 
   afterAll(async () => {
     if (executorClient && operatorClient) {

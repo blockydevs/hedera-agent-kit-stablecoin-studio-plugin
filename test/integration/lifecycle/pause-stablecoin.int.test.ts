@@ -62,7 +62,7 @@ describe('Pause Stablecoin Integration Tests', () => {
       config,
       context,
     });
-  }, 120000);
+  });
 
   afterAll(async () => {
     if (executorClient && operatorClient) {

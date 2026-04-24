@@ -78,7 +78,7 @@ describe('Grant Role Stablecoin Integration Tests', () => {
 
     await executorWrapper.waitForAccount(userAccountId);
     await wait();
-  }, 120000);
+  });
 
   afterAll(async () => {
     if (executorClient && operatorClient) {

@@ -85,7 +85,7 @@ describe('Revoke Role Stablecoin Integration Tests', () => {
       role: 'CASHIN_ROLE',
     });
     await wait();
-  }, 120000);
+  });
 
   afterAll(async () => {
     if (executorClient && operatorClient) {

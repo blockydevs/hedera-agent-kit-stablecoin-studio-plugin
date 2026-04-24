@@ -66,7 +66,7 @@ describe('Create Stablecoin E2E Tests', () => {
 
     testSetup = await createLangchainTestSetup(executorClient, executorAccountKey.toStringRaw());
     executorWrapper = new HederaOperationsWrapper(executorClient, executorAccountKey);
-  }, 120000);
+  });
 
   afterAll(async () => {
     if (executorClient && operatorClient) {
@@ -120,7 +120,7 @@ describe('Create Stablecoin E2E Tests', () => {
     expect(info.name).toBe(tokenName);
     expect(info.symbol).toBe(tokenSymbol);
     expect(info.decimals).toBe(6); // Default
-  }, 240000);
+  });
 
   it('should create a stablecoin with custom decimals and initial supply', async () => {
     const tokenName = `E2E_Supply_${Date.now()}`;
@@ -152,7 +152,7 @@ describe('Create Stablecoin E2E Tests', () => {
     expect(info.decimals).toBe(8);
     // totalSupply is returned in display units so the same as input of the tool call
     expect(info.totalSupply?.toString()).toBe('1000');
-  }, 240000);
+  });
 
   it('should create a finite supply stablecoin with max supply', async () => {
     const tokenName = `E2E_Finite_${Date.now()}`;
@@ -181,7 +181,7 @@ describe('Create Stablecoin E2E Tests', () => {
     expect(info.name).toBe(tokenName);
     expect(info.maxSupply?.toString()).toBe('1000');
     expect(info.totalSupply?.toString()).toBe('100');
-  }, 240000);
+  });
 
   it('should create a stablecoin with custom burn role account', async () => {
     // Create another account to be the burner
@@ -219,5 +219,5 @@ describe('Create Stablecoin E2E Tests', () => {
     const capabilities = await executorWrapper.getCapabilities(burnerId, tokenId);
     const hasBurnRole = capabilities.capabilities.some(c => c.operation === 'Burn');
     expect(hasBurnRole).toBe(true);
-  }, 240000);
+  });
 });

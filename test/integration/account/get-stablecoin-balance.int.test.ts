@@ -107,7 +107,7 @@ describe('Get Stablecoin Balance Integration Tests', () => {
     );
 
     await wait();
-  }, 120000);
+  });
 
   afterAll(async () => {
     if (executorClient && operatorClient) {

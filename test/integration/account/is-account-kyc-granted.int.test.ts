@@ -89,13 +89,13 @@ describe('Is Account KYC Granted Integration Tests', () => {
     await userWrapper.waitForAssociation(userAccountId, tokenId);
 
     await executorWrapper.grantKyc({
-      accountId: userAccountId,
+      targetId: userAccountId,
       tokenId,
     });
     await executorWrapper.waitForKyc(userAccountId, tokenId);
 
     await wait(); 
-  }, 120000);
+  });
 
   afterAll(async () => {
     if (executorClient && operatorClient) {
@@ -128,7 +128,7 @@ describe('Is Account KYC Granted Integration Tests', () => {
   it('should check if KYC is granted using default targetId', async () => {
     // Grant KYC to executor (agent) first
     await executorWrapper.grantKyc({
-      accountId: context.accountId!,
+      targetId: context.accountId!,
       tokenId,
     });
     await executorWrapper.waitForKyc(context.accountId!, tokenId);

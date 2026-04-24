@@ -73,7 +73,7 @@ describe('Rescue HBAR Stablecoin Integration Tests', () => {
     });
 
     await wait();
-  }, 120000);
+  });
 
   afterAll(async () => {
     if (executorClient && operatorClient) {

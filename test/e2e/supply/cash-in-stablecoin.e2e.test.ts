@@ -70,7 +70,7 @@ describe('Cash-in Stablecoin E2E Tests', () => {
     await executorWrapper.waitForKyc(resp.accountId.toString(), tokenId);
 
     await wait();
-  }, 240000);
+  });
 
   afterAll(async () => {
     if (executorClient && operatorClient) {
@@ -117,5 +117,5 @@ describe('Cash-in Stablecoin E2E Tests', () => {
 
     const balance = await executorWrapper.getStablecoinBalance(executorClient.operatorAccountId!.toString(), tokenId);
     expect(balance.toString()).toBe('500');
-  }, 240000);
+  });
 });

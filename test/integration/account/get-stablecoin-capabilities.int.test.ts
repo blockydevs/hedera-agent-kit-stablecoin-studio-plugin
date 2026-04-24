@@ -53,7 +53,7 @@ describe('Capabilities Integration Tests', () => {
     };
 
 
-  }, 120000);
+  });
 
   afterAll(async () => {
     if (executorClient && operatorClient) {

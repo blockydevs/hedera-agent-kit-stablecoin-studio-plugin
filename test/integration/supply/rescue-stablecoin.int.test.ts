@@ -74,7 +74,7 @@ describe('Rescue Operations Integration Tests', () => {
     // 3. Wait for association and grant KYC
     await executorWrapper.waitForAssociation(context.accountId!, tokenId);
     await executorWrapper.grantKyc({
-      accountId: context.accountId!,
+      targetId: context.accountId!,
       tokenId,
     });
     await executorWrapper.waitForKyc(context.accountId!, tokenId);
@@ -116,7 +116,7 @@ describe('Rescue Operations Integration Tests', () => {
     });
 
     await wait();
-  }, 120000);
+  });
 
   afterAll(async () => {
     if (executorClient && operatorClient) {

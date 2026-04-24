@@ -458,7 +458,7 @@ export class HederaOperationsWrapper {
     return { status: 'SUCCESS' };
   }
 
-  async updateStablecoin(params: { tokenId: string; name?: string; symbol?: string; memo?: string }) {
+  async updateStablecoin(params: { tokenId: string; name?: string; symbol?: string }) {
     const network = resolveNetwork(this.client, { accountId: this.client.operatorAccountId!.toString() });
     await connectSdkClientMode(network, {
       accountId: this.client.operatorAccountId!.toString(),
@@ -468,7 +468,6 @@ export class HederaOperationsWrapper {
     const requestConfig: any = { tokenId: params.tokenId };
     if (params.name !== undefined) requestConfig.name = params.name;
     if (params.symbol !== undefined) requestConfig.symbol = params.symbol;
-    if (params.memo !== undefined) requestConfig.memo = params.memo;
 
     const req = new UpdateRequest(requestConfig);
     await StableCoin.update(req);

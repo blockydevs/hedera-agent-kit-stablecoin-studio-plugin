@@ -48,7 +48,7 @@ describe('Delete Stablecoin E2E Tests', () => {
       },
       context: { accountId: resp.accountId.toString() } as any,
     });
-  }, 120000);
+  });
 
   afterAll(async () => {
     if (executorClient && operatorClient) {
@@ -94,5 +94,5 @@ describe('Delete Stablecoin E2E Tests', () => {
 
     const info = await executorWrapper.getStablecoinInfo(tokenId);
     expect(info.deleted).toBe(true);
-  }, 240000);
+  });
 });

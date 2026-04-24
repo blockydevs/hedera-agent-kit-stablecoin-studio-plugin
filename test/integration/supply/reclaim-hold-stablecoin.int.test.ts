@@ -77,7 +77,7 @@ describe('Reclaim Hold Integration Tests', () => {
 
     // Grant KYC to executor (token has a kycKey, so KYC is required before receiving tokens)
     await executorWrapper.grantKyc({
-      accountId: context.accountId!,
+      targetId: context.accountId!,
       tokenId,
     });
 
@@ -92,7 +92,7 @@ describe('Reclaim Hold Integration Tests', () => {
     });
 
     await wait();
-  }, 120000);
+  });
 
   afterAll(async () => {
     if (executorClient && operatorClient) {
@@ -185,7 +185,7 @@ describe('Reclaim Hold Integration Tests', () => {
       tokenId
     );
     expect(finalBalance.toString()).toBe(initialBalance.toString());
-  }, 120000);
+  });
 
   it('should successfully reclaim an expired hold using default sourceId', async () => {
     const reclaimHold = reclaimHoldTool(context, config);
@@ -224,5 +224,5 @@ describe('Reclaim Hold Integration Tests', () => {
       tokenId
     );
     expect(finalBalance.toString()).toBe(initialBalance.toString());
-  }, 120000);
+  });
 });

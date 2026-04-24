@@ -59,7 +59,7 @@ describe('Account Return Bytes Mode Integration Tests', () => {
       },
       context,
     });
-  }, 120000);
+  });
 
   afterAll(async () => {
     if (operatorClient) {

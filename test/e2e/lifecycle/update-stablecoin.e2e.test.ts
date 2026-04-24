@@ -48,7 +48,7 @@ describe('Update Stablecoin E2E Tests', () => {
       },
       context: { accountId: resp.accountId.toString() } as any,
     });
-  }, 120000);
+  });
 
   afterAll(async () => {
     if (executorClient && operatorClient) {
@@ -97,5 +97,5 @@ describe('Update Stablecoin E2E Tests', () => {
     const info = await executorWrapper.getStablecoinInfo(tokenId);
     expect(info.name).toBe(newName);
     expect(info.symbol).toBe(newSymbol);
-  }, 240000);
+  });
 });

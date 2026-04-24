@@ -65,7 +65,7 @@ describe('Update Reserve Address Integration Tests', () => {
     });
 
     await wait();
-  }, 120000);
+  });
 
   afterAll(async () => {
     if (executorClient && operatorClient) {

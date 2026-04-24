@@ -89,7 +89,7 @@ describe('Freeze Account Integration Tests', () => {
     await userWrapper.waitForAssociation(userAccountId, tokenId);
 
     await wait(); 
-  }, 120000);
+  });
 
   afterAll(async () => {
     if (executorClient && operatorClient) {

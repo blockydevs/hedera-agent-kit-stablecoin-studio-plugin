@@ -51,7 +51,7 @@ describe('Get Stablecoin Capabilities E2E Tests', () => {
     });
 
     await wait();
-  }, 240000);
+  });
 
   afterAll(async () => {
     if (executorClient && operatorClient) {
@@ -86,5 +86,5 @@ describe('Get Stablecoin Capabilities E2E Tests', () => {
     expect(lastMessage).toContain('FREEZE');
     expect(lastMessage).toContain('PAUSE');
     expect(lastMessage).toContain('RESCUE');
-  }, 240000);
+  });
 });

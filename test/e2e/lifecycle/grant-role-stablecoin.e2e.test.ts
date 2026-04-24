@@ -59,7 +59,7 @@ describe('Grant Role Stablecoin E2E Tests', () => {
     });
     targetAccountId = targetResp.accountId!.toString();
     await executorWrapper.waitForAccount(targetAccountId);
-  }, 120000);
+  });
 
   afterAll(async () => {
     if (executorClient && operatorClient) {
@@ -117,5 +117,5 @@ describe('Grant Role Stablecoin E2E Tests', () => {
     const capabilities = await executorWrapper.getCapabilities(targetAccountId, tokenId);
     const hasBurnRole = capabilities.capabilities.some(c => c.operation === 'Burn');
     expect(hasBurnRole).toBe(true);
-  }, 240000);
+  });
 });

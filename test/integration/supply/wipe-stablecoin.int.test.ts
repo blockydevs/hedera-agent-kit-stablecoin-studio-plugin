@@ -74,11 +74,11 @@ describe('Wipe Stablecoin Integration Tests', () => {
 
     // 3. Grant KYC to executor
     await executorWrapper.grantKyc({
-      accountId: context.accountId!,
+      targetId: context.accountId!,
       tokenId,
     });
     await executorWrapper.waitForKyc(context.accountId!, tokenId);
-  }, 120000);
+  });
 
   afterAll(async () => {
     if (executorClient && operatorClient) {
@@ -124,7 +124,7 @@ describe('Wipe Stablecoin Integration Tests', () => {
 
     // Grant KYC to user
     await executorWrapper.grantKyc({
-      accountId: userAccountId,
+      targetId: userAccountId,
       tokenId,
     });
     await executorWrapper.waitForKyc(userAccountId, tokenId);

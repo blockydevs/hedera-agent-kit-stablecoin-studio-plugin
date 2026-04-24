@@ -71,7 +71,7 @@ describe('Get Stablecoin Balance E2E Tests', () => {
     });
 
     await wait();
-  }, 240000);
+  });
 
   afterAll(async () => {
     if (executorClient && operatorClient) {
@@ -99,5 +99,5 @@ describe('Get Stablecoin Balance E2E Tests', () => {
 
     const lastMessage = result.messages[result.messages.length - 1].content;
     expect(lastMessage).toContain('750');
-  }, 240000);
+  });
 });

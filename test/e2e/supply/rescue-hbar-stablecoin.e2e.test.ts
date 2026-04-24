@@ -73,7 +73,7 @@ describe('Rescue HBAR Stablecoin E2E Tests', () => {
     });
 
     await wait();
-  }, 240000);
+  });
 
   afterAll(async () => {
     if (executorClient && operatorClient) {
@@ -129,5 +129,5 @@ describe('Rescue HBAR Stablecoin E2E Tests', () => {
     // We can't easily know the exact starting balance because of fees, 
     // but it should be greater than 0 since we rescued 1 HBAR.
     expect(Number(finalBalance)).toBeGreaterThan(0);
-  }, 240000);
+  });
 });

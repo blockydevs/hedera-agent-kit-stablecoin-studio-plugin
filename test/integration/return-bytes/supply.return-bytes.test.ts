@@ -78,7 +78,7 @@ describe('Supply Return Bytes Mode Integration Tests', () => {
     await executorWrapper.waitForAssociation(executorAccountId, tokenId);
 
     await executorWrapper.grantKyc({
-      accountId: executorAccountId,
+      targetId: executorAccountId,
       tokenId,
     });
     await executorWrapper.waitForKyc(executorAccountId, tokenId);
@@ -89,7 +89,7 @@ describe('Supply Return Bytes Mode Integration Tests', () => {
     await executorWrapper.grantRole({ tokenId, targetId: executorAccountId, role: 'WIPE_ROLE' });
 
     await wait(10000); // Wait for roles to propagate
-  }, 120000);
+  });
 
   afterAll(async () => {
     if (fundingClient && executorAccountId) {
@@ -200,7 +200,7 @@ describe('Supply Return Bytes Mode Integration Tests', () => {
     await fundingWrapper.waitForAssociation(targetAccountId, tokenId);
 
     await executorWrapper.grantKyc({
-      accountId: targetAccountId,
+      targetId: targetAccountId,
       tokenId,
     });
     await executorWrapper.waitForKyc(targetAccountId, tokenId);

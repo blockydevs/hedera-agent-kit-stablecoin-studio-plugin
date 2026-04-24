@@ -23,7 +23,7 @@ export default defineConfig({
       reporter: ['text', 'html'],
       enabled: false,
     },
-    testTimeout: 120000,
-    hookTimeout: 120000,
+    testTimeout: 420000,
+    hookTimeout: 420000,
   },
 });

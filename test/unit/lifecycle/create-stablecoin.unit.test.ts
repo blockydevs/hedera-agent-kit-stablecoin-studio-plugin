@@ -107,7 +107,6 @@ describe('create-stablecoin tool (unit)', () => {
     const params = { 
       name: 'Test', 
       symbol: 'TST',
-      memo: 'test memo',
       metadata: 'test metadata',
       freezeDefault: true,
       autoRenewAccount: '0.0.789',
@@ -121,7 +120,6 @@ describe('create-stablecoin tool (unit)', () => {
     expect(StableCoin.buildCreate).toHaveBeenCalledWith(expect.objectContaining({
       name: 'Test',
       symbol: 'TST',
-      memo: 'test memo',
       metadata: 'test metadata',
       freezeDefault: true,
       autoRenewAccount: '0.0.789',

@@ -71,7 +71,7 @@ describe('Associate Stablecoin E2E Tests', () => {
 
     creatorClient.close();
     await wait();
-  }, 240000);
+  });
 
   afterAll(async () => {
     if (executorClient && operatorClient) {
@@ -129,5 +129,5 @@ describe('Associate Stablecoin E2E Tests', () => {
       tokenId
     );
     expect(isAssociated).toBe(true);
-  }, 240000);
+  });
 });

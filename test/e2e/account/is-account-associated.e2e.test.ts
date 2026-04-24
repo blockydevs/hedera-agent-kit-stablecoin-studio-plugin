@@ -63,7 +63,7 @@ describe('Is Account Associated E2E Tests', () => {
     await operatorWrapper.waitForAccount(targetAccountId);
 
     await wait();
-  }, 240000);
+  });
 
   afterAll(async () => {
     if (executorClient && operatorClient) {
@@ -118,5 +118,5 @@ describe('Is Account Associated E2E Tests', () => {
     });
     expect(result.messages[result.messages.length - 1].content.toLowerCase()).not.toContain('not associated');
     expect(result.messages[result.messages.length - 1].content.toLowerCase()).toContain('associated');
-  }, 360000);
+  });
 });

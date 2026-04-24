@@ -75,7 +75,7 @@ describe('Create Hold Stablecoin Integration Tests', () => {
 
     // Grant KYC to executor (token has a kycKey, so KYC is required before receiving tokens)
     await executorWrapper.grantKyc({
-      accountId: context.accountId!,
+      targetId: context.accountId!,
       tokenId,
     });
     
@@ -90,7 +90,7 @@ describe('Create Hold Stablecoin Integration Tests', () => {
     });
 
     await wait();
-  }, 120000);
+  });
 
   afterAll(async () => {
     if (executorClient && operatorClient) {
