@@ -1,4 +1,4 @@
-import { Client, AccountId, PrivateKey, LedgerId, TokenId, AccountInfoQuery, TokenInfoQuery, Hbar, TokenAssociateTransaction, TransferTransaction } from '@hiero-ledger/sdk';
+import { Client, AccountId, PrivateKey, LedgerId, TokenId, AccountInfoQuery, TokenInfoQuery, Hbar, TokenAssociateTransaction, TransferTransaction, AccountBalanceQuery } from '@hiero-ledger/sdk';
 import { z } from 'zod';
 import {
   StableCoin,
@@ -125,6 +125,50 @@ export class HederaOperationsWrapper {
     };
   }
 
+  async getAccountHbarBalance(accountId: string): Promise<Hbar> {
+    const query = new AccountBalanceQuery().setAccountId(accountId);
+    const balance = await query.execute(this.client);
+    return balance.hbars;
+  }
+
+  async teardownAccount(params: { accountId: string; transferAccountId: string }) {
+    try {
+      await this.deleteAccount({
+        accountId: AccountId.fromString(params.accountId),
+        transferAccountId: AccountId.fromString(params.transferAccountId),
+      });
+    } catch (_error) {
+      console.warn(
+        `Error deleting account ${params.accountId}. The HBARs will be transferred to the operator account but this account won't be deleted.`,
+      );
+      // if we can't delete the account, at least return the hbars to the operator account
+      try {
+        const balance = await this.getAccountHbarBalance(params.accountId);
+        const balanceTinybars = balance.toTinybars();
+        
+        // leave a small amount to pay for the tx (0.1 HBAR = 10,000,000 tinybars)
+        const reserveTinybars = 10_000_000;
+        const transferAmountTinybars = balanceTinybars.sub(reserveTinybars);
+
+        if (transferAmountTinybars.isNegative() || transferAmountTinybars.isZero()) {
+          console.warn(`Not enough HBAR in ${params.accountId} to return - couldn't delete the account.`);
+          return;
+        }
+
+        const transferAmountHbar = Hbar.fromTinybars(transferAmountTinybars);
+
+        const transaction = new TransferTransaction()
+          .addHbarTransfer(params.accountId, transferAmountHbar.negated())
+          .addHbarTransfer(params.transferAccountId, transferAmountHbar);
+
+        const txResponse = await transaction.execute(this.client);
+        await txResponse.getReceipt(this.client);
+      } catch (transferError) {
+        console.error(`Failed to transfer remaining HBAR from ${params.accountId}:`, transferError);
+      }
+    }
+  }
+
   async associateToken(params: { accountId: string; tokenId: string; privateKey?: PrivateKey }) {
     const transaction = new TokenAssociateTransaction()
       .setAccountId(params.accountId)
@@ -158,7 +202,7 @@ export class HederaOperationsWrapper {
     };
   }
 
-  async grantKyc(params: { accountId: string; tokenId: string }) {
+  async grantKyc(params: { targetId: string; tokenId: string }) {
     const network = resolveNetwork(this.client, { accountId: this.client.operatorAccountId!.toString() });
     await initSdk(network, { accountId: this.client.operatorAccountId!.toString() });
     console.log('DEBUG grantKyc connecting with:', this.client.operatorAccountId!.toString());
@@ -168,7 +212,7 @@ export class HederaOperationsWrapper {
     });
     await StableCoin.grantKyc(new KYCRequest({
       tokenId: params.tokenId,
-      targetId: params.accountId,
+      targetId: params.targetId,
     }));
     return { status: 'SUCCESS' };
   }
@@ -466,7 +510,8 @@ export class HederaOperationsWrapper {
 
   async getAccountBalances(accountId: string) {
     const response = await this.mirrornode.getAccount(accountId);
-    return response.balance;
+    // response.balance is an object with { balance: number, ... }
+    return response.balance.balance.toString();
   }
 
   async waitForAccount(accountId: string, maxAttempts: number = 10): Promise<void> {

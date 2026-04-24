@@ -4,7 +4,6 @@ import {
   createLangchainTestSetup,
   LangchainTestSetup
 } from '../setup';
-import { StableCoinRole } from '@hashgraph/stablecoin-npm-sdk';
 import {
   HederaOperationsWrapper,
   UsdToHbarService,
@@ -12,7 +11,7 @@ import {
   wait
 } from '../../integration/test-utils';
 
-describe('Revoke Role Stablecoin E2E Tests', () => {
+describe('Wipe Stablecoin E2E Tests', () => {
   let testSetup: LangchainTestSetup;
   let executorClient: Client;
   let operatorClient: Client;
@@ -23,6 +22,7 @@ describe('Revoke Role Stablecoin E2E Tests', () => {
 
   beforeAll(async () => {
     await UsdToHbarService.initialize();
+
     const baseSetup = await createLangchainTestSetup();
     operatorClient = baseSetup.client;
     const operatorWrapper = new HederaOperationsWrapper(operatorClient);
@@ -30,45 +30,76 @@ describe('Revoke Role Stablecoin E2E Tests', () => {
     const executorAccountKey = PrivateKey.generateECDSA();
     const resp = await operatorWrapper.createAccount({
       key: executorAccountKey.publicKey,
-      initialBalance: UsdToHbarService.usdToHbar(BALANCE_TIERS.MAXIMUM),
-      accountMemo: 'executor account for Revoke Role E2E Tests',
+      initialBalance: UsdToHbarService.usdToHbar(BALANCE_TIERS.ELEVATED),
+      accountMemo: 'executor account for Wipe Stablecoin E2E Tests',
     });
 
     if (!resp.accountId) throw new Error('Failed to create executor account');
-
-    executorClient = Client.forTestnet().setOperator(resp.accountId, executorAccountKey);
-    testSetup = await createLangchainTestSetup(executorClient, executorAccountKey.toStringRaw());
-    executorWrapper = new HederaOperationsWrapper(executorClient, executorAccountKey);
-
     await operatorWrapper.waitForAccount(resp.accountId.toString());
 
+    executorClient = Client.forTestnet().setOperator(resp.accountId, executorAccountKey);
+    executorWrapper = new HederaOperationsWrapper(executorClient, executorAccountKey);
+
+    testSetup = await createLangchainTestSetup(executorClient, executorAccountKey.toStringRaw());
+
     tokenId = await executorWrapper.createStablecoin({
-      name: `Revoke_Role_E2E_${Date.now()}`,
-      symbol: 'RRE2E',
+      name: `E2E Wipe ${Date.now()}`,
+      symbol: 'E2EW',
       config: {
         accountId: resp.accountId.toString(),
-        privateKey: executorAccountKey.toStringDer(),
+        privateKey: executorAccountKey.toStringDer()
       },
-      context: { accountId: resp.accountId.toString() } as any,
+      context: {
+        mode: (testSetup.toolkit.getTools()[0] as any).context?.mode || 'AUTONOMOUS',
+        accountId: resp.accountId.toString()
+      }
     });
 
+    // Explicitly associate the executor account
+    await executorWrapper.associateToken({
+      tokenId,
+      accountId: resp.accountId.toString(),
+      privateKey: executorAccountKey
+    }).catch(() => { });
+    await executorWrapper.waitForAssociation(resp.accountId.toString(), tokenId);
+    await wait(10000);
+
+    // Create target account
     targetKey = PrivateKey.generateECDSA();
-    const targetResp = await executorWrapper.createAccount({
+    const targetResp = await operatorWrapper.createAccount({
       key: targetKey.publicKey,
-      initialBalance: UsdToHbarService.usdToHbar(BALANCE_TIERS.MINIMAL),
-      accountMemo: 'target account for Revoke Role E2E Tests',
+      initialBalance: UsdToHbarService.usdToHbar(BALANCE_TIERS.ELEVATED),
+      accountMemo: 'target account for Wipe E2E Test',
     });
     targetAccountId = targetResp.accountId!.toString();
-    await executorWrapper.waitForAccount(targetAccountId);
+    await operatorWrapper.waitForAccount(targetAccountId);
 
-    // Grant role first
-    await executorWrapper.grantRole({
+    // Associate target account
+    const targetClient = Client.forTestnet().setOperator(targetResp.accountId!, targetKey);
+    const targetWrapper = new HederaOperationsWrapper(targetClient, targetKey);
+    await targetWrapper.associateToken({
+      accountId: targetAccountId,
       tokenId,
-      targetId: targetAccountId,
-      role: 'BURN_ROLE',
+      privateKey: targetKey
     });
+    await targetWrapper.waitForAssociation(targetAccountId, tokenId);
+
+    // Grant KYC to target
+    await executorWrapper.grantKyc({
+      targetId: targetAccountId,
+      tokenId,
+    });
+    await executorWrapper.waitForKyc(targetAccountId, tokenId);
+
+    // Cash in tokens to target
+    await executorWrapper.cashIn({
+      tokenId,
+      amount: '100',
+      targetId: targetAccountId
+    });
+
     await wait();
-  }, 120000);
+  }, 240000);
 
   afterAll(async () => {
     if (executorClient && operatorClient) {
@@ -98,8 +129,9 @@ describe('Revoke Role Stablecoin E2E Tests', () => {
     if (operatorClient) operatorClient.close();
   });
 
-  it('should revoke BURN_ROLE from an account', async () => {
-    const input = `Revoke BURN_ROLE from account ${targetAccountId} for stablecoin ${tokenId}`;
+  it('should wipe tokens from the target account via agent', async () => {
+    const amountToWipe = '50';
+    const input = `I want to wipe ${amountToWipe} tokens of the stablecoin ${tokenId} from account ${targetAccountId}. Proceed immediately.`;
 
     let result = await testSetup.agent.invoke({
       messages: [{ role: 'user', content: input }],
@@ -112,27 +144,20 @@ describe('Revoke Role Stablecoin E2E Tests', () => {
       result = await testSetup.agent.invoke({
         messages: [
           ...result.messages,
-          { role: 'user', content: 'yes, proceed' }
+          { role: 'user', content: 'yes, please wipe them' }
         ],
       });
     }
 
+    await wait();
+
     const parsedResponse = testSetup.responseParser.parseNewToolMessages(result);
-    console.log(
-      `RESP(should revoke BURN_ROLE from an account): ${JSON.stringify(result, null, 2)}`,
-    );
     expect(parsedResponse[0]).toBeDefined();
     expect(parsedResponse[0].parsedData.humanMessage.toLowerCase()).toContain('successfully');
+    expect(parsedResponse[0].parsedData.humanMessage.toLowerCase()).toContain('wiped');
 
-    // Wait and retry for mirror node consistency
-    let hasBurnRole = true;
-    for (let i = 0; i < 5; i++) {
-      await wait(5000);
-      hasBurnRole = await executorWrapper.hasRole(targetAccountId, tokenId, StableCoinRole.BURN_ROLE);
-      if (!hasBurnRole) break;
-      console.log(`Retry ${i + 1}: BURN_ROLE still present, waiting...`);
-    }
-
-    expect(hasBurnRole).toBe(false);
+    const balance = await executorWrapper.getStablecoinBalance(targetAccountId, tokenId);
+    // Started with 100, wiped 50, should be 50
+    expect(balance.toString()).toBe('50');
   }, 240000);
 });

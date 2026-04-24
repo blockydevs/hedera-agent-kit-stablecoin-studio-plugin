@@ -11,7 +11,7 @@ import {
   wait
 } from '../../integration/test-utils';
 
-describe('Grant Role Stablecoin E2E Tests', () => {
+describe('Grant KYC E2E Tests', () => {
   let testSetup: LangchainTestSetup;
   let executorClient: Client;
   let operatorClient: Client;
@@ -22,6 +22,7 @@ describe('Grant Role Stablecoin E2E Tests', () => {
 
   beforeAll(async () => {
     await UsdToHbarService.initialize();
+
     const baseSetup = await createLangchainTestSetup();
     operatorClient = baseSetup.client;
     const operatorWrapper = new HederaOperationsWrapper(operatorClient);
@@ -30,41 +31,52 @@ describe('Grant Role Stablecoin E2E Tests', () => {
     const resp = await operatorWrapper.createAccount({
       key: executorAccountKey.publicKey,
       initialBalance: UsdToHbarService.usdToHbar(BALANCE_TIERS.ELEVATED),
-      accountMemo: 'executor account for Grant Role E2E Tests',
+      accountMemo: 'executor account for KYC E2E Tests',
     });
 
     if (!resp.accountId) throw new Error('Failed to create executor account');
-
     await operatorWrapper.waitForAccount(resp.accountId.toString());
 
     executorClient = Client.forTestnet().setOperator(resp.accountId, executorAccountKey);
-    testSetup = await createLangchainTestSetup(executorClient, executorAccountKey.toStringRaw());
     executorWrapper = new HederaOperationsWrapper(executorClient, executorAccountKey);
 
+    testSetup = await createLangchainTestSetup(executorClient, executorAccountKey.toStringRaw());
+
     tokenId = await executorWrapper.createStablecoin({
-      name: `Grant_Role_E2E_${Date.now()}`,
-      symbol: 'GRE2E',
+      name: `E2E KYC ${Date.now()}`,
+      symbol: 'E2EKYC',
       config: {
         accountId: resp.accountId.toString(),
-        privateKey: executorAccountKey.toStringRaw(),
+        privateKey: executorAccountKey.toStringDer(),
       },
       context: { accountId: resp.accountId.toString() } as any,
     });
 
+    // Create and associate target account
     targetKey = PrivateKey.generateECDSA();
-    const targetResp = await executorWrapper.createAccount({
+    const targetResp = await operatorWrapper.createAccount({
       key: targetKey.publicKey,
       initialBalance: UsdToHbarService.usdToHbar(BALANCE_TIERS.MINIMAL),
-      accountMemo: 'target account for Grant Role E2E Tests',
+      accountMemo: 'target account for KYC E2E Tests',
     });
     targetAccountId = targetResp.accountId!.toString();
-    await executorWrapper.waitForAccount(targetAccountId);
-  }, 120000);
+    await operatorWrapper.waitForAccount(targetAccountId);
+
+    const targetClient = Client.forTestnet().setOperator(targetResp.accountId!, targetKey);
+    const targetWrapper = new HederaOperationsWrapper(targetClient, targetKey);
+    await targetWrapper.associateToken({
+      tokenId,
+      accountId: targetAccountId,
+      privateKey: targetKey
+    });
+    await targetWrapper.waitForAssociation(targetAccountId, tokenId);
+
+    await wait();
+  }, 240000);
 
   afterAll(async () => {
     if (executorClient && operatorClient) {
       try {
-        // Clean up target account if it exists
         if (targetAccountId && targetKey) {
           const targetClient = Client.forTestnet().setOperator(targetAccountId, targetKey);
           const targetWrapper = new HederaOperationsWrapper(targetClient, targetKey);
@@ -74,7 +86,6 @@ describe('Grant Role Stablecoin E2E Tests', () => {
           });
           targetClient.close();
         }
-
         await executorWrapper.teardownAccount({
           accountId: executorClient.operatorAccountId!.toString(),
           transferAccountId: operatorClient.operatorAccountId!.toString(),
@@ -89,33 +100,49 @@ describe('Grant Role Stablecoin E2E Tests', () => {
     if (operatorClient) operatorClient.close();
   });
 
-  it('should grant BURN_ROLE to an account', async () => {
-    const input = `Grant BURN_ROLE to account ${targetAccountId} for stablecoin ${tokenId}`;
-
+  it('should grant and revoke KYC for an account via agent', async () => {
+    // 1. Grant KYC
+    const grantInput = `Grant KYC to account ${targetAccountId} for stablecoin ${tokenId}. Proceed immediately.`;
     let result = await testSetup.agent.invoke({
-      messages: [{ role: 'user', content: input }],
+      messages: [{ role: 'user', content: grantInput }],
     });
 
-    const messages = result.messages;
-    const toolCalled = messages.some((m: any) => m._getType() === 'tool');
-
-    if (!toolCalled) {
+    if (!result.messages.some((m: any) => m._getType() === 'tool')) {
       result = await testSetup.agent.invoke({
-        messages: [
-          ...result.messages,
-          { role: 'user', content: 'yes, proceed' }
-        ],
+        messages: [...result.messages, { role: 'user', content: 'yes, grant it' }],
       });
     }
 
-    const parsedResponse = testSetup.responseParser.parseNewToolMessages(result);
-    expect(parsedResponse[0]).toBeDefined();
-    expect(parsedResponse[0].parsedData.humanMessage.toLowerCase()).toContain('successfully');
-
+    expect(testSetup.responseParser.parseNewToolMessages(result)[0].parsedData.humanMessage.toLowerCase()).toContain('successfully');
     await wait();
 
-    const capabilities = await executorWrapper.getCapabilities(targetAccountId, tokenId);
-    const hasBurnRole = capabilities.capabilities.some(c => c.operation === 'Burn');
-    expect(hasBurnRole).toBe(true);
-  }, 240000);
+    // 2. Check if KYC granted
+    const checkInput = `Does account ${targetAccountId} have KYC granted for stablecoin ${tokenId}?`;
+    result = await testSetup.agent.invoke({
+      messages: [{ role: 'user', content: checkInput }],
+    });
+    expect(result.messages[result.messages.length - 1].content.toLowerCase()).toContain('has kyc granted');
+
+    // 3. Revoke KYC
+    const revokeInput = `Revoke KYC from account ${targetAccountId} for stablecoin ${tokenId}. Proceed immediately.`;
+    result = await testSetup.agent.invoke({
+      messages: [{ role: 'user', content: revokeInput }],
+    });
+
+    if (!result.messages.some((m: any) => m._getType() === 'tool')) {
+      result = await testSetup.agent.invoke({
+        messages: [...result.messages, { role: 'user', content: 'yes, revoke it' }],
+      });
+    }
+
+    expect(testSetup.responseParser.parseNewToolMessages(result)[0].parsedData.humanMessage.toLowerCase()).toContain('successfully');
+    await wait();
+
+    // 4. Check if KYC not granted
+    const checkInput2 = `Does account ${targetAccountId} have KYC granted for stablecoin ${tokenId}?`;
+    result = await testSetup.agent.invoke({
+      messages: [{ role: 'user', content: checkInput2 }],
+    });
+    expect(result.messages[result.messages.length - 1].content.toLowerCase()).toContain('does not have kyc');
+  }, 360000);
 });

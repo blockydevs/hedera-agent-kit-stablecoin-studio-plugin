@@ -11,54 +11,86 @@ import {
   wait
 } from '../../integration/test-utils';
 
-describe('Update Stablecoin E2E Tests', () => {
+describe('Associate Stablecoin E2E Tests', () => {
   let testSetup: LangchainTestSetup;
   let executorClient: Client;
   let operatorClient: Client;
   let executorWrapper: HederaOperationsWrapper;
   let tokenId: string;
+  let creatorAccountId: string;
+  let creatorKey: PrivateKey;
 
   beforeAll(async () => {
     await UsdToHbarService.initialize();
+
     const baseSetup = await createLangchainTestSetup();
     operatorClient = baseSetup.client;
     const operatorWrapper = new HederaOperationsWrapper(operatorClient);
 
+    // Create creator account
+    creatorKey = PrivateKey.generateECDSA();
+    const creatorResp = await operatorWrapper.createAccount({
+      key: creatorKey.publicKey,
+      initialBalance: UsdToHbarService.usdToHbar(BALANCE_TIERS.ELEVATED),
+      accountMemo: 'creator account for Associate Stablecoin E2E Tests',
+    });
+    creatorAccountId = creatorResp.accountId!.toString();
+    await operatorWrapper.waitForAccount(creatorAccountId);
+
+    const creatorClient = Client.forTestnet().setOperator(creatorResp.accountId!, creatorKey);
+    const creatorWrapper = new HederaOperationsWrapper(creatorClient, creatorKey);
+
+    // Create executor account
     const executorAccountKey = PrivateKey.generateECDSA();
     const resp = await operatorWrapper.createAccount({
       key: executorAccountKey.publicKey,
       initialBalance: UsdToHbarService.usdToHbar(BALANCE_TIERS.ELEVATED),
-      accountMemo: 'executor account for Update Stablecoin E2E Tests',
+      accountMemo: 'executor account for Associate Stablecoin E2E Tests',
     });
 
     if (!resp.accountId) throw new Error('Failed to create executor account');
-
     await operatorWrapper.waitForAccount(resp.accountId.toString());
 
     executorClient = Client.forTestnet().setOperator(resp.accountId, executorAccountKey);
-    testSetup = await createLangchainTestSetup(executorClient, executorAccountKey.toStringRaw());
     executorWrapper = new HederaOperationsWrapper(executorClient, executorAccountKey);
 
-    tokenId = await executorWrapper.createStablecoin({
-      name: `Update_E2E_${Date.now()}`,
-      symbol: 'UE2E',
+    testSetup = await createLangchainTestSetup(executorClient, executorAccountKey.toStringRaw());
+
+    // Create a stablecoin using creator account so it's not automatically associated with executor
+    tokenId = await creatorWrapper.createStablecoin({
+      name: `E2E Associate ${Date.now()}`,
+      symbol: 'E2EA',
       config: {
-        accountId: resp.accountId.toString(),
-        privateKey: executorAccountKey.toStringDer(),
+        accountId: creatorAccountId,
+        privateKey: creatorKey.toStringDer()
       },
-      context: { accountId: resp.accountId.toString() } as any,
+      context: {
+        accountId: creatorAccountId
+      }
     });
-  }, 120000);
+
+    creatorClient.close();
+    await wait();
+  }, 240000);
 
   afterAll(async () => {
     if (executorClient && operatorClient) {
       try {
+        if (creatorAccountId && creatorKey) {
+          const creatorClient = Client.forTestnet().setOperator(creatorAccountId, creatorKey);
+          const creatorWrapper = new HederaOperationsWrapper(creatorClient, creatorKey);
+          await creatorWrapper.teardownAccount({
+            accountId: creatorAccountId,
+            transferAccountId: operatorClient.operatorAccountId!.toString(),
+          });
+          creatorClient.close();
+        }
         await executorWrapper.teardownAccount({
           accountId: executorClient.operatorAccountId!.toString(),
           transferAccountId: operatorClient.operatorAccountId!.toString(),
         });
       } catch (error) {
-        console.warn('Failed to clean up executor account:', error);
+        console.warn('Failed to clean up accounts:', error);
       }
     }
     if (testSetup) {
@@ -67,10 +99,8 @@ describe('Update Stablecoin E2E Tests', () => {
     if (operatorClient) operatorClient.close();
   });
 
-  it('should update stablecoin name and symbol', async () => {
-    const newName = `Updated_Name_${Date.now()}`;
-    const newSymbol = 'UE2EU';
-    const input = `Update stablecoin ${tokenId} with name "${newName}" and symbol "${newSymbol}"`;
+  it('should associate the agent account with the stablecoin', async () => {
+    const input = `Associate my account with the stablecoin ${tokenId}. Proceed immediately.`;
 
     let result = await testSetup.agent.invoke({
       messages: [{ role: 'user', content: input }],
@@ -83,7 +113,7 @@ describe('Update Stablecoin E2E Tests', () => {
       result = await testSetup.agent.invoke({
         messages: [
           ...result.messages,
-          { role: 'user', content: 'yes, proceed' }
+          { role: 'user', content: 'yes, please associate it' }
         ],
       });
     }
@@ -94,8 +124,10 @@ describe('Update Stablecoin E2E Tests', () => {
 
     await wait();
 
-    const info = await executorWrapper.getStablecoinInfo(tokenId);
-    expect(info.name).toBe(newName);
-    expect(info.symbol).toBe(newSymbol);
+    const isAssociated = await executorWrapper.isTokenAssociated(
+      executorClient.operatorAccountId!.toString(),
+      tokenId
+    );
+    expect(isAssociated).toBe(true);
   }, 240000);
 });

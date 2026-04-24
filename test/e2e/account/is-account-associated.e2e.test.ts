@@ -4,7 +4,6 @@ import {
   createLangchainTestSetup,
   LangchainTestSetup
 } from '../setup';
-import { StableCoinRole } from '@hashgraph/stablecoin-npm-sdk';
 import {
   HederaOperationsWrapper,
   UsdToHbarService,
@@ -12,7 +11,7 @@ import {
   wait
 } from '../../integration/test-utils';
 
-describe('Revoke Role Stablecoin E2E Tests', () => {
+describe('Is Account Associated E2E Tests', () => {
   let testSetup: LangchainTestSetup;
   let executorClient: Client;
   let operatorClient: Client;
@@ -23,6 +22,7 @@ describe('Revoke Role Stablecoin E2E Tests', () => {
 
   beforeAll(async () => {
     await UsdToHbarService.initialize();
+
     const baseSetup = await createLangchainTestSetup();
     operatorClient = baseSetup.client;
     const operatorWrapper = new HederaOperationsWrapper(operatorClient);
@@ -30,21 +30,21 @@ describe('Revoke Role Stablecoin E2E Tests', () => {
     const executorAccountKey = PrivateKey.generateECDSA();
     const resp = await operatorWrapper.createAccount({
       key: executorAccountKey.publicKey,
-      initialBalance: UsdToHbarService.usdToHbar(BALANCE_TIERS.MAXIMUM),
-      accountMemo: 'executor account for Revoke Role E2E Tests',
+      initialBalance: UsdToHbarService.usdToHbar(BALANCE_TIERS.ELEVATED),
+      accountMemo: 'executor account for IsAssociated E2E Tests',
     });
 
     if (!resp.accountId) throw new Error('Failed to create executor account');
-
-    executorClient = Client.forTestnet().setOperator(resp.accountId, executorAccountKey);
-    testSetup = await createLangchainTestSetup(executorClient, executorAccountKey.toStringRaw());
-    executorWrapper = new HederaOperationsWrapper(executorClient, executorAccountKey);
-
     await operatorWrapper.waitForAccount(resp.accountId.toString());
 
+    executorClient = Client.forTestnet().setOperator(resp.accountId, executorAccountKey);
+    executorWrapper = new HederaOperationsWrapper(executorClient, executorAccountKey);
+
+    testSetup = await createLangchainTestSetup(executorClient, executorAccountKey.toStringRaw());
+
     tokenId = await executorWrapper.createStablecoin({
-      name: `Revoke_Role_E2E_${Date.now()}`,
-      symbol: 'RRE2E',
+      name: `E2E IsAssoc ${Date.now()}`,
+      symbol: 'E2EIA',
       config: {
         accountId: resp.accountId.toString(),
         privateKey: executorAccountKey.toStringDer(),
@@ -52,28 +52,22 @@ describe('Revoke Role Stablecoin E2E Tests', () => {
       context: { accountId: resp.accountId.toString() } as any,
     });
 
+    // Create a target account that is NOT associated
     targetKey = PrivateKey.generateECDSA();
-    const targetResp = await executorWrapper.createAccount({
+    const targetResp = await operatorWrapper.createAccount({
       key: targetKey.publicKey,
       initialBalance: UsdToHbarService.usdToHbar(BALANCE_TIERS.MINIMAL),
-      accountMemo: 'target account for Revoke Role E2E Tests',
+      accountMemo: 'target account for IsAssociated E2E Tests',
     });
     targetAccountId = targetResp.accountId!.toString();
-    await executorWrapper.waitForAccount(targetAccountId);
+    await operatorWrapper.waitForAccount(targetAccountId);
 
-    // Grant role first
-    await executorWrapper.grantRole({
-      tokenId,
-      targetId: targetAccountId,
-      role: 'BURN_ROLE',
-    });
     await wait();
-  }, 120000);
+  }, 240000);
 
   afterAll(async () => {
     if (executorClient && operatorClient) {
       try {
-        // Clean up target account if it exists
         if (targetAccountId && targetKey) {
           const targetClient = Client.forTestnet().setOperator(targetAccountId, targetKey);
           const targetWrapper = new HederaOperationsWrapper(targetClient, targetKey);
@@ -83,7 +77,6 @@ describe('Revoke Role Stablecoin E2E Tests', () => {
           });
           targetClient.close();
         }
-
         await executorWrapper.teardownAccount({
           accountId: executorClient.operatorAccountId!.toString(),
           transferAccountId: operatorClient.operatorAccountId!.toString(),
@@ -98,41 +91,32 @@ describe('Revoke Role Stablecoin E2E Tests', () => {
     if (operatorClient) operatorClient.close();
   });
 
-  it('should revoke BURN_ROLE from an account', async () => {
-    const input = `Revoke BURN_ROLE from account ${targetAccountId} for stablecoin ${tokenId}`;
-
+  it('should check if an account is associated with a stablecoin via agent', async () => {
+    // 1. Check - should be NOT associated
+    const checkInput = `Is account ${targetAccountId} associated with stablecoin ${tokenId}?`;
     let result = await testSetup.agent.invoke({
-      messages: [{ role: 'user', content: input }],
+      messages: [{ role: 'user', content: checkInput }],
     });
+    expect(result.messages[result.messages.length - 1].content.toLowerCase()).toContain('not associated');
 
-    const messages = result.messages;
-    const toolCalled = messages.some((m: any) => m._getType() === 'tool');
+    // 2. Associate (manually to avoid complex agent multi-turn for target association if needed, 
+    // or we can just test the "is associated" tool's reporting after manual association)
+    const targetClient = Client.forTestnet().setOperator(targetAccountId, targetKey);
+    const targetWrapper = new HederaOperationsWrapper(targetClient, targetKey);
+    await targetWrapper.associateToken({
+      tokenId,
+      accountId: targetAccountId,
+      privateKey: targetKey
+    });
+    await targetWrapper.waitForAssociation(targetAccountId, tokenId);
+    targetClient.close();
+    await wait();
 
-    if (!toolCalled) {
-      result = await testSetup.agent.invoke({
-        messages: [
-          ...result.messages,
-          { role: 'user', content: 'yes, proceed' }
-        ],
-      });
-    }
-
-    const parsedResponse = testSetup.responseParser.parseNewToolMessages(result);
-    console.log(
-      `RESP(should revoke BURN_ROLE from an account): ${JSON.stringify(result, null, 2)}`,
-    );
-    expect(parsedResponse[0]).toBeDefined();
-    expect(parsedResponse[0].parsedData.humanMessage.toLowerCase()).toContain('successfully');
-
-    // Wait and retry for mirror node consistency
-    let hasBurnRole = true;
-    for (let i = 0; i < 5; i++) {
-      await wait(5000);
-      hasBurnRole = await executorWrapper.hasRole(targetAccountId, tokenId, StableCoinRole.BURN_ROLE);
-      if (!hasBurnRole) break;
-      console.log(`Retry ${i + 1}: BURN_ROLE still present, waiting...`);
-    }
-
-    expect(hasBurnRole).toBe(false);
-  }, 240000);
+    // 3. Check again - should be associated
+    result = await testSetup.agent.invoke({
+      messages: [{ role: 'user', content: checkInput }],
+    });
+    expect(result.messages[result.messages.length - 1].content.toLowerCase()).not.toContain('not associated');
+    expect(result.messages[result.messages.length - 1].content.toLowerCase()).toContain('associated');
+  }, 360000);
 });

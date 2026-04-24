@@ -102,6 +102,9 @@ export async function ensureSdkConnected(
 }
 
 export function hexToUint8Array(hex: string): Uint8Array {
+  if (!hex) {
+    throw new Error('hexToUint8Array: hex string is undefined or empty');
+  }
   const clean = hex.startsWith('0x') ? hex.slice(2) : hex;
   const bytes = new Uint8Array(clean.length / 2);
   for (let i = 0; i < clean.length; i += 2) {

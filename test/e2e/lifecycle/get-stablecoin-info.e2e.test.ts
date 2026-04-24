@@ -1,13 +1,13 @@
 import { afterAll, beforeAll, describe, it, expect } from 'vitest';
 import { Client, PrivateKey } from '@hiero-ledger/sdk';
-import { 
-    createLangchainTestSetup, 
-    LangchainTestSetup 
+import {
+  createLangchainTestSetup,
+  LangchainTestSetup
 } from '../setup';
-import { 
-    HederaOperationsWrapper, 
-    UsdToHbarService, 
-    BALANCE_TIERS 
+import {
+  HederaOperationsWrapper,
+  UsdToHbarService,
+  BALANCE_TIERS
 } from '../../integration/test-utils';
 
 describe('Get Stablecoin Info E2E Tests', () => {
@@ -25,11 +25,11 @@ describe('Get Stablecoin Info E2E Tests', () => {
 
     const executorAccountKey = PrivateKey.generateECDSA();
     const resp = await operatorWrapper.createAccount({
-        key: executorAccountKey.publicKey,
-        initialBalance: UsdToHbarService.usdToHbar(BALANCE_TIERS.MAXIMUM),
-        accountMemo: 'executor account for Get Stablecoin Info E2E Tests',
+      key: executorAccountKey.publicKey,
+      initialBalance: UsdToHbarService.usdToHbar(BALANCE_TIERS.ELEVATED),
+      accountMemo: 'executor account for Get Stablecoin Info E2E Tests',
     });
-    
+
     if (!resp.accountId) throw new Error('Failed to create executor account');
 
     await operatorWrapper.waitForAccount(resp.accountId.toString());
@@ -51,6 +51,16 @@ describe('Get Stablecoin Info E2E Tests', () => {
   }, 120000);
 
   afterAll(async () => {
+    if (executorClient && operatorClient) {
+      try {
+        await executorWrapper.teardownAccount({
+          accountId: executorClient.operatorAccountId!.toString(),
+          transferAccountId: operatorClient.operatorAccountId!.toString(),
+        });
+      } catch (error) {
+        console.warn('Failed to clean up executor account:', error);
+      }
+    }
     if (testSetup) {
       testSetup.cleanup();
     }
@@ -64,11 +74,9 @@ describe('Get Stablecoin Info E2E Tests', () => {
       messages: [{ role: 'user', content: input }],
     });
 
-    const messages = result.messages;
-    const toolMessage = messages.find((m: any) => m._getType() === 'tool');
-    
-    expect(toolMessage).toBeDefined();
-    const content = JSON.parse(toolMessage.content);
+    const parsedResponse = testSetup.responseParser.parseNewToolMessages(result);
+    expect(parsedResponse[0]).toBeDefined();
+    const content = parsedResponse[0].parsedData;
     expect(content.raw.tokenId).toBe(tokenId);
     expect(content.raw.details.name).toContain('Info_E2E');
     expect(content.raw.details.symbol).toBe('IE2E');

@@ -1,6 +1,7 @@
 import { Client } from '@hiero-ledger/sdk';
 import { 
-    HederaLangchainToolkit
+    HederaLangchainToolkit,
+    ResponseParserService
 } from '@hashgraph/hedera-agent-kit-langchain';
 import { ChatOpenAI } from '@langchain/openai';
 import { AgentMode } from '@hashgraph/hedera-agent-kit';
@@ -12,6 +13,7 @@ export interface LangchainTestSetup {
   client: Client;
   agent: any;
   toolkit: HederaLangchainToolkit;
+  responseParser: ResponseParserService;
   cleanup: () => void;
 }
 
@@ -56,12 +58,15 @@ export async function createLangchainTestSetup(
     systemPrompt: SYSTEM_PROMPT,
   });
 
+  const responseParser = new ResponseParserService(tools);
+
   const cleanup = () => client.close();
 
   return {
     client,
     agent,
     toolkit,
+    responseParser,
     cleanup,
   };
 }

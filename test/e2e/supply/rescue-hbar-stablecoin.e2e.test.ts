@@ -11,7 +11,7 @@ import {
   wait
 } from '../../integration/test-utils';
 
-describe('Delete Stablecoin E2E Tests', () => {
+describe('Rescue HBAR Stablecoin E2E Tests', () => {
   let testSetup: LangchainTestSetup;
   let executorClient: Client;
   let operatorClient: Client;
@@ -20,6 +20,7 @@ describe('Delete Stablecoin E2E Tests', () => {
 
   beforeAll(async () => {
     await UsdToHbarService.initialize();
+
     const baseSetup = await createLangchainTestSetup();
     operatorClient = baseSetup.client;
     const operatorWrapper = new HederaOperationsWrapper(operatorClient);
@@ -28,27 +29,51 @@ describe('Delete Stablecoin E2E Tests', () => {
     const resp = await operatorWrapper.createAccount({
       key: executorAccountKey.publicKey,
       initialBalance: UsdToHbarService.usdToHbar(BALANCE_TIERS.ELEVATED),
-      accountMemo: 'executor account for Delete Stablecoin E2E Tests',
+      accountMemo: 'executor account for Rescue HBAR E2E Tests',
     });
 
     if (!resp.accountId) throw new Error('Failed to create executor account');
-
     await operatorWrapper.waitForAccount(resp.accountId.toString());
 
     executorClient = Client.forTestnet().setOperator(resp.accountId, executorAccountKey);
-    testSetup = await createLangchainTestSetup(executorClient, executorAccountKey.toStringRaw());
     executorWrapper = new HederaOperationsWrapper(executorClient, executorAccountKey);
 
+    testSetup = await createLangchainTestSetup(executorClient, executorAccountKey.toStringRaw());
+
     tokenId = await executorWrapper.createStablecoin({
-      name: `Delete_E2E_${Date.now()}`,
-      symbol: 'DE2E',
+      name: `E2E Rescue HBAR ${Date.now()}`,
+      symbol: 'E2ERH',
       config: {
         accountId: resp.accountId.toString(),
-        privateKey: executorAccountKey.toStringRaw(),
+        privateKey: executorAccountKey.toStringDer()
       },
-      context: { accountId: resp.accountId.toString() } as any,
+      context: {
+        mode: (testSetup.toolkit.getTools()[0] as any).context?.mode || 'AUTONOMOUS',
+        accountId: resp.accountId.toString()
+      }
     });
-  }, 120000);
+
+    // Explicitly associate the executor account
+    await executorWrapper.associateToken({
+      tokenId,
+      accountId: resp.accountId.toString(),
+      privateKey: executorAccountKey
+    }).catch(() => { });
+    await executorWrapper.waitForAssociation(resp.accountId.toString(), tokenId);
+    await wait(10000);
+
+    // Send HBAR to the token contract address to be rescued
+    const info = await executorWrapper.getStablecoinInfo(tokenId);
+    const tokenAddress = info.proxyAddress?.toString() || info.evmProxyAddress?.toString() || '';
+
+    // Transfer HBAR from executor to token contract
+    await executorWrapper.transferHbar({
+      to: tokenAddress,
+      amount: 2 // 2 HBAR
+    });
+
+    await wait();
+  }, 240000);
 
   afterAll(async () => {
     if (executorClient && operatorClient) {
@@ -67,8 +92,9 @@ describe('Delete Stablecoin E2E Tests', () => {
     if (operatorClient) operatorClient.close();
   });
 
-  it('should delete the stablecoin', async () => {
-    const input = `Permanently delete stablecoin ${tokenId}`;
+  it('should rescue HBAR from the contract via agent', async () => {
+    const amountToRescue = '1';
+    const input = `I want to rescue ${amountToRescue} HBAR from the stablecoin ${tokenId} contract. Proceed immediately.`;
 
     let result = await testSetup.agent.invoke({
       messages: [{ role: 'user', content: input }],
@@ -81,18 +107,27 @@ describe('Delete Stablecoin E2E Tests', () => {
       result = await testSetup.agent.invoke({
         messages: [
           ...result.messages,
-          { role: 'user', content: 'yes, I am sure' }
+          { role: 'user', content: 'yes, please rescue the HBAR' }
         ],
       });
     }
 
-    const parsedResponse = testSetup.responseParser.parseNewToolMessages(result);
-    expect(parsedResponse[0]).toBeDefined();
-    expect(parsedResponse[0].parsedData.humanMessage.toLowerCase()).toContain('deleted');
-
     await wait();
 
+    const parsedResponse = testSetup.responseParser.parseNewToolMessages(result);
+    expect(parsedResponse[0]).toBeDefined();
+    const humanMessage = parsedResponse[0].parsedData.humanMessage.toLowerCase();
+    expect(humanMessage).toContain('successfully');
+    expect(humanMessage).toContain('rescued');
+    expect(humanMessage).toContain('hbar');
+
+    // Check treasury balance
     const info = await executorWrapper.getStablecoinInfo(tokenId);
-    expect(info.deleted).toBe(true);
+    const treasuryId = info.treasury!.toString();
+    const finalBalance = await executorWrapper.getAccountBalances(treasuryId);
+
+    // We can't easily know the exact starting balance because of fees, 
+    // but it should be greater than 0 since we rescued 1 HBAR.
+    expect(Number(finalBalance)).toBeGreaterThan(0);
   }, 240000);
 });

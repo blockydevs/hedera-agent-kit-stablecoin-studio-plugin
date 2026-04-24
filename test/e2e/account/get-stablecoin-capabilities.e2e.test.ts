@@ -11,7 +11,7 @@ import {
   wait
 } from '../../integration/test-utils';
 
-describe('Delete Stablecoin E2E Tests', () => {
+describe('Get Stablecoin Capabilities E2E Tests', () => {
   let testSetup: LangchainTestSetup;
   let executorClient: Client;
   let operatorClient: Client;
@@ -20,6 +20,7 @@ describe('Delete Stablecoin E2E Tests', () => {
 
   beforeAll(async () => {
     await UsdToHbarService.initialize();
+
     const baseSetup = await createLangchainTestSetup();
     operatorClient = baseSetup.client;
     const operatorWrapper = new HederaOperationsWrapper(operatorClient);
@@ -28,27 +29,29 @@ describe('Delete Stablecoin E2E Tests', () => {
     const resp = await operatorWrapper.createAccount({
       key: executorAccountKey.publicKey,
       initialBalance: UsdToHbarService.usdToHbar(BALANCE_TIERS.ELEVATED),
-      accountMemo: 'executor account for Delete Stablecoin E2E Tests',
+      accountMemo: 'executor account for Capabilities E2E Tests',
     });
 
     if (!resp.accountId) throw new Error('Failed to create executor account');
-
     await operatorWrapper.waitForAccount(resp.accountId.toString());
 
     executorClient = Client.forTestnet().setOperator(resp.accountId, executorAccountKey);
-    testSetup = await createLangchainTestSetup(executorClient, executorAccountKey.toStringRaw());
     executorWrapper = new HederaOperationsWrapper(executorClient, executorAccountKey);
 
+    testSetup = await createLangchainTestSetup(executorClient, executorAccountKey.toStringRaw());
+
     tokenId = await executorWrapper.createStablecoin({
-      name: `Delete_E2E_${Date.now()}`,
-      symbol: 'DE2E',
+      name: `E2E Capabilities ${Date.now()}`,
+      symbol: 'E2ECAP',
       config: {
         accountId: resp.accountId.toString(),
-        privateKey: executorAccountKey.toStringRaw(),
+        privateKey: executorAccountKey.toStringDer(),
       },
       context: { accountId: resp.accountId.toString() } as any,
     });
-  }, 120000);
+
+    await wait();
+  }, 240000);
 
   afterAll(async () => {
     if (executorClient && operatorClient) {
@@ -67,32 +70,21 @@ describe('Delete Stablecoin E2E Tests', () => {
     if (operatorClient) operatorClient.close();
   });
 
-  it('should delete the stablecoin', async () => {
-    const input = `Permanently delete stablecoin ${tokenId}`;
+  it('should get the capabilities of an account via agent', async () => {
+    const input = `What are the capabilities/permissions of my account for stablecoin ${tokenId}?`;
 
-    let result = await testSetup.agent.invoke({
+    const result = await testSetup.agent.invoke({
       messages: [{ role: 'user', content: input }],
     });
 
-    const messages = result.messages;
-    const toolCalled = messages.some((m: any) => m._getType() === 'tool');
-
-    if (!toolCalled) {
-      result = await testSetup.agent.invoke({
-        messages: [
-          ...result.messages,
-          { role: 'user', content: 'yes, I am sure' }
-        ],
-      });
-    }
-
-    const parsedResponse = testSetup.responseParser.parseNewToolMessages(result);
-    expect(parsedResponse[0]).toBeDefined();
-    expect(parsedResponse[0].parsedData.humanMessage.toLowerCase()).toContain('deleted');
-
-    await wait();
-
-    const info = await executorWrapper.getStablecoinInfo(tokenId);
-    expect(info.deleted).toBe(true);
+    const lastMessage = result.messages[result.messages.length - 1].content.toUpperCase();
+    
+    // Creator should have many capabilities
+    expect(lastMessage).toContain('CASH_IN');
+    expect(lastMessage).toContain('BURN');
+    expect(lastMessage).toContain('WIPE');
+    expect(lastMessage).toContain('FREEZE');
+    expect(lastMessage).toContain('PAUSE');
+    expect(lastMessage).toContain('RESCUE');
   }, 240000);
 });
