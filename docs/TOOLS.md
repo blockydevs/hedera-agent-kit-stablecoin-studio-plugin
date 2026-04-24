@@ -1,65 +1,76 @@
 # Hedera Agent Kit Stablecoin Studio Plugin Tools
 
-This document describes all the tools available in the Hedera Agent Kit Stablecoin Studio Plugin for managing stablecoins on the Hedera network.
+This document provides a detailed reference for all tools available in the Hedera Agent Kit Stablecoin Studio Plugin.
+These tools interact with the Stablecoin Studio smart contracts to provide a regulated, secure framework for token
+management.
 
 ## Lifecycle Tools
+
+### CREATE_STABLECOIN_TOOL
+
+**Supports Hooks & Policies**: ✅ Yes
+**Who can call it**: Any account that has been configured as the plugin operator. There are no on-chain role restrictions for creation — the factory contract is open. The calling account automatically becomes the `DEFAULT_ADMIN_ROLE` holder and proxy owner (unless `proxyOwnerAccount` is explicitly overridden).
+
+Deploys a new regulated stablecoin with customized governance roles and supply rules.
+
+#### Parameters
+
+| Parameter                | Type      | Required | Default      | Description                                             |
+|--------------------------|-----------|----------|--------------|---------------------------------------------------------|
+| `name`                   | `string`  | ✅        | -            | The name of the stablecoin (e.g., "USD Coin").          |
+| `symbol`                 | `string`  | ✅        | -            | The token symbol (e.g., "USDC").                        |
+| `decimals`               | `number`  | ❌        | `6`          | Number of decimal places (e.g., 6).                     |
+| `initialSupply`          | `string`  | ❌        | `"0"`        | Initial token supply in display units (e.g., "1000.5"). |
+| `maxSupply`              | `string`  | ❌        | -            | Max supply for FINITE type (e.g., "1000000").           |
+| `supplyType`             | `enum`    | ❌        | `"INFINITE"` | `"FINITE"` or `"INFINITE"`.                             |
+| `metadata`               | `string`  | ❌        | -            | Arbitrary metadata (e.g., "v1.0.0-audit-pass").         |
+| `freezeDefault`          | `boolean` | ❌        | `false`      | If true, new accounts are frozen by default.            |
+| `autoRenewAccount`       | `string`  | ❌        | -            | Account ID for auto-renew (e.g., "0.0.123456").         |
+| `autoRenewPeriod`        | `number`  | ❌        | -            | Period in seconds (e.g., 7776000).                      |
+| `cashInRoleAllowance`    | `string`  | ❌        | -            | Initial minting allowance (e.g., "50000").              |
+| `createReserve`          | `boolean` | ❌        | `false`      | Whether to deploy a Proof of Reserve contract alongside the token. When `true`, a Chainlink-compatible reserve contract is created and its address is stored in the token's proxy contract. See [Proof of Reserve](#proof-of-reserve-por) for details. |
+| `proxyOwnerAccount`      | `string`  | ❌        | operator     | Account ID for proxy owner (e.g., "0.0.123456").        |
+| `burnRoleAccount`        | `string`  | ❌        | operator     | Account ID for BURN_ROLE (e.g., "0.0.123456").          |
+| `wipeRoleAccount`        | `string`  | ❌        | operator     | Account ID for WIPE_ROLE (e.g., "0.0.123456").          |
+| `rescueRoleAccount`      | `string`  | ❌        | operator     | Account ID for RESCUE_ROLE (e.g., "0.0.123456").        |
+| `pauseRoleAccount`       | `string`  | ❌        | operator     | Account ID for PAUSE_ROLE (e.g., "0.0.123456").         |
+| `freezeRoleAccount`      | `string`  | ❌        | operator     | Account ID for FREEZE_ROLE (e.g., "0.0.123456").        |
+| `deleteRoleAccount`      | `string`  | ❌        | operator     | Account ID for DELETE_ROLE (e.g., "0.0.123456").        |
+| `kycRoleAccount`         | `string`  | ❌        | operator     | Account ID for KYC_ROLE (e.g., "0.0.123456").           |
+| `cashInRoleAccount`      | `string`  | ❌        | operator     | Account ID for CASHIN_ROLE (e.g., "0.0.123456").        |
+| `feeRoleAccount`         | `string`  | ❌        | operator     | Account ID for CUSTOM_FEES_ROLE (e.g., "0.0.123456").   |
+| `holdCreatorRoleAccount` | `string`  | ❌        | operator     | Account ID for HOLD_CREATOR_ROLE (e.g., "0.0.123456").  |
+
+#### Example Prompts
+
+```
+Create a new stablecoin named "Test USD" with symbol "TUSD"
+Create a stablecoin named "CorpCoin" (CC) with 8 decimals and initial supply of 1000. Proceed immediately.
+Create a finite supply stablecoin named "Gold Backed" (GLD) with initial supply 100 and max supply 1000. Proceed immediately.
+Create a stablecoin named "PayCoin" (PC) and set the burn role to account 0.0.789012. Proceed immediately.
+```
+
+---
 
 ### GET_STABLECOIN_INFO_TOOL
 
 **Supports Hooks & Policies**: ✅ Yes
+**Who can call it**: Any account. This is a read-only query — no on-chain role is required.
 
-Retrieves detailed information about a stablecoin managed by Stablecoin Studio on the Hedera network. Supply values are returned in display units (human-readable).
+Retrieves the current state, supply, keys, and metadata of a stablecoin.
 
 #### Parameters
 
-| Parameter | Type   | Required | Description                                                                 |
-|-----------|--------|----------|-----------------------------------------------------------------------------|
-| `tokenId` | `string` | ✅       | The Hedera token ID of the stablecoin to query (e.g., "0.0.123456"). |
+| Parameter | Type     | Required | Description                               |
+|-----------|----------|----------|-------------------------------------------|
+| `tokenId` | `string` | ✅        | The Hedera token ID (e.g., "0.0.123456"). |
 
 #### Example Prompts
 
 ```
 Get information about stablecoin 0.0.123456
-Show details for token 0.0.123456
-What is the info for stablecoin 0.0.123456?
-```
-
----
-
-### CREATE_STABLECOIN_TOOL
-
-**Supports Hooks & Policies**: ✅ Yes
-
-Creates a new stablecoin on Hedera using Stablecoin Studio.
-
-#### Parameters
-
-| Parameter              | Type     | Required | Default              | Description                                                                 |
-|------------------------|----------|----------|----------------------|-----------------------------------------------------------------------------|
-| `name`                 | `string` | ✅       | -                    | The name of the stablecoin (e.g., "USD Coin").                             |
-| `symbol`               | `string` | ✅       | -                    | The token symbol (e.g., "USDC").                                           |
-| `decimals`             | `number` | ❌       | `6`                  | Number of decimal places (0-18).                                           |
-| `initialSupply`        | `string` | ❌       | `"0"`                | Initial token supply in display units (e.g. "100.5").                      |
-| `maxSupply`            | `string` | ❌       | -                    | Maximum token supply in display units (e.g. "1000"). Only for FINITE type. |
-| `supplyType`           | `enum`   | ❌       | `"INFINITE"`         | Supply type: "FINITE" or "INFINITE".                                       |
-| `createReserve`        | `boolean`| ❌       | `false`              | Whether to create a proof of reserve.                                      |
-| `proxyOwnerAccount`    | `string` | ❌       | operator account     | Account ID for proxy owner.                                                 |
-| `burnRoleAccount`      | `string` | ❌       | operator account     | Account ID for burn role.                                                  |
-| `wipeRoleAccount`      | `string` | ❌       | operator account     | Account ID for wipe role.                                                  |
-| `rescueRoleAccount`    | `string` | ❌       | operator account     | Account ID for rescue role.                                                |
-| `pauseRoleAccount`     | `string` | ❌       | operator account     | Account ID for pause role.                                                 |
-| `freezeRoleAccount`    | `string` | ❌       | operator account     | Account ID for freeze role.                                                |
-| `deleteRoleAccount`    | `string` | ❌       | operator account     | Account ID for delete role.                                                |
-| `kycRoleAccount`       | `string` | ❌       | operator account     | Account ID for KYC role.                                                   |
-| `cashInRoleAccount`    | `string` | ❌       | operator account     | Account ID for cash-in role.                                               |
-| `feeRoleAccount`       | `string` | ❌       | operator account     | Account ID for fee role.                                                   |
-
-#### Example Prompts
-
-```
-Create a new stablecoin named "USD Coin" with symbol "USDC"
-Create stablecoin "Euro Stable" symbol "EURC" with 2 decimals and initial supply 1000
-Create finite supply stablecoin "Test Coin" symbol "TEST" max supply 10000
+What is the current total supply of token 0.0.123456?
+Show me the keys and treasury for stablecoin 0.0.123456
 ```
 
 ---
@@ -67,87 +78,24 @@ Create finite supply stablecoin "Test Coin" symbol "TEST" max supply 10000
 ### UPDATE_STABLECOIN_TOOL
 
 **Supports Hooks & Policies**: ✅ Yes
+**Who can call it**: Only the account holding the **Admin Key** of the HTS token (typically the proxy smart contract, whose admin is the `DEFAULT_ADMIN_ROLE` holder).
 
-Updates the metadata of an existing stablecoin on the Hedera network. Only the admin key holder can update a stablecoin.
+Updates metadata for an existing stablecoin.
 
 #### Parameters
 
-| Parameter | Type     | Required | Description                                                                 |
-|-----------|----------|----------|-----------------------------------------------------------------------------|
-| `tokenId` | `string` | ✅       | The Hedera token ID of the stablecoin to update (e.g., "0.0.123456").      |
-| `name`    | `string` | ❌       | New name for the stablecoin.                                               |
-| `symbol`  | `string` | ❌       | New symbol for the stablecoin.                                             |
-| `memo`    | `string` | ❌       | New memo for the stablecoin (max 100 characters).                          |
+| Parameter  | Type     | Required | Description                                         |
+|------------|----------|----------|-----------------------------------------------------|
+| `tokenId`  | `string` | ✅        | The Hedera token ID to update (e.g., "0.0.123456"). |
+| `name`     | `string` | ❌        | New name for the stablecoin (e.g., "New Dollar").   |
+| `symbol`   | `string` | ❌        | New symbol for the stablecoin (e.g., "ND").         |
+| `metadata` | `string` | ❌        | New arbitrary metadata (e.g., "rev-2").             |
 
 #### Example Prompts
 
 ```
-Update stablecoin 0.0.123456 name to "New USD Coin"
-Change symbol of token 0.0.123456 to "NUSDC"
-Update memo for stablecoin 0.0.123456 to "Updated description"
-```
-
----
-
-### PAUSE_STABLECOIN_TOOL
-
-**Supports Hooks & Policies**: ✅ Yes
-
-Pauses a stablecoin, halting all token operations. Requires the pause role.
-
-#### Parameters
-
-| Parameter | Type     | Required | Description                                                                 |
-|-----------|----------|----------|-----------------------------------------------------------------------------|
-| `tokenId` | `string` | ✅       | The Hedera token ID of the stablecoin (e.g., "0.0.123456").                |
-
-#### Example Prompts
-
-```
-Pause stablecoin 0.0.123456
-Halt operations for token 0.0.123456
-```
-
----
-
-### UNPAUSE_STABLECOIN_TOOL
-
-**Supports Hooks & Policies**: ✅ Yes
-
-Unpauses a stablecoin, resuming token operations. Requires the pause role.
-
-#### Parameters
-
-| Parameter | Type     | Required | Description                                                                 |
-|-----------|----------|----------|-----------------------------------------------------------------------------|
-| `tokenId` | `string` | ✅       | The Hedera token ID of the stablecoin (e.g., "0.0.123456").                |
-
-#### Example Prompts
-
-```
-Unpause stablecoin 0.0.123456
-Resume operations for token 0.0.123456
-```
-
----
-
-### DELETE_STABLECOIN_TOOL
-
-**Supports Hooks & Policies**: ✅ Yes
-
-Deletes a stablecoin from the Hedera network. This action is irreversible. Requires the delete role.
-
-#### Parameters
-
-| Parameter | Type     | Required | Description                                                                 |
-|-----------|----------|----------|-----------------------------------------------------------------------------|
-| `tokenId` | `string` | ✅       | The Hedera token ID of the stablecoin to delete (e.g., "0.0.123456").      |
-
-#### Example Prompts
-
-```
-Delete stablecoin 0.0.123456
-Remove token 0.0.123456 permanently
+Update stablecoin 0.0.123456 with name "Global Dollar" and symbol "GD"
+Set metadata for 0.0.123456 to "audit-hash-001"
 ```
 
 ---
@@ -155,23 +103,25 @@ Remove token 0.0.123456 permanently
 ### GRANT_ROLE_STABLECOIN_TOOL
 
 **Supports Hooks & Policies**: ✅ Yes
+**Who can call it**: Only the account holding `DEFAULT_ADMIN_ROLE` on the stablecoin's proxy smart contract.
 
-Grants a specific role (permission) to an account for a stablecoin on the Hedera network. Requires the admin role.
+Grants specialized governance permissions to an account.
 
 #### Parameters
 
-| Parameter | Type     | Required | Description                                                                 |
-|-----------|----------|----------|-----------------------------------------------------------------------------|
-| `tokenId` | `string` | ✅       | The Hedera token ID of the stablecoin (e.g., "0.0.123456").                |
-| `targetId`| `string` | ✅       | The Hedera account ID to receive the role (e.g., "0.0.789012").            |
-| `role`    | `enum`   | ✅       | The role to grant. Options: CASHIN_ROLE, BURN_ROLE, WIPE_ROLE, RESCUE_ROLE, PAUSE_ROLE, FREEZE_ROLE, DELETE_ROLE, DEFAULT_ADMIN_ROLE, KYC_ROLE, CUSTOM_FEES_ROLE, HOLD_CREATOR_ROLE. |
+| Parameter  | Type     | Required | Description                                                                                                                                                       |
+|------------|----------|----------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `tokenId`  | `string` | ✅        | The token ID of the stablecoin (e.g., "0.0.123456").                                                                                                              |
+| `targetId` | `string` | ✅        | The account ID receiving the role (e.g., "0.0.789012").                                                                                                           |
+| `role`     | `enum`   | ✅        | Options: CASHIN_ROLE, BURN_ROLE, WIPE_ROLE, RESCUE_ROLE, PAUSE_ROLE, FREEZE_ROLE, DELETE_ROLE, DEFAULT_ADMIN_ROLE, KYC_ROLE, CUSTOM_FEES_ROLE, HOLD_CREATOR_ROLE. |
 
 #### Example Prompts
 
 ```
+Grant BURN_ROLE to account 0.0.789012 for stablecoin 0.0.123456
 Grant CASHIN_ROLE to account 0.0.789012 for stablecoin 0.0.123456
-Give BURN_ROLE permission to 0.0.789012 on token 0.0.123456
-Assign KYC_ROLE to account 0.0.789012 for stablecoin 0.0.123456
+Assign FREEZE_ROLE to 0.0.111 on token 0.0.222. Proceed immediately.
+Give 0.0.555 the HOLD_CREATOR_ROLE permission for stablecoin 0.0.666
 ```
 
 ---
@@ -179,23 +129,66 @@ Assign KYC_ROLE to account 0.0.789012 for stablecoin 0.0.123456
 ### REVOKE_ROLE_STABLECOIN_TOOL
 
 **Supports Hooks & Policies**: ✅ Yes
+**Who can call it**: Only the account holding `DEFAULT_ADMIN_ROLE` on the stablecoin's proxy smart contract.
 
-Revokes a specific role (permission) from an account for a stablecoin on the Hedera network. Requires the admin role.
+Removes governance permissions from an account.
 
 #### Parameters
 
-| Parameter | Type     | Required | Description                                                                 |
-|-----------|----------|----------|-----------------------------------------------------------------------------|
-| `tokenId` | `string` | ✅       | The Hedera token ID of the stablecoin (e.g., "0.0.123456").                |
-| `targetId`| `string` | ✅       | The Hedera account ID to revoke the role from (e.g., "0.0.789012").        |
-| `role`    | `enum`   | ✅       | The role to revoke. Options: CASHIN_ROLE, BURN_ROLE, WIPE_ROLE, RESCUE_ROLE, PAUSE_ROLE, FREEZE_ROLE, DELETE_ROLE, DEFAULT_ADMIN_ROLE, KYC_ROLE, CUSTOM_FEES_ROLE, HOLD_CREATOR_ROLE. |
+| Parameter  | Type     | Required | Description                                          |
+|------------|----------|----------|------------------------------------------------------|
+| `tokenId`  | `string` | ✅        | The token ID of the stablecoin (e.g., "0.0.123456"). |
+| `targetId` | `string` | ✅        | The account ID to revoke from (e.g., "0.0.789012").  |
+| `role`     | `enum`   | ✅        | Options: Same as Grant Role.                         |
 
 #### Example Prompts
 
 ```
-Revoke CASHIN_ROLE from account 0.0.789012 for stablecoin 0.0.123456
-Remove BURN_ROLE permission from 0.0.789012 on token 0.0.123456
-Take away KYC_ROLE from account 0.0.789012 for stablecoin 0.0.123456
+Revoke BURN_ROLE from account 0.0.789012 for stablecoin 0.0.123456
+Remove FREEZE_ROLE from 0.0.111 on token 0.0.222. Proceed immediately.
+```
+
+---
+
+### PAUSE_STABLECOIN_TOOL / UNPAUSE_STABLECOIN_TOOL
+
+**Supports Hooks & Policies**: ✅ Yes
+**Who can call it**: Only the account holding `PAUSE_ROLE` on the stablecoin's proxy smart contract.
+
+Pauses or resumes all token operations globally. When paused, no transfers, mints, or burns can occur.
+
+#### Parameters
+
+| Parameter | Type     | Required | Description                               |
+|-----------|----------|----------|-------------------------------------------|
+| `tokenId` | `string` | ✅        | The Hedera token ID (e.g., "0.0.123456"). |
+
+#### Example Prompts
+
+```
+Pause stablecoin 0.0.123456
+Unpause token 0.0.123456. Proceed immediately.
+```
+
+---
+
+### DELETE_STABLECOIN_TOOL
+
+**Supports Hooks & Policies**: ✅ Yes
+**Who can call it**: Only the account holding `DELETE_ROLE` on the stablecoin's proxy smart contract. The token supply must also be zero before deletion is permitted.
+
+Permanently removes the stablecoin from the Hedera network. This action is irreversible.
+
+#### Parameters
+
+| Parameter | Type     | Required | Description                                         |
+|-----------|----------|----------|-----------------------------------------------------|
+| `tokenId` | `string` | ✅        | The Hedera token ID to delete (e.g., "0.0.123456"). |
+
+#### Example Prompts
+
+```
+Delete stablecoin 0.0.123456. Proceed immediately.
 ```
 
 ---
@@ -203,21 +196,30 @@ Take away KYC_ROLE from account 0.0.789012 for stablecoin 0.0.123456
 ### UPDATE_RESERVE_ADDRESS_STABLECOIN_TOOL
 
 **Supports Hooks & Policies**: ✅ Yes
+**Who can call it**: Only the account holding `DEFAULT_ADMIN_ROLE` on the proxy smart contract.
 
-Updates the reserve address for a stablecoin's proof of reserve.
+Updates the Proof of Reserve (PoR) contract address linked to the stablecoin.
+
+#### What is `reserveAddress`?
+
+The `reserveAddress` is the Hedera native ID (`shard.realm.num` format) of the **Proof of Reserve smart contract** — not a regular user account. This contract implements a Chainlink-compatible oracle interface and exposes an on-chain `latestRoundData()` function that returns the confirmed reserve balance.
+
+> ⚠️ **EVM hex addresses (`0x...`) are NOT accepted.** The SDK's `ContractId` class explicitly rejects 42-character `0x`-prefixed strings at construction time. Only the Hedera native format `shard.realm.num` is valid (e.g., `0.0.456789`).
+
+> ⚠️ Setting a wrong address does **not** break the token itself, but it invalidates all PoR reporting.
 
 #### Parameters
 
-| Parameter     | Type     | Required | Description                                                                 |
-|---------------|----------|----------|-----------------------------------------------------------------------------|
-| `tokenId`     | `string` | ✅       | The Hedera token ID of the stablecoin (e.g., "0.0.123456").                |
-| `reserveAddress`| `string`| ✅       | The new reserve address.                                                    |
+| Parameter        | Type     | Required | Description                                                                                                 |
+|------------------|----------|----------|-------------------------------------------------------------------------------------------------------------|
+| `tokenId`        | `string` | ✅        | The token ID of the stablecoin (e.g., "0.0.123456").                                                        |
+| `reserveAddress` | `string` | ✅        | The Hedera ID of the PoR contract in `shard.realm.num` format (e.g., "0.0.456789"). **Not** a `0x` address. |
 
 #### Example Prompts
 
 ```
-Update reserve address for stablecoin 0.0.123456 to 0.0.789012
-Change proof of reserve address for token 0.0.123456
+Update reserve address to 0.0.456789 for stablecoin 0.0.123456
+Update reserve address to 0.0.0 for stablecoin 0.0.123456
 ```
 
 ## Account Tools
@@ -225,21 +227,22 @@ Change proof of reserve address for token 0.0.123456
 ### ASSOCIATE_STABLECOIN_TOOL
 
 **Supports Hooks & Policies**: ✅ Yes
+**Who can call it**: The account that wants to be associated must sign the transaction. In practice the agent signs on behalf of its operator account. No special role is required — any account can associate themselves with any token.
 
-Associates a stablecoin token with a Hedera account. An account must be associated with a token before it can hold or receive that token.
+Associates an account with the token (required to hold/receive tokens).
 
 #### Parameters
 
-| Parameter | Type     | Required | Description                                                                 |
-|-----------|----------|----------|-----------------------------------------------------------------------------|
-| `tokenId` | `string` | ✅       | The Hedera token ID of the stablecoin (e.g., "0.0.123456").                |
-| `targetId`| `string` | ✅       | The Hedera account ID to associate with the token (e.g., "0.0.789012").    |
+| Parameter  | Type     | Required | Description                                       |
+|------------|----------|----------|---------------------------------------------------|
+| `tokenId`  | `string` | ✅        | The token ID to associate (e.g., "0.0.123456").   |
+| `targetId` | `string` | ✅        | The account ID to associate (e.g., "0.0.789012"). |
 
 #### Example Prompts
 
 ```
-Associate account 0.0.789012 with stablecoin 0.0.123456
-Link token 0.0.123456 to account 0.0.789012
+Associate my account with the stablecoin 0.0.123456. Proceed immediately.
+Associate account 0.0.789012 with token 0.0.123456
 ```
 
 ---
@@ -247,22 +250,22 @@ Link token 0.0.123456 to account 0.0.789012
 ### GET_STABLECOIN_BALANCE_TOOL
 
 **Supports Hooks & Policies**: ✅ Yes
+**Who can call it**: Any account. This is a read-only query — no on-chain role is required.
 
-Returns the balance of a stablecoin for a specific account on the Hedera network. Result is returned in display units (human-readable).
+Checks an account balance in human-readable display units.
 
 #### Parameters
 
-| Parameter | Type     | Required | Description                                                                 |
-|-----------|----------|----------|-----------------------------------------------------------------------------|
-| `tokenId` | `string` | ✅       | The Hedera token ID of the stablecoin (e.g., "0.0.123456").                |
-| `targetId`| `string` | ✅       | The Hedera account ID to check the balance for (e.g., "0.0.789012").       |
+| Parameter  | Type     | Required | Description                                   |
+|------------|----------|----------|-----------------------------------------------|
+| `tokenId`  | `string` | ✅        | The token ID to check (e.g., "0.0.123456").   |
+| `targetId` | `string` | ✅        | The account ID to query (e.g., "0.0.789012"). |
 
 #### Example Prompts
 
 ```
-Check balance of stablecoin 0.0.123456 for account 0.0.789012
-How many tokens does 0.0.789012 have of 0.0.123456?
-Get balance for account 0.0.789012 on token 0.0.123456
+What is the balance of account 0.0.789012 for stablecoin 0.0.123456?
+Check my token balance for 0.0.123456
 ```
 
 ---
@@ -270,176 +273,94 @@ Get balance for account 0.0.789012 on token 0.0.123456
 ### GET_STABLECOIN_CAPABILITIES_TOOL
 
 **Supports Hooks & Policies**: ✅ Yes
+**Who can call it**: Any account. This is a read-only query — no on-chain role is required.
 
-Returns the capabilities (roles) of an account for a specific stablecoin.
+Checks which governance roles an account currently holds for a given stablecoin.
 
 #### Parameters
 
-| Parameter | Type     | Required | Description                                                                 |
-|-----------|----------|----------|-----------------------------------------------------------------------------|
-| `tokenId` | `string` | ✅       | The Hedera token ID of the stablecoin (e.g., "0.0.123456").                |
-| `targetId`| `string` | ✅       | The Hedera account ID to check capabilities for (e.g., "0.0.789012").      |
+| Parameter  | Type     | Required | Description                                          |
+|------------|----------|----------|------------------------------------------------------|
+| `tokenId`  | `string` | ✅        | The token ID of the stablecoin (e.g., "0.0.123456"). |
+| `targetId` | `string` | ✅        | The account ID to check (e.g., "0.0.789012").        |
 
 #### Example Prompts
 
 ```
-What roles does account 0.0.789012 have for stablecoin 0.0.123456?
-Check capabilities of 0.0.789012 on token 0.0.123456
-Get permissions for account 0.0.789012 regarding 0.0.123456
+What capabilities does account 0.0.789012 have for stablecoin 0.0.123456?
+Check roles of 0.0.111 on token 0.0.222
 ```
 
 ---
 
-### FREEZE_ACCOUNT_TOOL
+### FREEZE_ACCOUNT_TOOL / UNFREEZE_ACCOUNT_TOOL
 
 **Supports Hooks & Policies**: ✅ Yes
+**Who can call it**: Only the account holding `FREEZE_ROLE` on the stablecoin's proxy smart contract.
 
-Freezes a specific account for a stablecoin on the Hedera network, preventing it from transferring or receiving the token. Requires the freeze role.
+Freezes or unfreezes a specific account's ability to transfer this token. The frozen account's balance is preserved but no transfers in or out are possible.
 
 #### Parameters
 
-| Parameter | Type     | Required | Description                                                                 |
-|-----------|----------|----------|-----------------------------------------------------------------------------|
-| `tokenId` | `string` | ✅       | The Hedera token ID of the stablecoin (e.g., "0.0.123456").                |
-| `targetId`| `string` | ✅       | The Hedera account ID to freeze (e.g., "0.0.789012").                      |
+| Parameter  | Type     | Required | Description                                             |
+|------------|----------|----------|---------------------------------------------------------|
+| `tokenId`  | `string` | ✅        | The token ID (e.g., "0.0.123456").                      |
+| `targetId` | `string` | ✅        | The account ID to freeze/unfreeze (e.g., "0.0.789012"). |
 
 #### Example Prompts
 
 ```
-Freeze account 0.0.789012 for stablecoin 0.0.123456
-Lock token transfers for 0.0.789012 on 0.0.123456
+Freeze account 0.0.789012 for stablecoin 0.0.123456. Proceed immediately.
+Unfreeze account 0.0.789012 for stablecoin 0.0.123456. Proceed immediately.
+Is account 0.0.789012 frozen for stablecoin 0.0.123456?
 ```
 
 ---
 
-### UNFREEZE_ACCOUNT_TOOL
+### GRANT_KYC_TOOL / REVOKE_KYC_TOOL
 
 **Supports Hooks & Policies**: ✅ Yes
+**Who can call it**: Only the account holding `KYC_ROLE` on the stablecoin's proxy smart contract.
 
-Unfreezes a specific account for a stablecoin on the Hedera network, allowing it to transfer and receive the token again. Requires the freeze role.
+Manages the compliance (KYC) flag on an account. Accounts without KYC cannot send or receive this token.
 
 #### Parameters
 
-| Parameter | Type     | Required | Description                                                                 |
-|-----------|----------|----------|-----------------------------------------------------------------------------|
-| `tokenId` | `string` | ✅       | The Hedera token ID of the stablecoin (e.g., "0.0.123456").                |
-| `targetId`| `string` | ✅       | The Hedera account ID to unfreeze (e.g., "0.0.789012").                    |
+| Parameter  | Type     | Required | Description                                          |
+|------------|----------|----------|------------------------------------------------------|
+| `tokenId`  | `string` | ✅        | The token ID (e.g., "0.0.123456").                   |
+| `targetId` | `string` | ✅        | The account ID to grant/revoke (e.g., "0.0.789012"). |
 
 #### Example Prompts
 
 ```
-Unfreeze account 0.0.789012 for stablecoin 0.0.123456
-Unlock token transfers for 0.0.789012 on 0.0.123456
+Grant KYC to account 0.0.789012 for stablecoin 0.0.123456. Proceed immediately.
+Revoke KYC from account 0.0.789012 for stablecoin 0.0.123456. Proceed immediately.
+Does account 0.0.789012 have KYC granted for stablecoin 0.0.123456?
 ```
 
 ---
 
-### GRANT_KYC_TOOL
+### IS_ACCOUNT_ASSOCIATED_TOOL / IS_ACCOUNT_FROZEN_TOOL / IS_ACCOUNT_KYC_GRANTED_TOOL
 
 **Supports Hooks & Policies**: ✅ Yes
+**Who can call it**: Any account. These are read-only query tools — no on-chain role is required.
 
-Grants KYC status to a specific account for a stablecoin. Requires the KYC role.
+Query tools to check account status before performing operations.
 
 #### Parameters
 
-| Parameter | Type     | Required | Description                                                                 |
-|-----------|----------|----------|-----------------------------------------------------------------------------|
-| `tokenId` | `string` | ✅       | The Hedera token ID of the stablecoin (e.g., "0.0.123456").                |
-| `targetId`| `string` | ✅       | The Hedera account ID to grant KYC to (e.g., "0.0.789012").                |
-
-#### Example Prompts
-
-```
-Grant KYC to account 0.0.789012 for stablecoin 0.0.123456
-Approve KYC status for 0.0.789012 on token 0.0.123456
-```
-
----
-
-### REVOKE_KYC_TOOL
-
-**Supports Hooks & Policies**: ✅ Yes
-
-Revokes KYC status from a specific account for a stablecoin. Requires the KYC role.
-
-#### Parameters
-
-| Parameter | Type     | Required | Description                                                                 |
-|-----------|----------|----------|-----------------------------------------------------------------------------|
-| `tokenId` | `string` | ✅       | The Hedera token ID of the stablecoin (e.g., "0.0.123456").                |
-| `targetId`| `string` | ✅       | The Hedera account ID to revoke KYC from (e.g., "0.0.789012").             |
-
-#### Example Prompts
-
-```
-Revoke KYC from account 0.0.789012 for stablecoin 0.0.123456
-Remove KYC status for 0.0.789012 on token 0.0.123456
-```
-
----
-
-### IS_ACCOUNT_ASSOCIATED_TOOL
-
-**Supports Hooks & Policies**: ✅ Yes
-
-Checks if a specific account is associated with a stablecoin.
-
-#### Parameters
-
-| Parameter | Type     | Required | Description                                                                 |
-|-----------|----------|----------|-----------------------------------------------------------------------------|
-| `tokenId` | `string` | ✅       | The Hedera token ID of the stablecoin (e.g., "0.0.123456").                |
-| `targetId`| `string` | ✅       | The Hedera account ID to check (e.g., "0.0.789012").                       |
+| Parameter  | Type     | Required | Description                                   |
+|------------|----------|----------|-----------------------------------------------|
+| `tokenId`  | `string` | ✅        | The token ID (e.g., "0.0.123456").            |
+| `targetId` | `string` | ✅        | The account ID to query (e.g., "0.0.789012"). |
 
 #### Example Prompts
 
 ```
 Is account 0.0.789012 associated with stablecoin 0.0.123456?
-Check if 0.0.789012 is linked to token 0.0.123456
-```
-
----
-
-### IS_ACCOUNT_FROZEN_TOOL
-
-**Supports Hooks & Policies**: ✅ Yes
-
-Checks if a specific account is currently frozen for a given stablecoin.
-
-#### Parameters
-
-| Parameter | Type     | Required | Description                                                                 |
-|-----------|----------|----------|-----------------------------------------------------------------------------|
-| `tokenId` | `string` | ✅       | The Hedera token ID of the stablecoin (e.g., "0.0.123456").                |
-| `targetId`| `string` | ✅       | The Hedera account ID to check (e.g., "0.0.789012").                       |
-
-#### Example Prompts
-
-```
 Is account 0.0.789012 frozen for stablecoin 0.0.123456?
-Check freeze status of 0.0.789012 on token 0.0.123456
-```
-
----
-
-### IS_ACCOUNT_KYC_GRANTED_TOOL
-
-**Supports Hooks & Policies**: ✅ Yes
-
-Checks if a specific account has KYC granted for a given stablecoin.
-
-#### Parameters
-
-| Parameter | Type     | Required | Description                                                                 |
-|-----------|----------|----------|-----------------------------------------------------------------------------|
-| `tokenId` | `string` | ✅       | The Hedera token ID of the stablecoin (e.g., "0.0.123456").                |
-| `targetId`| `string` | ✅       | The Hedera account ID to check (e.g., "0.0.789012").                       |
-
-#### Example Prompts
-
-```
-Does account 0.0.789012 have KYC for stablecoin 0.0.123456?
-Check KYC status of 0.0.789012 on token 0.0.123456
+Does account 0.0.789012 have KYC granted for stablecoin 0.0.123456?
 ```
 
 ## Supply Tools
@@ -447,24 +368,24 @@ Check KYC status of 0.0.789012 on token 0.0.123456
 ### CASH_IN_STABLECOIN_TOOL
 
 **Supports Hooks & Policies**: ✅ Yes
+**Who can call it**: Only the account holding `CASHIN_ROLE` on the stablecoin's proxy smart contract.
 
-Mints (cash-in) new stablecoin tokens to a target account on the Hedera network. Requires the cash-in role.
+Mints new tokens and delivers them to a target account. The new tokens are minted by the smart contract via the HTS System Contract.
 
 #### Parameters
 
-| Parameter  | Type     | Required | Description                                                                 |
-|------------|----------|----------|-----------------------------------------------------------------------------|
-| `tokenId`  | `string` | ✅       | The Hedera token ID of the stablecoin (e.g., "0.0.123456").                |
-| `targetId` | `string` | ✅       | The Hedera account ID to receive the minted tokens (e.g., "0.0.789012").   |
-| `amount`   | `string` | ✅       | The amount of tokens to mint in display units (e.g., "100.5").             |
-| `startDate`| `string` | ❌       | ISO 8601 date for scheduling the operation.                                |
+| Parameter   | Type     | Required | Description                                           |
+|-------------|----------|----------|-------------------------------------------------------|
+| `tokenId`   | `string` | ✅        | The token ID (e.g., "0.0.123456").                    |
+| `targetId`  | `string` | ✅        | Account receiving minted tokens (e.g., "0.0.789012"). |
+| `amount`    | `string` | ✅        | Amount in display units (e.g., "100.5").              |
+| `startDate` | `string` | ❌        | Optional ISO date (e.g., "2026-05-01T12:00:00Z").     |
 
 #### Example Prompts
 
 ```
-Mint 1000 new tokens to account 0.0.789012 for stablecoin 0.0.123456
-Cash in 500.25 tokens for 0.0.789012 on 0.0.123456
-Create 200 tokens and send to 0.0.789012 for token 0.0.123456
+I want to cash in 500 tokens of the stablecoin 0.0.123456 to my account. Proceed immediately.
+Mint 100 tokens of stablecoin 0.0.123456 to account 0.0.789012. Proceed immediately.
 ```
 
 ---
@@ -472,23 +393,22 @@ Create 200 tokens and send to 0.0.789012 for token 0.0.123456
 ### BURN_STABLECOIN_TOOL
 
 **Supports Hooks & Policies**: ✅ Yes
+**Who can call it**: Only the account holding `BURN_ROLE` on the stablecoin's proxy smart contract. Tokens are burned from the **treasury account** only — not from arbitrary user accounts.
 
-Burns (destroys) a specified amount of stablecoin tokens from the treasury account. Requires the burn role.
+Burns tokens from the treasury, permanently reducing the total supply.
 
 #### Parameters
 
-| Parameter  | Type     | Required | Description                                                                 |
-|------------|----------|----------|-----------------------------------------------------------------------------|
-| `tokenId`  | `string` | ✅       | The Hedera token ID of the stablecoin (e.g., "0.0.123456").                |
-| `amount`   | `string` | ✅       | The amount of tokens to burn in display units (e.g., "100.5").             |
-| `startDate`| `string` | ❌       | ISO 8601 date for scheduling the operation.                                |
+| Parameter | Type     | Required | Description                           |
+|-----------|----------|----------|---------------------------------------|
+| `tokenId` | `string` | ✅        | The token ID (e.g., "0.0.123456").    |
+| `amount`  | `string` | ✅        | Amount in display units (e.g., "50"). |
 
 #### Example Prompts
 
 ```
-Burn 100 tokens from treasury of stablecoin 0.0.123456
-Destroy 50.5 tokens for token 0.0.123456
-Reduce supply by 200 units for 0.0.123456
+I want to burn 100 tokens of the stablecoin 0.0.123456. Proceed immediately.
+Burn 50 tokens from treasury of stablecoin 0.0.123456. Proceed immediately.
 ```
 
 ---
@@ -496,23 +416,22 @@ Reduce supply by 200 units for 0.0.123456
 ### WIPE_STABLECOIN_TOOL
 
 **Supports Hooks & Policies**: ✅ Yes
+**Who can call it**: Only the account holding `WIPE_ROLE` on the stablecoin's proxy smart contract. Unlike `BURN_ROLE`, this role can remove tokens from **any** account (not just the treasury), making it a compliance/enforcement tool.
 
-Wipes (removes) a specified amount of stablecoin tokens from a target account. Requires the wipe role.
+Removes tokens from a target user's account without their consent. Used for regulatory enforcement, fraud recovery, or compliance actions.
 
 #### Parameters
 
-| Parameter  | Type     | Required | Description                                                                 |
-|------------|----------|----------|-----------------------------------------------------------------------------|
-| `tokenId`  | `string` | ✅       | The Hedera token ID of the stablecoin (e.g., "0.0.123456").                |
-| `targetId` | `string` | ✅       | The Hedera account ID to wipe tokens from (e.g., "0.0.789012").            |
-| `amount`   | `string` | ✅       | The amount of tokens to wipe in display units (e.g., "100.5").             |
+| Parameter  | Type     | Required | Description                                |
+|------------|----------|----------|--------------------------------------------|
+| `tokenId`  | `string` | ✅        | The token ID (e.g., "0.0.123456").         |
+| `targetId` | `string` | ✅        | Account to wipe from (e.g., "0.0.789012"). |
+| `amount`   | `string` | ✅        | Amount in display units (e.g., "25.75").   |
 
 #### Example Prompts
 
 ```
-Wipe 50 tokens from account 0.0.789012 for stablecoin 0.0.123456
-Remove 25.75 tokens from 0.0.789012 on 0.0.123456
-Confiscate 100 units from account 0.0.789012 for token 0.0.123456
+Wipe 25 tokens from account 0.0.789012 for stablecoin 0.0.123456. Proceed immediately.
 ```
 
 ---
@@ -520,23 +439,28 @@ Confiscate 100 units from account 0.0.789012 for token 0.0.123456
 ### RESCUE_STABLECOIN_TOOL
 
 **Supports Hooks & Policies**: ✅ Yes
+Recovers **stablecoin tokens** that were accidentally sent directly to the proxy smart contract address
+(instead of a user account) and transfers them back to the **treasury account**.
 
-Rescues stablecoin tokens from the contract to a specified account. Requires the rescue role.
+**Who can call it**: Only an account holding `RESCUE_ROLE` on the stablecoin smart contract can invoke this
+tool. This is a dedicated emergency role — it does not overlap with admin or minting privileges.
+
+> **Why is this needed?** Because the stablecoin is managed by a smart contract proxy, the contract itself
+> has an EVM/Hedera address. If tokens are mistakenly transferred to that contract address, they become
+> "stuck" inside the contract. This tool recovers them back to the treasury.
 
 #### Parameters
 
-| Parameter  | Type     | Required | Description                                                                 |
-|------------|----------|----------|-----------------------------------------------------------------------------|
-| `tokenId`  | `string` | ✅       | The Hedera token ID of the stablecoin (e.g., "0.0.123456").                |
-| `targetId` | `string` | ✅       | The Hedera account ID to receive rescued tokens (e.g., "0.0.789012").      |
-| `amount`   | `string` | ✅       | The amount of tokens to rescue in display units (e.g., "100.5").           |
+| Parameter | Type     | Required | Description                                                     |
+|-----------|----------|----------|-----------------------------------------------------------------|
+| `tokenId` | `string` | ✅        | The token ID of the stablecoin (e.g., "0.0.123456").            |
+| `amount`  | `string` | ✅        | Amount of tokens to recover in display units (e.g., "100.5").   |
 
 #### Example Prompts
 
 ```
-Rescue 100 tokens from contract to account 0.0.789012 for stablecoin 0.0.123456
-Recover 50.5 tokens to 0.0.789012 on 0.0.123456
-Extract 200 units from contract for token 0.0.123456 to 0.0.789012
+Rescue 100 tokens for stablecoin 0.0.123456 from the contract
+Recover stuck tokens for 0.0.123456
 ```
 
 ---
@@ -544,23 +468,27 @@ Extract 200 units from contract for token 0.0.123456 to 0.0.789012
 ### RESCUE_HBAR_STABLECOIN_TOOL
 
 **Supports Hooks & Policies**: ✅ Yes
+Recovers **HBAR** (the native Hedera coin) that was accidentally sent to the stablecoin proxy smart
+contract address and transfers it to the treasury account.
 
-Rescues HBAR from the stablecoin contract to a specified account. Requires the rescue role.
+**Who can call it**: Only an account holding `RESCUE_ROLE` on the stablecoin smart contract. Same role
+as `RESCUE_STABLECOIN_TOOL` — no separate HBAR-rescue role exists.
+
+> **Why is this needed?** Like tokens, HBAR can be mistakenly sent to the contract's EVM address and become
+> inaccessible without this rescue mechanism.
 
 #### Parameters
 
-| Parameter  | Type     | Required | Description                                                                 |
-|------------|----------|----------|-----------------------------------------------------------------------------|
-| `tokenId`  | `string` | ✅       | The Hedera token ID of the stablecoin (e.g., "0.0.123456").                |
-| `targetId` | `string` | ✅       | The Hedera account ID to receive rescued HBAR (e.g., "0.0.789012").        |
-| `amount`   | `string` | ✅       | The amount of HBAR to rescue (e.g., "10.5").                               |
+| Parameter | Type     | Required | Description                                          |
+|-----------|----------|----------|------------------------------------------------------|
+| `tokenId` | `string` | ✅        | The token ID of the stablecoin (e.g., "0.0.123456"). |
+| `amount`  | `string` | ✅        | Amount of HBAR to recover (e.g., "10.5").            |
 
 #### Example Prompts
 
 ```
-Rescue 10 HBAR from stablecoin 0.0.123456 contract to account 0.0.789012
-Recover 5.5 HBAR to 0.0.789012 from token 0.0.123456
-Extract 20 HBAR from contract for 0.0.123456 to 0.0.789012
+Rescue 5 HBAR from stablecoin contract 0.0.123456
+Recover locked HBAR from the proxy contract of token 0.0.123456
 ```
 
 ---
@@ -568,23 +496,26 @@ Extract 20 HBAR from contract for 0.0.123456 to 0.0.789012
 ### CREATE_HOLD_STABLECOIN_TOOL
 
 **Supports Hooks & Policies**: ✅ Yes
+**Who can call it**: Only the account holding `HOLD_CREATOR_ROLE` on the stablecoin's proxy smart contract. This is typically a trusted service or backend agent — not the end-user whose tokens are being held.
 
-Creates a hold on stablecoin tokens for a specific account. Requires the hold creator role.
+The caller specifies a designated **escrow agent** (`escrow` parameter). The escrow agent is the **only** entity that can later execute or release the hold. The creator of the hold and the escrow agent can be the same account or different accounts.
+
+Locks tokens in escrow for a specified account.
 
 #### Parameters
 
-| Parameter  | Type     | Required | Description                                                                 |
-|------------|----------|----------|-----------------------------------------------------------------------------|
-| `tokenId`  | `string` | ✅       | The Hedera token ID of the stablecoin (e.g., "0.0.123456").                |
-| `accountId`| `string` | ✅       | The Hedera account ID for the hold (e.g., "0.0.789012").                   |
-| `amount`   | `string` | ✅       | The amount of tokens to hold in display units (e.g., "100.5").             |
+| Parameter        | Type     | Required | Description                                                                         |
+|------------------|----------|----------|-------------------------------------------------------------------------------------|
+| `tokenId`        | `string` | ✅        | The token ID (e.g., "0.0.123456").                                                  |
+| `amount`         | `string` | ✅        | Amount to hold in display units (e.g., "100.5").                                    |
+| `escrow`         | `string` | ✅        | Account ID of the escrow agent — the only entity that can execute or release the hold (e.g., "0.0.789012"). |
+| `expirationDate` | `string` | ✅        | Unix timestamp (seconds) when the hold expires (e.g., "1713953400").                |
+| `accountId`      | `string` | ❌        | The account whose tokens are being held. Defaults to the operator account.          |
 
 #### Example Prompts
 
 ```
-Create a hold of 100 tokens for account 0.0.789012 on stablecoin 0.0.123456
-Hold 50.5 tokens for 0.0.789012 on 0.0.123456
-Lock 200 units for account 0.0.789012 on token 0.0.123456
+I want to create a hold of 50 tokens for stablecoin 0.0.123456. The escrow is 0.0.789012 and it expires at 1713953400. Proceed immediately.
 ```
 
 ---
@@ -592,22 +523,26 @@ Lock 200 units for account 0.0.789012 on token 0.0.123456
 ### EXECUTE_HOLD_STABLECOIN_TOOL
 
 **Supports Hooks & Policies**: ✅ Yes
+**Who can call it**: Only the **escrow agent** account specified in `CREATE_HOLD_STABLECOIN_TOOL`. The creator of the hold **cannot** execute it unless they are also the designated escrow agent.
 
-Executes a previously created hold on stablecoin tokens.
+Completes a hold, transferring the locked tokens to the target account.
+
+> **Example**: Alice (with `HOLD_CREATOR_ROLE`) creates a hold locking 100 TUSD from Bob's account, designating PaymentService (0.0.999) as escrow. Only PaymentService can call `EXECUTE_HOLD` — not Alice.
 
 #### Parameters
 
-| Parameter | Type     | Required | Description                                                                 |
-|-----------|----------|----------|-----------------------------------------------------------------------------|
-| `tokenId` | `string` | ✅       | The Hedera token ID of the stablecoin (e.g., "0.0.123456").                |
-| `holdId`  | `string` | ✅       | The ID of the hold to execute.                                              |
+| Parameter  | Type     | Required | Description                                                                       |
+|------------|----------|----------|-----------------------------------------------------------------------------------|
+| `tokenId`  | `string` | ✅        | The token ID (e.g., "0.0.123456").                                                |
+| `holdId`   | `number` | ✅        | The unique on-chain ID of the hold returned when it was created (e.g., 123).      |
+| `amount`   | `string` | ✅        | Amount to execute in display units (e.g., "50.5"). Can be ≤ the held amount.      |
+| `sourceId` | `string` | ✅        | The account whose tokens were locked (origin of the hold) (e.g., "0.0.123456").  |
+| `targetId` | `string` | ❌        | Destination account for the released tokens. Defaults to the escrow agent itself. |
 
 #### Example Prompts
 
 ```
-Execute hold with ID 12345 for stablecoin 0.0.123456
-Process hold 12345 on token 0.0.123456
-Complete the hold operation for 0.0.123456 hold ID 12345
+Execute the hold with ID 42 for stablecoin 0.0.123456. The amount is 30, the source is 0.0.111 and the target is 0.0.222. Proceed immediately.
 ```
 
 ---
@@ -615,22 +550,23 @@ Complete the hold operation for 0.0.123456 hold ID 12345
 ### RELEASE_HOLD_STABLECOIN_TOOL
 
 **Supports Hooks & Policies**: ✅ Yes
+**Who can call it**: Only the **escrow agent** designated during `CREATE_HOLD_STABLECOIN_TOOL`. After the hold expires, use `RECLAIM_HOLD_STABLECOIN_TOOL` instead.
 
-Releases a hold on stablecoin tokens, making them available again.
+Cancels a hold and returns the locked tokens to the source account.
 
 #### Parameters
 
-| Parameter | Type     | Required | Description                                                                 |
-|-----------|----------|----------|-----------------------------------------------------------------------------|
-| `tokenId` | `string` | ✅       | The Hedera token ID of the stablecoin (e.g., "0.0.123456").                |
-| `holdId`  | `string` | ✅       | The ID of the hold to release.                                              |
+| Parameter  | Type     | Required | Description                                         |
+|------------|----------|----------|-----------------------------------------------------|
+| `tokenId`  | `string` | ✅        | The token ID (e.g., "0.0.123456").                  |
+| `holdId`   | `number` | ✅        | The unique ID of the hold (e.g., 123).              |
+| `amount`   | `string` | ✅        | Amount to release in display units (e.g., "20").    |
+| `sourceId` | `string` | ✅        | Account whose tokens are being returned (e.g., "0.0.123456"). |
 
 #### Example Prompts
 
 ```
-Release hold with ID 12345 for stablecoin 0.0.123456
-Unlock hold 12345 on token 0.0.123456
-Free the tokens in hold 12345 for 0.0.123456
+Release the hold with ID 42 for stablecoin 0.0.123456. The amount is 20 and the source is 0.0.111. Proceed immediately.
 ```
 
 ---
@@ -638,20 +574,22 @@ Free the tokens in hold 12345 for 0.0.123456
 ### RECLAIM_HOLD_STABLECOIN_TOOL
 
 **Supports Hooks & Policies**: ✅ Yes
+**Who can call it**: **Any account**, but only after the hold's `expirationDate` has passed. No special role is required. Calling this before the hold has expired will fail on-chain.
 
-Reclaims a hold on stablecoin tokens back to the treasury.
+> **Why open access?** Once a hold expires, the escrow agent has forfeited their exclusive window. Stablecoin Studio allows any party to trigger the reclaim to ensure locked funds are never permanently frozen due to escrow agent inactivity.
+
+Admin recovery of an **expired** hold, returning the locked tokens to the source account.
 
 #### Parameters
 
-| Parameter | Type     | Required | Description                                                                 |
-|-----------|----------|----------|-----------------------------------------------------------------------------|
-| `tokenId` | `string` | ✅       | The Hedera token ID of the stablecoin (e.g., "0.0.123456").                |
-| `holdId`  | `string` | ✅       | The ID of the hold to reclaim.                                              |
+| Parameter  | Type     | Required | Description                                                       |
+|------------|----------|----------|-------------------------------------------------------------------|
+| `tokenId`  | `string` | ✅        | The token ID (e.g., "0.0.123456").                                |
+| `holdId`   | `number` | ✅        | The unique ID of the expired hold (e.g., 123).                    |
+| `sourceId` | `string` | ✅        | The account to return the locked tokens to (e.g., "0.0.123456"). |
 
 #### Example Prompts
 
 ```
-Reclaim hold with ID 12345 for stablecoin 0.0.123456
-Take back hold 12345 on token 0.0.123456
-Return tokens from hold 12345 to treasury for 0.0.123456
+Reclaim expired hold with ID 42 for stablecoin 0.0.123456, returning tokens to account 0.0.111. Proceed immediately.
 ```
