@@ -42,7 +42,8 @@
   "author": "Hashgraph",
   "license": "Apache-2.0",
   "dependencies": {
-    "@hashgraph/stablecoin-npm-sdk": "4.2.0"
+    "@hashgraph/stablecoin-npm-sdk": "file:./hashgraph-stablecoin-npm-sdk-4.2.0.tgz",
+    "@hashgraph/stablecoin-npm-contracts": "file:./hashgraph-stablecoin-npm-contracts-4.2.0.tgz"
   },
   "peerDependencies": {
     "@hashgraph/hedera-agent-kit": ">=4.0.0",

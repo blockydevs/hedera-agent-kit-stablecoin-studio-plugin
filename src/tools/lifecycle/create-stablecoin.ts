@@ -9,7 +9,13 @@ import {
 } from '@hashgraph/hedera-agent-kit';
 import { handleTransaction } from '@/shared/handle-transaction';
 import { PromptGenerator } from '@/shared/utils/prompt-generator';
-import { Account, CreateRequest, StableCoin, TokenSupplyType } from '@hashgraph/stablecoin-npm-sdk';
+import {
+  Account,
+  CreateRequest,
+  SerializedTransactionData,
+  StableCoin,
+  TokenSupplyType,
+} from '@hashgraph/stablecoin-npm-sdk';
 import {
   ensureSdkConnected,
   hexToUint8Array,
@@ -208,7 +214,7 @@ export class CreateStablecoinTool extends BaseTool {
   }
 
   async coreAction(request: CreateRequest, _context: Context, _client: Client) {
-    const response = await StableCoin.buildCreate(request);
+    const response: SerializedTransactionData = await StableCoin.buildCreate(request);
     const bytes = hexToUint8Array(response.serializedTransaction);
     return Transaction.fromBytes(bytes);
   }
@@ -234,7 +240,7 @@ export class CreateStablecoinTool extends BaseTool {
     raw: RawTransactionResponse,
     record: TransactionRecord,
   ): Promise<RawTransactionResponse> => {
-    return { ...raw, tokenId: extractTokenIdFromFactoryRecord(record) };
+    return { ...raw, tokenId: extractTokenIdFromFactoryRecord(record) || null };
   };
 
   async secondaryAction(transaction: Transaction, client: Client, context: Context) {

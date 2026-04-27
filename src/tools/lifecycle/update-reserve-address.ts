@@ -9,7 +9,11 @@ import {
 } from '@hashgraph/hedera-agent-kit';
 import { handleTransaction } from '@/shared/handle-transaction';
 import { PromptGenerator } from '@/shared/utils/prompt-generator';
-import { StableCoin, UpdateReserveAddressRequest } from '@hashgraph/stablecoin-npm-sdk';
+import {
+  SerializedTransactionData,
+  StableCoin,
+  UpdateReserveAddressRequest,
+} from '@hashgraph/stablecoin-npm-sdk';
 import {
   ensureSdkConnected,
   hexToUint8Array,
@@ -85,7 +89,7 @@ export class UpdateReserveAddressStablecoinTool extends BaseTool {
   }
 
   async coreAction(request: UpdateReserveAddressRequest, _context: Context, _client: Client) {
-    const response = await StableCoin.buildUpdateReserveAddress(request);
+    const response: SerializedTransactionData = await StableCoin.buildUpdateReserveAddress(request);
     const bytes = hexToUint8Array(response.serializedTransaction);
     return Transaction.fromBytes(bytes);
   }

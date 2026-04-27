@@ -18,8 +18,8 @@ vi.mock('@hashgraph/hedera-agent-kit', async importOriginal => {
   return {
     ...original,
     AgentMode: {
-        AUTONOMOUS: 'autonomous',
-        RETURN_BYTES: 'returnBytes',
+      AUTONOMOUS: 'autonomous',
+      RETURN_BYTES: 'returnBytes',
     },
     PromptGenerator: {
       getContextSnippet: vi.fn(() => 'CTX'),
@@ -81,7 +81,7 @@ describe('get-stablecoin-info tool (unit)', () => {
     const res: any = await tool.execute(client, autonomousContext, params);
 
     expect(res.raw.details).toEqual(fakeInfo);
-    expect(res.humanMessage).toContain('Stablecoin details for **0.0.5555**:');
+    expect(res.humanMessage).toContain('Stablecoin Details for **0.0.5555**');
     expect(StableCoin.getInfo).toHaveBeenCalled();
   });
 

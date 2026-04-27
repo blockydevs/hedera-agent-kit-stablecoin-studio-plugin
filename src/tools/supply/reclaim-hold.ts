@@ -9,7 +9,11 @@ import {
 } from '@hashgraph/hedera-agent-kit';
 import { handleTransaction } from '@/shared/handle-transaction';
 import { PromptGenerator } from '@/shared/utils/prompt-generator';
-import { StableCoin, ReclaimHoldRequest } from '@hashgraph/stablecoin-npm-sdk';
+import {
+  StableCoin,
+  ReclaimHoldRequest,
+  SerializedTransactionData,
+} from '@hashgraph/stablecoin-npm-sdk';
 import {
   initSdk,
   connectSdk,
@@ -76,8 +80,6 @@ export class ReclaimHoldStablecoinTool extends BaseTool {
   async normalizeParams(inputParams: any, context: Context, client: Client) {
     const params = this.parameters.parse(inputParams);
 
-    // In this new pattern, we always need both SDK and kit connection.
-    // However, if we only need to BUILD, we don't need the private key in config.
     if (context.mode !== AgentMode.RETURN_BYTES && !this.config.privateKey) {
       throw new Error(
         'privateKey is required in plugin config for AUTONOMOUS mode. Provide it via createStablecoinStudioPlugin({ privateKey: "..." }).',
@@ -96,8 +98,7 @@ export class ReclaimHoldStablecoinTool extends BaseTool {
   }
 
   async coreAction(request: ReclaimHoldRequest, _context: Context, _client: Client) {
-    // We always build the transaction using the SDK.
-    const response = await StableCoin.buildReclaimHold(request);
+    const response: SerializedTransactionData = await StableCoin.buildReclaimHold(request);
     const bytes = hexToUint8Array(response.serializedTransaction);
     return Transaction.fromBytes(bytes);
   }

@@ -9,7 +9,7 @@ import {
 } from '@hashgraph/hedera-agent-kit';
 import { handleTransaction } from '@/shared/handle-transaction';
 import { PromptGenerator } from '@/shared/utils/prompt-generator';
-import { StableCoin, PauseRequest } from '@hashgraph/stablecoin-npm-sdk';
+import { StableCoin, PauseRequest, SerializedTransactionData } from '@hashgraph/stablecoin-npm-sdk';
 import {
   ensureSdkConnected,
   hexToUint8Array,
@@ -74,7 +74,7 @@ export class PauseStablecoinTool extends BaseTool {
   }
 
   async coreAction(request: PauseRequest, _context: Context, _client: Client) {
-    const response = await StableCoin.buildPause(request);
+    const response: SerializedTransactionData = await StableCoin.buildPause(request);
     const bytes = hexToUint8Array(response.serializedTransaction);
     return Transaction.fromBytes(bytes);
   }

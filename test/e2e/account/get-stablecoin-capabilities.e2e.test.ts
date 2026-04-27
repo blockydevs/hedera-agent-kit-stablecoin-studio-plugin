@@ -50,7 +50,7 @@ describe('Get Stablecoin Capabilities E2E Tests', () => {
       context: { accountId: resp.accountId.toString() } as any,
     });
 
-    await wait();
+    await wait(15000);
   });
 
   afterAll(async () => {
@@ -79,12 +79,12 @@ describe('Get Stablecoin Capabilities E2E Tests', () => {
 
     const lastMessage = result.messages[result.messages.length - 1].content.toUpperCase();
     
-    // Creator should have many capabilities
-    expect(lastMessage).toContain('CASH_IN');
-    expect(lastMessage).toContain('BURN');
-    expect(lastMessage).toContain('WIPE');
-    expect(lastMessage).toContain('FREEZE');
-    expect(lastMessage).toContain('PAUSE');
-    expect(lastMessage).toContain('RESCUE');
+    // Creator should have many capabilities.
+    // We check for some key ones. 
+    // Using loose matches to handle rephrasing (e.g. "Cash-in" vs "CASH_IN")
+    const expected = ['CASH', 'BURN', 'WIPE', 'FREEZE', 'PAUSE', 'RESCUE', 'DELETE'];
+    for (const word of expected) {
+      expect(lastMessage).toContain(word);
+    }
   });
 });

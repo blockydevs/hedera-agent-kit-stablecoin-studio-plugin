@@ -1,14 +1,10 @@
 import {
-  AccountId,
   Client,
-  ScheduleId,
-  TokenId,
-  TopicId,
   Transaction,
   TransactionId,
   TransactionRecord,
 } from '@hiero-ledger/sdk';
-import { AgentMode, Context } from '@hashgraph/hedera-agent-kit';
+import { AgentMode, Context, RawTransactionResponse } from '@hashgraph/hedera-agent-kit';
 
 interface TxModeStrategy {
   handle<T extends Transaction>(
@@ -23,14 +19,7 @@ interface TxModeStrategy {
   ): Promise<unknown>;
 }
 
-export interface RawTransactionResponse {
-  status: string;
-  accountId: AccountId | null;
-  tokenId: TokenId | null;
-  transactionId: string;
-  topicId: TopicId | null;
-  scheduleId: ScheduleId | null;
-}
+
 
 export interface ExecuteStrategyResult {
   raw: RawTransactionResponse;
@@ -58,11 +47,11 @@ export class ExecuteStrategy implements TxModeStrategy {
 
     let rawTransactionResponse: RawTransactionResponse = {
       status: receipt.status.toString(),
-      accountId: receipt.accountId,
-      tokenId: receipt.tokenId,
+      accountId: receipt.accountId || null,
+      tokenId: receipt.tokenId || null,
       transactionId: tx.transactionId?.toString() ?? '',
-      topicId: receipt.topicId,
-      scheduleId: receipt.scheduleId,
+      topicId: receipt.topicId || null,
+      scheduleId: receipt.scheduleId || null,
     };
 
     // override the response with custom details extractor

@@ -9,7 +9,7 @@ import {
 } from '@hashgraph/hedera-agent-kit';
 import { handleTransaction } from '@/shared/handle-transaction';
 import { PromptGenerator } from '@/shared/utils/prompt-generator';
-import { StableCoin, BurnRequest } from '@hashgraph/stablecoin-npm-sdk';
+import { StableCoin, BurnRequest, SerializedTransactionData } from '@hashgraph/stablecoin-npm-sdk';
 import {
   ensureSdkConnected,
   hexToUint8Array,
@@ -84,7 +84,7 @@ export class BurnStablecoinTool extends BaseTool {
   }
 
   async coreAction(request: BurnRequest, _context: Context, _client: Client) {
-    const response = await StableCoin.buildBurn(request);
+    const response: SerializedTransactionData = await StableCoin.buildBurn(request);
     const bytes = hexToUint8Array(response.serializedTransaction);
     return Transaction.fromBytes(bytes);
   }

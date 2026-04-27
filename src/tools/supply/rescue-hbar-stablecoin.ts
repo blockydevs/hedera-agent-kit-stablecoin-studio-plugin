@@ -9,7 +9,11 @@ import {
 } from '@hashgraph/hedera-agent-kit';
 import { handleTransaction } from '@/shared/handle-transaction';
 import { PromptGenerator } from '@/shared/utils/prompt-generator';
-import { RescueHBARRequest, StableCoin } from '@hashgraph/stablecoin-npm-sdk';
+import {
+  RescueHBARRequest,
+  SerializedTransactionData,
+  StableCoin,
+} from '@hashgraph/stablecoin-npm-sdk';
 import {
   ensureSdkConnected,
   hexToUint8Array,
@@ -80,7 +84,7 @@ export class RescueHbarStablecoinTool extends BaseTool {
   }
 
   async coreAction(request: RescueHBARRequest, _context: Context, _client: Client) {
-    const response = await StableCoin.buildRescueHBAR(request);
+    const response: SerializedTransactionData = await StableCoin.buildRescueHBAR(request);
     const bytes = hexToUint8Array(response.serializedTransaction);
     return Transaction.fromBytes(bytes);
   }

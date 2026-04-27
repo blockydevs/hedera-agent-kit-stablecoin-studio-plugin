@@ -291,6 +291,15 @@ What capabilities does account 0.0.789012 have for stablecoin 0.0.123456?
 Check roles of 0.0.111 on token 0.0.222
 ```
 
+#### Detailed Behavior
+
+The `GET_STABLECOIN_CAPABILITIES_TOOL` performs a **comprehensive check** based on the token's configuration and the account's on-chain permissions. It handles two types of access seamlessly:
+
+1.  **HTS Access**: If the token uses standard HTS keys (Public Keys), the tool compares the `targetId`'s public key with the token's keys. If they match, the capability is returned with an `HTS` access type.
+2.  **CONTRACT Access**: If the token is managed by a Smart Contract (the default for Stablecoin Studio), the token's keys point to the contract's address. The tool automatically performs an on-chain query (`Role.hasRole`) against the contract's internal Role-Based Access Control (RBAC) system. If the `targetId` account specifically holds the required role (e.g., `BURN_ROLE`), the capability is returned with a `CONTRACT` access type.
+
+This ensures that the returned capabilities accurately reflect the true permissions of the requested account, regardless of whether the token is managed directly via HTS or via a proxy smart contract.
+
 ---
 
 ### FREEZE_ACCOUNT_TOOL / UNFREEZE_ACCOUNT_TOOL

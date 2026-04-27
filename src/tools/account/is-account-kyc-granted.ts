@@ -71,7 +71,7 @@ export class IsAccountKycGrantedTool extends BaseTool {
   }
 
   async coreAction(request: KYCRequest, _context: Context, _client: Client) {
-    const isGranted = await StableCoin.isAccountKYCGranted(request);
+    const isGranted: boolean = await StableCoin.isAccountKYCGranted(request);
     return {
       raw: { isKycGranted: isGranted },
       humanMessage: `Account ${request.targetId} ${isGranted ? 'HAS' : 'DOES NOT HAVE'} KYC granted for stablecoin ${request.tokenId}.`,

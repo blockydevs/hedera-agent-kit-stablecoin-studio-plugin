@@ -9,7 +9,11 @@ import {
 } from '@hashgraph/hedera-agent-kit';
 import { handleTransaction } from '@/shared/handle-transaction';
 import { PromptGenerator } from '@/shared/utils/prompt-generator';
-import { StableCoin, ExecuteHoldRequest } from '@hashgraph/stablecoin-npm-sdk';
+import {
+  StableCoin,
+  ExecuteHoldRequest,
+  SerializedTransactionData,
+} from '@hashgraph/stablecoin-npm-sdk';
 import {
   initSdk,
   connectSdk,
@@ -102,7 +106,7 @@ export class ExecuteHoldStablecoinTool extends BaseTool {
   }
 
   async coreAction(request: ExecuteHoldRequest, _context: Context, _client: Client) {
-    const response = await StableCoin.buildExecuteHold(request);
+    const response: SerializedTransactionData = await StableCoin.buildExecuteHold(request);
     const bytes = hexToUint8Array(response.serializedTransaction);
     return Transaction.fromBytes(bytes);
   }

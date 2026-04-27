@@ -9,7 +9,7 @@ import {
 } from '@hashgraph/hedera-agent-kit';
 import { handleTransaction } from '@/shared/handle-transaction';
 import { PromptGenerator } from '@/shared/utils/prompt-generator';
-import { StableCoin, KYCRequest } from '@hashgraph/stablecoin-npm-sdk';
+import { StableCoin, KYCRequest, SerializedTransactionData } from '@hashgraph/stablecoin-npm-sdk';
 import {
   ensureSdkConnected,
   hexToUint8Array,
@@ -87,7 +87,7 @@ export class RevokeKycTool extends BaseTool {
   }
 
   async coreAction(request: KYCRequest, _context: Context, _client: Client) {
-    const response = await StableCoin.buildRevokeKyc(request);
+    const response: SerializedTransactionData = await StableCoin.buildRevokeKyc(request);
     const bytes = hexToUint8Array(response.serializedTransaction);
     return Transaction.fromBytes(bytes);
   }

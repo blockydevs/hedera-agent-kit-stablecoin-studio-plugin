@@ -9,7 +9,12 @@ import {
 } from '@hashgraph/hedera-agent-kit';
 import { handleTransaction } from '@/shared/handle-transaction';
 import { PromptGenerator } from '@/shared/utils/prompt-generator';
-import { Role, RevokeRoleRequest, StableCoinRole } from '@hashgraph/stablecoin-npm-sdk';
+import {
+  Role,
+  RevokeRoleRequest,
+  StableCoinRole,
+  SerializedTransactionData,
+} from '@hashgraph/stablecoin-npm-sdk';
 import {
   ensureSdkConnected,
   hexToUint8Array,
@@ -117,7 +122,7 @@ export class RevokeRoleStablecoinTool extends BaseTool {
   }
 
   async coreAction(request: RevokeRoleRequest, _context: Context, _client: Client): Promise<any> {
-    const response = await Role.buildRevokeRole(request);
+    const response: SerializedTransactionData = await Role.buildRevokeRole(request);
     const bytes = hexToUint8Array(response.serializedTransaction);
     return Transaction.fromBytes(bytes);
   }

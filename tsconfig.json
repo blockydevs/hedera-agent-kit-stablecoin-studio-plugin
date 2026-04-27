@@ -10,8 +10,12 @@
     "rootDir": ".",
     "baseUrl": ".",
     "paths": {
-      "@/*": ["src/*"],
-      "@/test/*": ["test/*"],
+      "@/*": [
+        "src/*"
+      ],
+      "@/test/*": [
+        "test/*"
+      ],
     },
     "esModuleInterop": true,
     "resolveJsonModule": true,
@@ -21,6 +25,13 @@
     "declarationMap": true,
     "sourceMap": true
   },
-  "include": ["src/**/*.ts", "test/**/*.ts", "*.ts"],
-  "exclude": ["node_modules", "dist"]
+  "include": [
+    "src/**/*.ts",
+    "test/**/*.ts",
+    "*.ts"
+  ],
+  "exclude": [
+    "node_modules",
+    "dist"
+  ]
 }

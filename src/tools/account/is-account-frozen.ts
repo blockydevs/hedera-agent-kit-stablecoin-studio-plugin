@@ -71,7 +71,7 @@ export class IsAccountFrozenTool extends BaseTool {
   }
 
   async coreAction(request: FreezeAccountRequest, _context: Context, _client: Client) {
-    const isFrozen = await StableCoin.isAccountFrozen(request);
+    const isFrozen: boolean = await StableCoin.isAccountFrozen(request);
     return {
       raw: { isFrozen },
       humanMessage: `Account ${request.targetId} is ${isFrozen ? 'FROZEN' : 'NOT frozen'} for stablecoin ${request.tokenId}.`,

@@ -2,7 +2,7 @@ import { z } from 'zod';
 import { Client, Status } from '@hiero-ledger/sdk';
 import { Context, BaseTool } from '@hashgraph/hedera-agent-kit';
 import { PromptGenerator } from '@/shared/utils/prompt-generator';
-import { StableCoin, GetAccountBalanceRequest } from '@hashgraph/stablecoin-npm-sdk';
+import { StableCoin, GetAccountBalanceRequest, Balance } from '@hashgraph/stablecoin-npm-sdk';
 import { initSdk, resolveNetwork, StablecoinStudioPluginConfig } from '@/stablecoin-sdk-utils';
 
 export const GET_STABLECOIN_BALANCE_TOOL = 'get_stablecoin_balance_tool';
@@ -65,7 +65,7 @@ export class GetStablecoinBalanceTool extends BaseTool {
   }
 
   async coreAction(request: GetAccountBalanceRequest, _context: Context, _client: Client) {
-    const balance = await StableCoin.getBalanceOf(request);
+    const balance: Balance = await StableCoin.getBalanceOf(request);
     const balanceStr = balance.value.toString();
     const balanceRawStr = balance.value.toBigInt().toString();
 

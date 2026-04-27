@@ -2,7 +2,16 @@ import { z } from 'zod';
 import { Client, Status } from '@hiero-ledger/sdk';
 import { Context, BaseTool } from '@hashgraph/hedera-agent-kit';
 import { PromptGenerator } from '@/shared/utils/prompt-generator';
-import { StableCoin, CapabilitiesRequest } from '@hashgraph/stablecoin-npm-sdk';
+import {
+  StableCoin,
+  CapabilitiesRequest,
+  StableCoinCapabilities,
+  Operation,
+  Access,
+  Role,
+  HasRoleRequest,
+  StableCoinRole,
+} from '@hashgraph/stablecoin-npm-sdk';
 import {
   initSdk,
   connectSdk,
@@ -12,6 +21,37 @@ import {
 
 export const GET_STABLECOIN_CAPABILITIES_TOOL = 'get_stablecoin_capabilities_tool';
 
+const getRoleForOperation = (op: Operation): StableCoinRole | undefined => {
+  switch (op) {
+    case Operation.BURN: return StableCoinRole.BURN_ROLE;
+    case Operation.CASH_IN: return StableCoinRole.CASHIN_ROLE;
+    case Operation.WIPE: return StableCoinRole.WIPE_ROLE;
+    case Operation.FREEZE:
+    case Operation.UNFREEZE: return StableCoinRole.FREEZE_ROLE;
+    case Operation.PAUSE:
+    case Operation.UNPAUSE: return StableCoinRole.PAUSE_ROLE;
+    case Operation.RESCUE:
+    case Operation.RESCUE_HBAR: return StableCoinRole.RESCUE_ROLE;
+    case Operation.DELETE: return StableCoinRole.DELETE_ROLE;
+    case Operation.GRANT_KYC:
+    case Operation.REVOKE_KYC: return StableCoinRole.KYC_ROLE;
+    case Operation.CREATE_CUSTOM_FEE:
+    case Operation.REMOVE_CUSTOM_FEE: return StableCoinRole.CUSTOM_FEES_ROLE;
+    case Operation.CREATE_HOLD: return StableCoinRole.HOLD_CREATOR_ROLE;
+    case Operation.ROLE_MANAGEMENT:
+    case Operation.ROLE_ADMIN_MANAGEMENT:
+    case Operation.UPDATE:
+    case Operation.UPDATE_CONFIG_VERSION:
+    case Operation.UPDATE_CONFIG:
+    case Operation.UPDATE_RESOLVER:
+    case Operation.RESERVE_MANAGEMENT:
+    case Operation.CONTROLLER_CREATE_HOLD:
+      return StableCoinRole.DEFAULT_ADMIN_ROLE;
+    default:
+      return undefined;
+  }
+};
+
 const getStablecoinCapabilitiesPrompt = (context: Context = {}) => {
   const contextSnippet = PromptGenerator.getContextSnippet(context);
   const usageInstructions = PromptGenerator.getParameterUsageInstructions();
@@ -20,6 +60,10 @@ const getStablecoinCapabilitiesPrompt = (context: Context = {}) => {
 ${contextSnippet}
 
 This tool retrieves the capabilities and permissions of an account for a given stablecoin on the Hedera network. It shows which roles (CASHIN, BURN, WIPE, FREEZE, PAUSE, RESCUE) are assigned to the target account.
+
+Important:
+- HTS Access: For tokens with direct HTS keys, the result is an accurate check against the provided account's public key.
+- CONTRACT Access: For tokens managed by smart contracts, the tool now verifies if the account specifically holds the required role in the contract's governance system.
 
 Parameters:
 - tokenId (str, required): The Hedera token ID of the stablecoin (e.g., "0.0.123456").
@@ -75,7 +119,40 @@ export class GetStablecoinCapabilitiesTool extends BaseTool {
     _context: Context,
     _client: Client,
   ): Promise<{ raw: Record<string, any>; humanMessage: string }> {
-    const capabilities = await StableCoin.capabilities(request);
+    const rawCapabilitiesFromSdk: StableCoinCapabilities = await StableCoin.capabilities(request);
+    let list = rawCapabilitiesFromSdk.capabilities || [];
+
+    // Filter CONTRACT capabilities by checking actual on-chain roles
+    const filteredList = await Promise.all(
+      list.map(async (c) => {
+        if (c.access !== Access.CONTRACT) return c; // HTS is already validated
+
+        const role = getRoleForOperation(c.operation);
+        if (!role) return c; // Cannot definitively check, keep it by default
+
+        try {
+          const hasRole = await Role.hasRole(
+            new HasRoleRequest({
+              tokenId: request.tokenId,
+              targetId: request.account.accountId,
+              role: role,
+            }),
+          );
+          return hasRole ? c : null;
+        } catch (error) {
+          // If the query fails (e.g., token isn't a smart contract or node error)
+          console.warn(`Failed to check role ${role} for operation ${c.operation}:`, error);
+          return null; 
+        }
+      }),
+    );
+
+    list = filteredList.filter((c) => c !== null) as typeof list;
+
+    const capabilityList = list.map(c => ({
+      operation: c.operation,
+      access: Access[c.access] || c.access.toString(),
+    }));
 
     // Map capabilities to boolean flags for easier matching in tests/UI
     const rawCapabilities: Record<string, boolean> = {
@@ -83,35 +160,45 @@ export class GetStablecoinCapabilitiesTool extends BaseTool {
       canMint: false,
       canWipe: false,
       canFreeze: false,
+      canUnfreeze: false,
       canPause: false,
+      canUnpause: false,
       canRescue: false,
       canDelete: false,
       canManageRoles: false,
+      canGrantKyc: false,
+      canRevokeKyc: false,
+      canManageFees: false,
     };
 
     const granted: string[] = [];
 
-    capabilities.capabilities.forEach(c => {
-      // In the SDK, all returned capabilities are by definition 'granted' or 'available'
-      // to the account, but we should verify if the API actually implies that.
-      // Based on StableCoinService.ts, listCapabilities only contains what the account CAN do.
+    list.forEach(c => {
       const op = c.operation;
       granted.push(op);
 
-      if (op === 'Burn') rawCapabilities.canBurn = true;
-      if (op === 'Cash_in') rawCapabilities.canMint = true;
-      if (op === 'Wipe') rawCapabilities.canWipe = true;
-      if (op === 'Freeze') rawCapabilities.canFreeze = true;
-      if (op === 'Pause') rawCapabilities.canPause = true;
-      if (op === 'Rescue') rawCapabilities.canRescue = true;
-      if (op === 'Delete') rawCapabilities.canDelete = true;
-      if (op === 'Role_Management') rawCapabilities.canManageRoles = true;
+      if (op === Operation.BURN) rawCapabilities.canBurn = true;
+      if (op === Operation.CASH_IN) rawCapabilities.canMint = true;
+      if (op === Operation.WIPE) rawCapabilities.canWipe = true;
+      if (op === Operation.FREEZE) rawCapabilities.canFreeze = true;
+      if (op === Operation.UNFREEZE) rawCapabilities.canUnfreeze = true;
+      if (op === Operation.PAUSE) rawCapabilities.canPause = true;
+      if (op === Operation.UNPAUSE) rawCapabilities.canUnpause = true;
+      if (op === Operation.RESCUE) rawCapabilities.canRescue = true;
+      if (op === Operation.DELETE) rawCapabilities.canDelete = true;
+      if (op === Operation.ROLE_MANAGEMENT) rawCapabilities.canManageRoles = true;
+      if (op === Operation.GRANT_KYC) rawCapabilities.canGrantKyc = true;
+      if (op === Operation.REVOKE_KYC) rawCapabilities.canRevokeKyc = true;
+      if (op === Operation.CREATE_CUSTOM_FEE || op === Operation.REMOVE_CUSTOM_FEE)
+        rawCapabilities.canManageFees = true;
     });
 
     return {
       raw: {
-        ...capabilities,
-        capabilities: rawCapabilities, // Override with boolean map for test compatibility
+        tokenId: rawCapabilitiesFromSdk.coin.tokenId?.toString() || request.tokenId,
+        accountId: rawCapabilitiesFromSdk.account.id?.toString() || request.account.accountId,
+        capabilities: rawCapabilities, // Maintain boolean map for compatibility
+        capabilityList,
         grantedOperations: granted,
       },
       humanMessage: `Capabilities for account ${request.account.accountId} for stablecoin ${request.tokenId}: ${granted.length > 0 ? granted.join(', ') : 'NONE'}.`,

@@ -9,7 +9,11 @@ import {
 } from '@hashgraph/hedera-agent-kit';
 import { handleTransaction } from '@/shared/handle-transaction';
 import { PromptGenerator } from '@/shared/utils/prompt-generator';
-import { StableCoin, AssociateTokenRequest } from '@hashgraph/stablecoin-npm-sdk';
+import {
+  StableCoin,
+  AssociateTokenRequest,
+  SerializedTransactionData,
+} from '@hashgraph/stablecoin-npm-sdk';
 import {
   ensureSdkConnected,
   hexToUint8Array,
@@ -94,7 +98,7 @@ export class AssociateStablecoinTool extends BaseTool {
   }
 
   async coreAction(request: AssociateTokenRequest, _context: Context, _client: Client) {
-    const response = await StableCoin.buildAssociate(request);
+    const response: SerializedTransactionData = await StableCoin.buildAssociate(request);
     const bytes = hexToUint8Array(response.serializedTransaction);
     return Transaction.fromBytes(bytes);
   }

@@ -9,7 +9,10 @@ import * as dotenv from 'dotenv';
 import { createAgent } from 'langchain';
 import { MemorySaver } from '@langchain/langgraph';
 import { ChatOpenAI } from '@langchain/openai';
-import { createStablecoinStudioPlugin } from 'hak-stablecoin-studio-plugin';
+import {
+  createStablecoinStudioPlugin,
+  stablecoinStudioPluginToolNames,
+} from 'hak-stablecoin-studio-plugin';
 
 dotenv.config();
 
@@ -67,12 +70,11 @@ async function bootstrap(): Promise<void> {
 
   const responseParsingService = new ResponseParserService(hederaAgentToolkit.getTools());
 
-  console.log('Hedera Agent CLI Chatbot with Plugin Support — type "exit" to quit');
+  console.log('Hedera Agent CLI Chatbot with Stablecoin Studio Plugin Support — type "exit" to quit');
   console.log('Available plugin tools:');
-  console.log('- example_greeting_tool: Generate personalized greetings');
-  console.log(
-    '- example_hbar_transfer_tool: Transfer HBAR to account 0.0.800 (demonstrates transaction strategy)',
-  );
+  Object.entries(stablecoinStudioPluginToolNames).forEach(([_key, value]) => {
+    console.log(`- ${value}`);
+  });
   console.log('');
 
   while (true) {

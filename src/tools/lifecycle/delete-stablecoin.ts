@@ -9,7 +9,11 @@ import {
 } from '@hashgraph/hedera-agent-kit';
 import { handleTransaction } from '@/shared/handle-transaction';
 import { PromptGenerator } from '@/shared/utils/prompt-generator';
-import { StableCoin, DeleteRequest } from '@hashgraph/stablecoin-npm-sdk';
+import {
+  StableCoin,
+  DeleteRequest,
+  SerializedTransactionData,
+} from '@hashgraph/stablecoin-npm-sdk';
 import {
   ensureSdkConnected,
   hexToUint8Array,
@@ -74,7 +78,7 @@ export class DeleteStablecoinTool extends BaseTool {
   }
 
   async coreAction(request: DeleteRequest, _context: Context, _client: Client) {
-    const response = await StableCoin.buildDelete(request);
+    const response: SerializedTransactionData = await StableCoin.buildDelete(request);
     const bytes = hexToUint8Array(response.serializedTransaction);
     return Transaction.fromBytes(bytes);
   }

@@ -65,7 +65,7 @@ export class IsAccountAssociatedTool extends BaseTool {
   }
 
   async coreAction(request: IsAccountAssociatedTokenRequest, _context: Context, _client: Client) {
-    const associated = await StableCoin.isAccountAssociated(request);
+    const associated: boolean = await StableCoin.isAccountAssociated(request);
     return {
       raw: { tokenId: request.tokenId, targetId: request.targetId, isAssociated: associated },
       humanMessage: `Account ${request.targetId} is ${associated ? '' : 'not '}associated with token ${request.tokenId}.`,
