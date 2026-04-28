@@ -13,6 +13,8 @@ export type StablecoinStudioPluginConfig = {
   accountId: string;
   privateKey?: string;
   network?: string;
+  rpcNodeUrl?: string;
+  mirrorNodeUrl?: string;
   factoryAddress?: string;
   resolverAddress?: string;
 };
@@ -37,8 +39,10 @@ export async function initSdk(
   await Network.init(
     new InitializationRequest({
       network,
-      mirrorNode: { baseUrl: `https://${network}.mirrornode.hedera.com/api/v1/` },
-      rpcNode: { baseUrl: `https://${network}.hashio.io/api` },
+      mirrorNode: {
+        baseUrl: config.mirrorNodeUrl ?? `https://${network}.mirrornode.hedera.com/api/v1/`,
+      },
+      rpcNode: { baseUrl: config.rpcNodeUrl ?? `https://${network}.hashio.io/api` },
       configuration: { factoryAddress, resolverAddress },
     } as any),
   );
@@ -55,8 +59,10 @@ export async function connectSdk(
     account: { accountId },
     network,
     wallet: SupportedWallets.EXTERNAL_HEDERA,
-    mirrorNode: { baseUrl: `https://${network}.mirrornode.hedera.com/api/v1/` },
-    rpcNode: { baseUrl: `https://${network}.hashio.io/api` },
+    mirrorNode: {
+      baseUrl: config.mirrorNodeUrl ?? `https://${network}.mirrornode.hedera.com/api/v1/`,
+    },
+    rpcNode: { baseUrl: config.rpcNodeUrl ?? `https://${network}.hashio.io/api` },
     externalWalletSettings: { validStartOffsetMinutes: 0 },
   });
 
@@ -85,8 +91,10 @@ export async function connectSdkClientMode(
     account,
     network,
     wallet: SupportedWallets.CLIENT,
-    mirrorNode: { baseUrl: `https://${network}.mirrornode.hedera.com/api/v1/` },
-    rpcNode: { baseUrl: `https://${network}.hashio.io/api` },
+    mirrorNode: {
+      baseUrl: config.mirrorNodeUrl ?? `https://${network}.mirrornode.hedera.com/api/v1/`,
+    },
+    rpcNode: { baseUrl: config.rpcNodeUrl ?? `https://${network}.hashio.io/api` },
     externalWalletSettings: { validStartOffsetMinutes: 0 },
   });
 

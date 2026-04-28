@@ -65,7 +65,7 @@ describe('Revoke Role Stablecoin E2E Tests', () => {
     await executorWrapper.grantRole({
       tokenId,
       targetId: targetAccountId,
-      role: 'BURN_ROLE',
+      role: StableCoinRole.BURN_ROLE,
     });
     await wait();
   });

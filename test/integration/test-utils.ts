@@ -478,7 +478,7 @@ export class HederaOperationsWrapper {
       new GrantRoleRequest({
         tokenId: params.tokenId,
         targetId: params.targetId,
-        role: params.role,
+        role: (StableCoinRole as any)[params.role] || params.role,
         supplierType: params.supplierType,
         amount: params.amount,
       }),
