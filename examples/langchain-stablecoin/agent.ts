@@ -49,6 +49,7 @@ async function bootstrap(): Promise<void> {
       ],
       context: {
         mode: AgentMode.AUTONOMOUS,
+        accountId: process.env.ACCOUNT_ID!,
       },
     },
   });

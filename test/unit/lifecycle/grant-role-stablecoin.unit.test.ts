@@ -96,6 +96,31 @@ describe('grant-role-stablecoin tool (unit)', () => {
     expect(Role.buildGrantRole).toHaveBeenCalled();
   });
 
+  it('should grant role successfully to a public key', async () => {
+    const tool = toolFactory(autonomousContext, config);
+    const client = makeClient();
+
+    const { Role } = await import('@hashgraph/stablecoin-npm-sdk');
+    const { handleTransaction } = await import('@/shared/handle-transaction');
+
+    const fakeTxBytes = '1234';
+    (Role.buildGrantRole as any).mockResolvedValue({ serializedTransaction: fakeTxBytes });
+
+    const fakeResponse = {
+      raw: { transactionId: '0.0.1001@123.456', status: Status.Success },
+      humanMessage: 'Role granted successfully.',
+    };
+    (handleTransaction as any).mockResolvedValue(fakeResponse);
+
+    const params = { tokenId: '0.0.5555', targetId: '0x1234567890abcdef', role: 'WIPE_ROLE' };
+    const res: any = await tool.execute(client, autonomousContext, params);
+
+    expect(res).toEqual(fakeResponse);
+    expect(Role.buildGrantRole).toHaveBeenCalledWith(expect.objectContaining({
+      targetId: '0x1234567890abcdef',
+    }));
+  });
+
   it('should return transaction in return-bytes mode', async () => {
     const tool = toolFactory(returnBytesContext, config);
     const client = makeClient();

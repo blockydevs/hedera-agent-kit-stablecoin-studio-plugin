@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { AccountId, Client, PrivateKey, Transaction } from '@hiero-ledger/sdk';
 import { AgentMode, type Context } from '@hashgraph/hedera-agent-kit';
+import { StableCoinRole } from '@hashgraph/stablecoin-npm-sdk';
 import {
   getOperatorClientForTests,
   getCustomClient,
@@ -84,9 +85,9 @@ describe('Supply Return Bytes Mode Integration Tests', () => {
     await executorWrapper.waitForKyc(executorAccountId, tokenId);
 
     // Grant roles to executorAccountId so it can perform actions in tests
-    await executorWrapper.grantRole({ tokenId, targetId: executorAccountId, role: 'CASHIN_ROLE' });
-    await executorWrapper.grantRole({ tokenId, targetId: executorAccountId, role: 'BURN_ROLE' });
-    await executorWrapper.grantRole({ tokenId, targetId: executorAccountId, role: 'WIPE_ROLE' });
+    await executorWrapper.grantRole({ tokenId, targetId: executorAccountId, role: StableCoinRole.CASHIN_ROLE });
+    await executorWrapper.grantRole({ tokenId, targetId: executorAccountId, role: StableCoinRole.BURN_ROLE });
+    await executorWrapper.grantRole({ tokenId, targetId: executorAccountId, role: StableCoinRole.WIPE_ROLE });
 
     await wait(10000); // Wait for roles to propagate
   });

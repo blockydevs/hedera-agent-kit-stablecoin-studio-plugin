@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { Client, Status, Transaction } from '@hiero-ledger/sdk';
+import { Client, Transaction } from '@hiero-ledger/sdk';
 import {
   AgentMode,
   Context,
@@ -19,6 +19,7 @@ import {
   ensureSdkConnected,
   hexToUint8Array,
   StablecoinStudioPluginConfig,
+  extractStatus,
 } from '@/stablecoin-sdk-utils';
 
 export const REVOKE_ROLE_STABLECOIN_TOOL = 'revoke_role_stablecoin_tool';
@@ -76,7 +77,7 @@ const revokeRoleParameters = (context: Context = {}) => {
       .optional()
       .default(accountId)
       .describe(
-        `The Hedera account ID to revoke the role from (e.g., "0.0.789012"). Default: ${accountId || 'operator account'}`,
+        `The Hedera account ID or Public Key to revoke the role from (e.g., "0.0.789012" or hex key). Default: ${accountId || 'operator account'}`,
       ),
     role: z.enum(roles).describe('The role to revoke'),
   });
@@ -139,7 +140,10 @@ export class RevokeRoleStablecoinTool extends BaseTool {
     const desc = 'Failed to revoke role';
     const message = desc + (error instanceof Error ? `: ${error.message}` : '');
     return {
-      raw: { status: Status.InvalidTransaction, error: message },
+      raw: {
+        status: extractStatus(error),
+        error: message,
+      },
       humanMessage: message,
     };
   }

@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { Client, Status } from '@hiero-ledger/sdk';
+import { Client } from '@hiero-ledger/sdk';
 import { Context, BaseTool } from '@hashgraph/hedera-agent-kit';
 import { PromptGenerator } from '@/shared/utils/prompt-generator';
 import {
@@ -17,6 +17,7 @@ import {
   connectSdk,
   resolveNetwork,
   StablecoinStudioPluginConfig,
+  extractStatus,
 } from '@/stablecoin-sdk-utils';
 
 export const GET_STABLECOIN_CAPABILITIES_TOOL = 'get_stablecoin_capabilities_tool';
@@ -217,7 +218,10 @@ export class GetStablecoinCapabilitiesTool extends BaseTool {
     const desc = 'Failed to get stablecoin capabilities';
     const message = desc + (error instanceof Error ? `: ${error.message}` : '');
     return {
-      raw: { status: Status.InvalidTransaction, error: message },
+      raw: {
+        status: extractStatus(error),
+        error: message,
+      },
       humanMessage: message,
     };
   }

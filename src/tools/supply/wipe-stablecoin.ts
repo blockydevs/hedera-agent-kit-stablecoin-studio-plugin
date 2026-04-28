@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { Client, Status, Transaction } from '@hiero-ledger/sdk';
+import { Client, Transaction } from '@hiero-ledger/sdk';
 import {
   AgentMode,
   Context,
@@ -14,6 +14,7 @@ import {
   ensureSdkConnected,
   hexToUint8Array,
   StablecoinStudioPluginConfig,
+  extractStatus,
 } from '@/stablecoin-sdk-utils';
 
 export const WIPE_STABLECOIN_TOOL = 'wipe_stablecoin_tool';
@@ -112,7 +113,10 @@ export class WipeStablecoinTool extends BaseTool {
     const desc = 'Failed to wipe stablecoin';
     const message = desc + (error instanceof Error ? `: ${error.message}` : '');
     return {
-      raw: { status: Status.InvalidTransaction, error: message },
+      raw: {
+        status: extractStatus(error),
+        error: message,
+      },
       humanMessage: message,
     };
   }

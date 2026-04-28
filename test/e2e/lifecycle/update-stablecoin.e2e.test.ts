@@ -98,4 +98,41 @@ describe('Update Stablecoin E2E Tests', () => {
     expect(info.name).toBe(newName);
     expect(info.symbol).toBe(newSymbol);
   });
+
+  it('should update stablecoin KYC key via agent', async () => {
+    const newKycKey = executorClient.operatorPublicKey!.toString();
+    const input = `Update stablecoin ${tokenId} and set the KYC public key to ${newKycKey}`;
+
+    let result = await testSetup.agent.invoke({
+      messages: [{ role: 'user', content: input }],
+    });
+
+    const messages = result.messages;
+    const toolCalled = messages.some((m: any) => m._getType() === 'tool');
+
+    if (!toolCalled) {
+      result = await testSetup.agent.invoke({
+        messages: [
+          ...result.messages,
+          { role: 'user', content: 'yes, proceed' }
+        ],
+      });
+    }
+    const parsedResponse = testSetup.responseParser.parseNewToolMessages(result);
+    expect(parsedResponse[0]).toBeDefined();
+    expect(parsedResponse[0].parsedData.humanMessage.toLowerCase()).toContain('successfully');
+
+    await wait();
+
+    const info = await executorWrapper.getStablecoinInfo(tokenId);
+    
+    const normalize = (key: any) => {
+      if (!key) return '';
+      if (typeof key === 'string') return key.startsWith('0x') ? key.substring(2) : key;
+      const s = key.key || key.toString();
+      return s.startsWith('0x') ? s.substring(2) : s;
+    };
+
+    expect(normalize(info.kycKey)).toBe(executorClient.operatorPublicKey!.toStringRaw());
+  });
 });

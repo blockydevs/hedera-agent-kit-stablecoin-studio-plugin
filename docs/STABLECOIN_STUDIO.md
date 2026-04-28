@@ -61,7 +61,7 @@ The plugin supports all standard Stablecoin Studio roles:
 | Role                | Capability                                                     |
 |---------------------|----------------------------------------------------------------|
 | `DEFAULT_ADMIN_ROLE`| Full administrative control (grant/revoke roles, update reserve address). Only this role can change the PoR contract address. |
-| `CASHIN_ROLE`       | The only role allowed to increase the token supply (mint).     |
+| `CASHIN_ROLE`       | The only role allowed to increase the token supply (mint). Can be "Unlimited" (unrestricted minting) or "Limited" (subject to a specific allowance). |
 | `BURN_ROLE`         | Allows destroying tokens held in the treasury.                 |
 | `WIPE_ROLE`         | Allows removing tokens from **any** account (compliance/fraud recovery). |
 | `FREEZE_ROLE`       | Allows locking a specific account's balance.                   |
@@ -241,3 +241,13 @@ If tokens or HBAR are accidentally sent to the stablecoin's proxy contract addre
    to recover. Tokens are moved to the treasury.
 3. **Rescue HBAR**: If HBAR was sent to the contract, call `RESCUE_HBAR_STABLECOIN_TOOL` instead.
    HBAR is moved to the treasury.
+
+### Scenario K: Managing Suppliers & Minting Allowances
+For organizations that delegate minting to multiple departments with strict limits:
+1. **Grant Supplier Role**: Use `GRANT_SUPPLIER_ROLE_TOOL` to give a department the `CASHIN_ROLE` with a specific `amount` (e.g., 50,000 units).
+2. **Monitor Usage**: Use `GET_SUPPLIER_ALLOWANCE_TOOL` periodically to see how much of the allowance remains.
+3. **Adjust Limits**:
+    - Use `INCREASE_SUPPLIER_ALLOWANCE_TOOL` when a department needs more liquidity.
+    - Use `DECREASE_SUPPLIER_ALLOWANCE_TOOL` to reduce their capacity.
+    - Use `RESET_SUPPLIER_ALLOWANCE_TOOL` to immediately stop their minting ability (by setting allowance to zero).
+4. **Revoke Access**: Use `REVOKE_SUPPLIER_ROLE_TOOL` to permanently remove their minting permissions.

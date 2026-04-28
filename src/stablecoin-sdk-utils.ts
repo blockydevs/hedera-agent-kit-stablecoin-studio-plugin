@@ -1,10 +1,11 @@
-import { Client, PrivateKey } from '@hiero-ledger/sdk';
+import { Client, PrivateKey, PublicKey as HPublicKey, Status } from '@hiero-ledger/sdk';
 import { Context } from '@hashgraph/hedera-agent-kit';
 import {
   Network,
   ConnectRequest,
   InitializationRequest,
   SupportedWallets,
+  PublicKey as SdkPublicKey,
 } from '@hashgraph/stablecoin-npm-sdk';
 import { getFactoryAddress, getResolverAddress } from './constants';
 
@@ -111,4 +112,51 @@ export function hexToUint8Array(hex: string): Uint8Array {
     bytes[i / 2] = parseInt(clean.substring(i, i + 2), 16);
   }
   return bytes;
+}
+
+export function parsePublicKey(key: string): SdkPublicKey {
+  try {
+    const hKey = HPublicKey.fromStringECDSA(key);
+    return new SdkPublicKey({
+      key: hKey.toStringRaw(),
+      type: 'ECDSA',
+    });
+  } catch (_e) {
+    try {
+      const hKey = HPublicKey.fromStringED25519(key);
+      return new SdkPublicKey({
+        key: hKey.toStringRaw(),
+        type: 'ED25519',
+      });
+    } catch (_e2) {
+      const hKey = HPublicKey.fromString(key);
+      const isEd25519 = hKey.toBytesRaw().length === 32;
+      return new SdkPublicKey({
+        key: hKey.toStringRaw(),
+        type: isEd25519 ? 'ED25519' : 'ECDSA',
+      });
+    }
+  }
+}
+export function extractStatus(error: unknown): Status {
+  if (error && typeof error === 'object') {
+    if ('status' in error && (error as any).status instanceof Status) {
+      return (error as any).status;
+    }
+    if ('receipt' in error && (error as any).receipt?.status instanceof Status) {
+      return (error as any).receipt.status;
+    }
+  }
+
+  if (error instanceof Error || (error && typeof error === 'object' && 'message' in error)) {
+    const message = (error as any).message || String(error);
+    if (message.includes('CONTRACT_REVERT_EXECUTED')) {
+      return Status.ContractRevertExecuted;
+    }
+    if (message.includes('TOKEN_NOT_ASSOCIATED_TO_ACCOUNT')) {
+      return Status.TokenNotAssociatedToAccount;
+    }
+  }
+
+  return Status.InvalidTransaction;
 }

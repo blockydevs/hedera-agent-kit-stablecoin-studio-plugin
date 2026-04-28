@@ -128,6 +128,8 @@ describe('Create Hold Stablecoin Integration Tests', () => {
     });
 
     expect(result.humanMessage).toContain('Hold created successfully');
+    expect(result.humanMessage).toContain('Hold ID:');
+    expect(result.raw.holdId).toBeDefined();
 
     await wait();
 
@@ -160,6 +162,9 @@ describe('Create Hold Stablecoin Integration Tests', () => {
     });
 
     expect(result.humanMessage).toContain('Hold created successfully');
+    expect(result.humanMessage).toContain('Hold ID:');
+    expect(result.raw.holdId).toBeDefined();
+
     await wait(10000);
 
     const finalBalance = await executorWrapper.getStablecoinBalance(

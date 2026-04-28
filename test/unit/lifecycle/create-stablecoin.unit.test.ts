@@ -49,6 +49,7 @@ vi.mock('@/stablecoin-sdk-utils', () => ({
   resolveNetwork: vi.fn(() => 'testnet'),
   ensureSdkConnected: vi.fn(),
   hexToUint8Array: vi.fn(hex => Buffer.from(hex, 'hex')),
+  parsePublicKey: vi.fn(key => ({ key, type: 'ED25519' })),
 }));
 
 vi.mock('@/shared/handle-transaction', () => ({
@@ -112,7 +113,11 @@ describe('create-stablecoin tool (unit)', () => {
       autoRenewAccount: '0.0.789',
       autoRenewPeriod: 8000000,
       cashInRoleAllowance: '5000',
-      holdCreatorRoleAccount: '0.0.1002'
+      holdCreatorRoleAccount: '0.0.1002',
+      reserveAddress: '0.0.333',
+      reserveInitialAmount: '1000',
+      grantKYCToOriginalSender: false,
+      stableCoinFactory: '0.0.444'
     };
     
     await tool.execute(client, autonomousContext, params);
@@ -125,7 +130,44 @@ describe('create-stablecoin tool (unit)', () => {
       autoRenewAccount: '0.0.789',
       autoRenewPeriod: 8000000,
       cashInRoleAllowance: '5000',
-      holdCreatorRoleAccount: '0.0.1002'
+      holdCreatorRoleAccount: '0.0.1002',
+      reserveAddress: '0.0.333',
+      reserveInitialAmount: '1000',
+      grantKYCToOriginalSender: false,
+      stableCoinFactory: '0.0.444'
+    }));
+  });
+
+  it('should correctly process and pass HTS keys to the SDK', async () => {
+    const tool = toolFactory(autonomousContext, config);
+    const client = makeClient();
+    const { StableCoin, Account } = await import('@hashgraph/stablecoin-npm-sdk');
+    const { parsePublicKey } = await import('@/stablecoin-sdk-utils');
+    
+    (StableCoin.buildCreate as any).mockResolvedValue({ serializedTransaction: '1234' });
+
+    const params = { 
+      name: 'Test', 
+      symbol: 'TST',
+      freezeKey: '0x123',
+      kycKey: 'null',
+      wipeKey: '0x456',
+      pauseKey: 'null',
+      feeScheduleKey: '0x789'
+    };
+    
+    await tool.execute(client, autonomousContext, params);
+
+    expect(parsePublicKey).toHaveBeenCalledWith('0x123');
+    expect(parsePublicKey).toHaveBeenCalledWith('0x456');
+    expect(parsePublicKey).toHaveBeenCalledWith('0x789');
+
+    expect(StableCoin.buildCreate).toHaveBeenCalledWith(expect.objectContaining({
+      freezeKey: { key: '0x123', type: 'ED25519' },
+      kycKey: Account.NullPublicKey,
+      wipeKey: { key: '0x456', type: 'ED25519' },
+      pauseKey: Account.NullPublicKey,
+      feeScheduleKey: { key: '0x789', type: 'ED25519' }
     }));
   });
 

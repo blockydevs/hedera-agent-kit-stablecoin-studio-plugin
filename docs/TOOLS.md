@@ -29,17 +29,26 @@ Deploys a new regulated stablecoin with customized governance roles and supply r
 | `autoRenewPeriod`        | `number`  | ❌        | -            | Period in seconds (e.g., 7776000).                      |
 | `cashInRoleAllowance`    | `string`  | ❌        | -            | Initial minting allowance (e.g., "50000").              |
 | `createReserve`          | `boolean` | ❌        | `false`      | Whether to deploy a Proof of Reserve contract alongside the token. When `true`, a Chainlink-compatible reserve contract is created and its address is stored in the token's proxy contract. See [Proof of Reserve](#proof-of-reserve-por) for details. |
-| `proxyOwnerAccount`      | `string`  | ❌        | operator     | Account ID for proxy owner (e.g., "0.0.123456").        |
-| `burnRoleAccount`        | `string`  | ❌        | operator     | Account ID for BURN_ROLE (e.g., "0.0.123456").          |
-| `wipeRoleAccount`        | `string`  | ❌        | operator     | Account ID for WIPE_ROLE (e.g., "0.0.123456").          |
-| `rescueRoleAccount`      | `string`  | ❌        | operator     | Account ID for RESCUE_ROLE (e.g., "0.0.123456").        |
-| `pauseRoleAccount`       | `string`  | ❌        | operator     | Account ID for PAUSE_ROLE (e.g., "0.0.123456").         |
-| `freezeRoleAccount`      | `string`  | ❌        | operator     | Account ID for FREEZE_ROLE (e.g., "0.0.123456").        |
-| `deleteRoleAccount`      | `string`  | ❌        | operator     | Account ID for DELETE_ROLE (e.g., "0.0.123456").        |
-| `kycRoleAccount`         | `string`  | ❌        | operator     | Account ID for KYC_ROLE (e.g., "0.0.123456").           |
-| `cashInRoleAccount`      | `string`  | ❌        | operator     | Account ID for CASHIN_ROLE (e.g., "0.0.123456").        |
-| `feeRoleAccount`         | `string`  | ❌        | operator     | Account ID for CUSTOM_FEES_ROLE (e.g., "0.0.123456").   |
-| `holdCreatorRoleAccount` | `string`  | ❌        | operator     | Account ID for HOLD_CREATOR_ROLE (e.g., "0.0.123456").  |
+| `proxyOwnerAccount`      | `string`  | ❌        | operator     | Account ID or Public Key for proxy owner (e.g., "0.0.123456" or hex key). |
+| `burnRoleAccount`        | `string`  | ❌        | operator     | Account ID or Public Key for BURN_ROLE (e.g., "0.0.123456" or hex key).   |
+| `wipeRoleAccount`        | `string`  | ❌        | operator     | Account ID or Public Key for WIPE_ROLE (e.g., "0.0.123456" or hex key).   |
+| `rescueRoleAccount`      | `string`  | ❌        | operator     | Account ID or Public Key for RESCUE_ROLE (e.g., "0.0.123456" or hex key). |
+| `pauseRoleAccount`       | `string`  | ❌        | operator     | Account ID or Public Key for PAUSE_ROLE (e.g., "0.0.123456" or hex key).  |
+| `freezeRoleAccount`      | `string`  | ❌        | operator     | Account ID or Public Key for FREEZE_ROLE (e.g., "0.0.123456" or hex key). |
+| `deleteRoleAccount`      | `string`  | ❌        | operator     | Account ID or Public Key for DELETE_ROLE (e.g., "0.0.123456" or hex key). |
+| `kycRoleAccount`         | `string`  | ❌        | operator     | Account ID or Public Key for KYC_ROLE (e.g., "0.0.123456" or hex key).    |
+| `cashInRoleAccount`      | `string`  | ❌        | operator     | Account ID or Public Key for CASHIN_ROLE (e.g., "0.0.123456" or hex key). |
+| `feeRoleAccount`         | `string`  | ❌        | operator     | Account ID or Public Key for CUSTOM_FEES_ROLE (e.g., "0.0.123456" or hex key). |
+| `holdCreatorRoleAccount` | `string`  | ❌        | operator     | Account ID or Public Key for HOLD_CREATOR_ROLE (e.g., "0.0.123456" or hex key). |
+| `freezeKey`              | `string`  | ❌        | `"null"`     | HTS Freeze key (Hex). Use `"null"` for no key.          |
+| `kycKey`                 | `string`  | ❌        | `"null"`     | HTS KYC key (Hex). Use `"null"` for no key.             |
+| `wipeKey`                | `string`  | ❌        | `"null"`     | HTS Wipe key (Hex). Use `"null"` for no key.            |
+| `pauseKey`               | `string`  | ❌        | `"null"`     | HTS Pause key (Hex). Use `"null"` for no key.           |
+| `feeScheduleKey`         | `string`  | ❌        | -            | HTS Fee Schedule key (Hex).                             |
+| `stableCoinFactory`      | `string`  | ❌        | -            | Address of the stablecoin factory contract.             |
+| `reserveAddress`         | `string`  | ❌        | -            | Address of the reserve contract.                        |
+| `reserveInitialAmount`   | `string`  | ❌        | -            | Initial amount for the reserve in display units.        |
+| `grantKYCToOriginalSender`| `boolean`| ❌        | `true`       | Whether to grant KYC to the creator automatically.      |
 
 #### Example Prompts
 
@@ -48,6 +57,7 @@ Create a new stablecoin named "Test USD" with symbol "TUSD"
 Create a stablecoin named "CorpCoin" (CC) with 8 decimals and initial supply of 1000. Proceed immediately.
 Create a finite supply stablecoin named "Gold Backed" (GLD) with initial supply 100 and max supply 1000. Proceed immediately.
 Create a stablecoin named "PayCoin" (PC) and set the burn role to account 0.0.789012. Proceed immediately.
+Create a stablecoin named "HTS Coin" and set the freeze key to "0x123...". Proceed immediately.
 ```
 
 ---
@@ -84,12 +94,24 @@ Updates metadata for an existing stablecoin.
 
 #### Parameters
 
-| Parameter  | Type     | Required | Description                                         |
-|------------|----------|----------|-----------------------------------------------------|
-| `tokenId`  | `string` | ✅        | The Hedera token ID to update (e.g., "0.0.123456"). |
-| `name`     | `string` | ❌        | New name for the stablecoin (e.g., "New Dollar").   |
-| `symbol`   | `string` | ❌        | New symbol for the stablecoin (e.g., "ND").         |
-| `metadata` | `string` | ❌        | New arbitrary metadata (e.g., "rev-2").             |
+| Parameter        | Type     | Required | Description                                                                                                                                                             |
+|------------------|----------|----------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `tokenId`        | `string` | ✅        | The Hedera token ID to update (e.g., "0.0.123456").                                                                                                                     |
+| `name`           | `string` | ❌        | New name for the stablecoin (e.g., "Global Dollar").                                                                                                                    |
+| `symbol`         | `string` | ❌        | New symbol for the stablecoin (e.g., "GUSD").                                                                                                                           |
+| `metadata`       | `string` | ❌        | New arbitrary metadata (e.g., "audit-pass-v2").                                                                                                                         |
+| `autoRenewPeriod`| `number` | ❌        | New auto-renew period in seconds (e.g., 7776000).                                                                                                                       |
+| `kycKey`         | `string` | ❌        | New KYC **Public Key** in Hex format. Pass `""` to return control to the smart contract.                                                                                |
+| `wipeKey`        | `string` | ❌        | New wipe **Public Key** in Hex format. Pass `""` to return control to the smart contract.                                                                               |
+| `freezeKey`      | `string` | ❌        | New freeze **Public Key** in Hex format. Pass `""` to return control to the smart contract.                                                                             |
+| `pauseKey`       | `string` | ❌        | New pause **Public Key** in Hex format. Pass `""` to return control to the smart contract.                                                                              |
+| `feeScheduleKey` | `string` | ❌        | New fee schedule **Public Key** in Hex format. Pass `""` to return control to the smart contract.                                                                       |
+
+> ⚠️ **Important Key Requirements**:
+> 1. Role keys (KYC, Wipe, Freeze, Pause, Fee Schedule) MUST be provided as **Hex Public Keys**. Account IDs (e.g., `0.0.123`) are NOT accepted and will cause the tool to fail.
+> 2. Passing an empty string (`""`) for a key returns the management of that role back to the stablecoin's proxy smart contract.
+> 3. `autoRenewAccount` is currently **not supported** for updates via Stablecoin Studio.
+
 
 #### Example Prompts
 
@@ -112,7 +134,7 @@ Grants specialized governance permissions to an account.
 | Parameter  | Type     | Required | Description                                                                                                                                                       |
 |------------|----------|----------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------|
 | `tokenId`  | `string` | ✅        | The token ID of the stablecoin (e.g., "0.0.123456").                                                                                                              |
-| `targetId` | `string` | ✅        | The account ID receiving the role (e.g., "0.0.789012").                                                                                                           |
+| `targetId` | `string` | ✅        | The account ID or Public Key receiving the role (e.g., "0.0.789012" or hex key).                                                                                  |
 | `role`     | `enum`   | ✅        | Options: CASHIN_ROLE, BURN_ROLE, WIPE_ROLE, RESCUE_ROLE, PAUSE_ROLE, FREEZE_ROLE, DELETE_ROLE, DEFAULT_ADMIN_ROLE, KYC_ROLE, CUSTOM_FEES_ROLE, HOLD_CREATOR_ROLE. |
 
 #### Example Prompts
@@ -138,7 +160,7 @@ Removes governance permissions from an account.
 | Parameter  | Type     | Required | Description                                          |
 |------------|----------|----------|------------------------------------------------------|
 | `tokenId`  | `string` | ✅        | The token ID of the stablecoin (e.g., "0.0.123456"). |
-| `targetId` | `string` | ✅        | The account ID to revoke from (e.g., "0.0.789012").  |
+| `targetId` | `string` | ✅        | The account ID or Public Key to revoke from (e.g., "0.0.789012" or hex key). |
 | `role`     | `enum`   | ✅        | Options: Same as Grant Role.                         |
 
 #### Example Prompts
@@ -146,6 +168,124 @@ Removes governance permissions from an account.
 ```
 Revoke BURN_ROLE from account 0.0.789012 for stablecoin 0.0.123456
 Remove FREEZE_ROLE from 0.0.111 on token 0.0.222. Proceed immediately.
+```
+
+---
+
+### GRANT_SUPPLIER_ROLE_TOOL
+
+**Supports Hooks & Policies**: ✅ Yes
+**Who can call it**: Only the account holding `DEFAULT_ADMIN_ROLE` on the stablecoin's proxy smart contract.
+
+Grants the CASHIN_ROLE (minting permission) to an account, along with an initial minting allowance.
+
+#### Parameters
+
+| Parameter  | Type     | Required | Default      | Description                                                                                             |
+|------------|----------|----------|--------------|---------------------------------------------------------------------------------------------------------|
+| `tokenId`  | `string` | ✅        | -            | The Hedera token ID (e.g., "0.0.123456").                                                               |
+| `targetId` | `string` | ✅        | operator     | Account ID receiving the role (e.g., "0.0.789012").                                                     |
+| `amount`   | `string` | ❌        | `"0"`        | Initial minting allowance in display units (e.g., "100.5"). Use "0" or leave empty for unlimited.       |
+
+#### Example Prompts
+
+```
+Grant supplier role to account 0.0.789012 for stablecoin 0.0.123456 with allowance 1000
+Make 0.0.789012 a supplier for 0.0.123456 with unlimited allowance. Proceed immediately.
+```
+
+---
+
+### REVOKE_SUPPLIER_ROLE_TOOL
+
+**Supports Hooks & Policies**: ✅ Yes
+**Who can call it**: Only the account holding `DEFAULT_ADMIN_ROLE` on the stablecoin's proxy smart contract.
+
+Removes the CASHIN_ROLE (minting permission) from an account.
+
+#### Parameters
+
+| Parameter  | Type     | Required | Default      | Description                                          |
+|------------|----------|----------|--------------|------------------------------------------------------|
+| `tokenId`  | `string` | ✅        | -            | The Hedera token ID (e.g., "0.0.123456").           |
+| `targetId` | `string` | ✅        | operator     | Account ID to revoke from (e.g., "0.0.789012").      |
+
+#### Example Prompts
+
+```
+Revoke supplier role from 0.0.789012 for token 0.0.123456
+Remove minting permissions from 0.0.789012 on stablecoin 0.0.123456. Proceed immediately.
+```
+
+---
+
+### INCREASE_SUPPLIER_ALLOWANCE_TOOL / DECREASE_SUPPLIER_ALLOWANCE_TOOL
+
+**Supports Hooks & Policies**: ✅ Yes
+**Who can call it**: Only the account holding `DEFAULT_ADMIN_ROLE` on the stablecoin's proxy smart contract.
+
+Increases or decreases the minting allowance for a specific supplier.
+
+#### Parameters
+
+| Parameter  | Type     | Required | Description                                                                        |
+|------------|----------|----------|------------------------------------------------------------------------------------|
+| `tokenId`  | `string` | ✅        | The Hedera token ID (e.g., "0.0.123456").                                          |
+| `targetId` | `string` | ✅        | Account ID of the supplier (e.g., "0.0.789012").                                   |
+| `amount`   | `string` | ✅        | Amount to add/subtract in display units (e.g., "100.5").                           |
+| `startDate`| `string` | ❌        | Optional ISO date for scheduling the operation.                                    |
+
+#### Example Prompts
+
+```
+Increase supplier allowance for 0.0.789012 on token 0.0.123456 by 500
+Decrease minting allowance of 0.0.789012 by 100 for stablecoin 0.0.123456. Proceed immediately.
+```
+
+---
+
+### RESET_SUPPLIER_ALLOWANCE_TOOL
+
+**Supports Hooks & Policies**: ✅ Yes
+**Who can call it**: Only the account holding `DEFAULT_ADMIN_ROLE` on the stablecoin's proxy smart contract.
+
+Resets the minting allowance for a specific supplier to zero.
+
+#### Parameters
+
+| Parameter  | Type     | Required | Description                                          |
+|------------|----------|----------|------------------------------------------------------|
+| `tokenId`  | `string` | ✅        | The Hedera token ID (e.g., "0.0.123456").           |
+| `targetId` | `string` | ✅        | Account ID of the supplier (e.g., "0.0.789012").      |
+
+#### Example Prompts
+
+```
+Reset supplier allowance for 0.0.789012 on stablecoin 0.0.123456
+Zero out minting allowance of 0.0.789012. Proceed immediately.
+```
+
+---
+
+### GET_SUPPLIER_ALLOWANCE_TOOL
+
+**Supports Hooks & Policies**: ✅ Yes
+**Who can call it**: Any account. This is a read-only query.
+
+Checks the current remaining minting allowance for a specific supplier.
+
+#### Parameters
+
+| Parameter  | Type     | Required | Description                                          |
+|------------|----------|----------|------------------------------------------------------|
+| `tokenId`  | `string` | ✅        | The Hedera token ID (e.g., "0.0.123456").           |
+| `targetId` | `string` | ✅        | Account ID of the supplier (e.g., "0.0.789012").      |
+
+#### Example Prompts
+
+```
+How much can 0.0.789012 mint for stablecoin 0.0.123456?
+Get remaining allowance for supplier 0.0.789012
 ```
 
 ---

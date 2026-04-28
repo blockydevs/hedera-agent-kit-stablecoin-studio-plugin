@@ -39,3 +39,29 @@ export const extractTokenIdFromFactoryRecord = (record: TransactionRecord): Toke
 
   return TokenId.fromEvmAddress(0, 0, `0x${tokenAddressHex}`);
 };
+
+/**
+ * Extracts a Hold ID from the contract function result bytes of a TransactionRecord.
+ *
+ * This is designed for transactions that call createHold or createHoldByController.
+ * These functions return (bool success, uint256 holdId).
+ *
+ * This utility extracts the 2nd word (bytes 32-63) and converts it to a string.
+ *
+ * @param record - The TransactionRecord containing the contract function result.
+ * @returns The extracted Hold ID as a string, or null if it cannot be extracted.
+ */
+export const extractHoldIdFromRecord = (record: TransactionRecord): string | null => {
+  const bytes = record.contractFunctionResult?.bytes;
+
+  // We expect at least two 32-byte words (64 bytes)
+  if (!bytes || bytes.length < 64) {
+    return null;
+  }
+
+  // Extract the 2nd 32-byte word (bytes 32-63)
+  const holdIdBytes = bytes.slice(32, 64);
+
+  const hex = Buffer.from(holdIdBytes).toString('hex');
+  return BigInt(`0x${hex}`).toString();
+};

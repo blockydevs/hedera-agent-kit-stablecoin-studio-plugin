@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { Client, Status, Transaction } from '@hiero-ledger/sdk';
+import { Client, Transaction } from '@hiero-ledger/sdk';
 import {
   AgentMode,
   Context,
@@ -14,6 +14,7 @@ import {
   ensureSdkConnected,
   hexToUint8Array,
   StablecoinStudioPluginConfig,
+  extractStatus,
 } from '@/stablecoin-sdk-utils';
 
 export const BURN_STABLECOIN_TOOL = 'burn_stablecoin_tool';
@@ -101,7 +102,10 @@ export class BurnStablecoinTool extends BaseTool {
     const desc = 'Failed to burn stablecoin';
     const message = desc + (error instanceof Error ? `: ${error.message}` : '');
     return {
-      raw: { status: Status.InvalidTransaction, error: message },
+      raw: {
+        status: extractStatus(error),
+        error: message,
+      },
       humanMessage: message,
     };
   }

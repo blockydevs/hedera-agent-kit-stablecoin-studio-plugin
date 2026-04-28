@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { Client, Status, Transaction, TransactionRecord } from '@hiero-ledger/sdk';
+import { Client, Transaction, TransactionRecord } from '@hiero-ledger/sdk';
 import {
   AgentMode,
   BaseTool,
@@ -20,6 +20,8 @@ import {
   ensureSdkConnected,
   hexToUint8Array,
   StablecoinStudioPluginConfig,
+  parsePublicKey,
+  extractStatus,
 } from '@/stablecoin-sdk-utils';
 import { STABLECOIN_CONFIG_ID, STABLECOIN_CONFIG_VERSION } from '@/constants';
 import { extractTokenIdFromFactoryRecord } from '@/shared/utils/token-utils';
@@ -50,7 +52,7 @@ STATE MANAGEMENT:
 - Never rebuild the plan from scratch — always update incrementally.
 
 PLAN FORMAT:
-Show all parameters as a flat list (- Field: value), including required, optional, and role accounts. End with a confirmation request.
+Show all parameters as a flat list (- Field: value), including required, optional, roles (Account ID or Public Key), and HTS keys. End with a confirmation request.
 ${usageInstructions}
 `;
 };
@@ -116,57 +118,88 @@ const createStablecoinParameters = (context: Context = {}, configOperatorAccount
       .string()
       .optional()
       .default(accountId)
-      .describe(`Account ID for proxy owner. Default: ${accountDesc}`),
+      .describe(`Account ID or Public Key for proxy owner. Default: ${accountDesc}`),
     burnRoleAccount: z
       .string()
       .optional()
       .default(accountId)
-      .describe(`Account ID for burn role. Default: ${accountDesc}`),
+      .describe(`Account ID or Public Key for burn role. Default: ${accountDesc}`),
     wipeRoleAccount: z
       .string()
       .optional()
       .default(accountId)
-      .describe(`Account ID for wipe role. Default: ${accountDesc}`),
+      .describe(`Account ID or Public Key for wipe role. Default: ${accountDesc}`),
     rescueRoleAccount: z
       .string()
       .optional()
       .default(accountId)
-      .describe(`Account ID for rescue role. Default: ${accountDesc}`),
+      .describe(`Account ID or Public Key for rescue role. Default: ${accountDesc}`),
     pauseRoleAccount: z
       .string()
       .optional()
       .default(accountId)
-      .describe(`Account ID for pause role. Default: ${accountDesc}`),
+      .describe(`Account ID or Public Key for pause role. Default: ${accountDesc}`),
     freezeRoleAccount: z
       .string()
       .optional()
       .default(accountId)
-      .describe(`Account ID for freeze role. Default: ${accountDesc}`),
+      .describe(`Account ID or Public Key for freeze role. Default: ${accountDesc}`),
     deleteRoleAccount: z
       .string()
       .optional()
       .default(accountId)
-      .describe(`Account ID for delete role. Default: ${accountDesc}`),
+      .describe(`Account ID or Public Key for delete role. Default: ${accountDesc}`),
     kycRoleAccount: z
       .string()
       .optional()
       .default(accountId)
-      .describe(`Account ID for KYC role. Default: ${accountDesc}`),
+      .describe(`Account ID or Public Key for KYC role. Default: ${accountDesc}`),
     cashInRoleAccount: z
       .string()
       .optional()
       .default(accountId)
-      .describe(`Account ID for cash-in role. Default: ${accountDesc}`),
+      .describe(`Account ID or Public Key for cash-in role. Default: ${accountDesc}`),
     feeRoleAccount: z
       .string()
       .optional()
       .default(accountId)
-      .describe(`Account ID for fee role. Default: ${accountDesc}`),
+      .describe(`Account ID or Public Key for fee role. Default: ${accountDesc}`),
     holdCreatorRoleAccount: z
       .string()
       .optional()
       .default(accountId)
-      .describe(`Account ID for hold creator role. Default: ${accountDesc}`),
+      .describe(`Account ID or Public Key for hold creator role. Default: ${accountDesc}`),
+    freezeKey: z
+      .string()
+      .optional()
+      .describe('HTS Freeze key (Hex). Use "null" for no key. Default: "null"'),
+    kycKey: z
+      .string()
+      .optional()
+      .describe('HTS KYC key (Hex). Use "null" for no key. Default: "null"'),
+    wipeKey: z
+      .string()
+      .optional()
+      .describe('HTS Wipe key (Hex). Use "null" for no key. Default: "null"'),
+    pauseKey: z
+      .string()
+      .optional()
+      .describe('HTS Pause key (Hex). Use "null" for no key. Default: "null"'),
+    feeScheduleKey: z.string().optional().describe('HTS Fee Schedule key (Hex)'),
+    stableCoinFactory: z
+      .string()
+      .optional()
+      .describe('Address of the stablecoin factory contract'),
+    reserveAddress: z.string().optional().describe('Address of the reserve contract'),
+    reserveInitialAmount: z
+      .string()
+      .optional()
+      .describe('Initial amount for the reserve in display units'),
+    grantKYCToOriginalSender: z
+      .boolean()
+      .optional()
+      .default(true)
+      .describe('Whether to grant KYC to the creator. Default: true'),
   });
 };
 
@@ -203,13 +236,26 @@ export class CreateStablecoinTool extends BaseTool {
 
     await ensureSdkConnected(client, this.config, context);
 
+    const processKey = (key: string | undefined, defaultValue: any) => {
+      if (key === undefined) return defaultValue;
+      if (key === 'null') return Account.NullPublicKey;
+      try {
+        return parsePublicKey(key);
+      } catch (_e) {
+        throw new Error(`Invalid public key provided: ${key}. Expected hex string.`);
+      }
+    };
+
     return new CreateRequest({
-      ...params,
-      freezeKey: Account.NullPublicKey,
-      wipeKey: Account.NullPublicKey,
-      pauseKey: Account.NullPublicKey,
       configId: STABLECOIN_CONFIG_ID,
       configVersion: STABLECOIN_CONFIG_VERSION,
+      stableCoinFactory: params.stableCoinFactory || this.config.factoryAddress,
+      ...params,
+      freezeKey: processKey(params.freezeKey, Account.NullPublicKey),
+      wipeKey: processKey(params.wipeKey, Account.NullPublicKey),
+      pauseKey: processKey(params.pauseKey, Account.NullPublicKey),
+      kycKey: processKey(params.kycKey, Account.NullPublicKey),
+      feeScheduleKey: processKey(params.feeScheduleKey, undefined),
     });
   }
 
@@ -257,7 +303,10 @@ export class CreateStablecoinTool extends BaseTool {
     const desc = 'Failed to create stablecoin';
     const message = desc + (error instanceof Error ? `: ${error.message}` : '');
     return {
-      raw: { status: Status.InvalidTransaction, error: message },
+      raw: {
+        status: extractStatus(error),
+        error: message,
+      },
       humanMessage: message,
     };
   }

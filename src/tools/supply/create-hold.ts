@@ -9,6 +9,7 @@ import {
 } from '@hashgraph/hedera-agent-kit';
 import { handleTransaction } from '@/shared/handle-transaction';
 import { PromptGenerator } from '@/shared/utils/prompt-generator';
+import { extractHoldIdFromRecord } from '@/shared/utils/token-utils';
 import {
   StableCoin,
   CreateHoldRequest,
@@ -21,6 +22,8 @@ import {
   StablecoinStudioPluginConfig,
   hexToUint8Array,
 } from '@/stablecoin-sdk-utils';
+import { resolveExpirationDate } from '@/shared/utils/duration-parser';
+import { TransactionRecord } from '@hiero-ledger/sdk';
 
 export const CREATE_HOLD_STABLECOIN_TOOL = 'create_hold_stablecoin_tool';
 
@@ -37,33 +40,33 @@ Parameters:
 - tokenId (str, required): The Hedera token ID of the stablecoin (e.g., "0.0.123456").
 - amount (str, required): The amount of tokens to hold in display units (e.g., "50.5"). The tool will handle parsing to base units.
 - escrow (str, required): The account ID of the escrow agent (who can execute/release).
-- expirationDate (str, required): Unix timestamp (seconds) when the hold expires.
+- expirationDate (str, required): Expiration for the hold. Accepts absolute Unix timestamps in seconds (e.g., "1777377064") OR relative durations (e.g., "1h", "2d", "30m").
 - accountId (str, optional): The Hedera account ID for the hold.
 ${usageInstructions}
 `;
 };
 
-const createHoldParameters = (context: Context = {}) => {
-  const accountId = (context as any).accountId;
+const createHoldParameters = (_context: Context = {}) => {
   return z.object({
     tokenId: z.string().describe('The Hedera token ID of the stablecoin (e.g., "0.0.123456")'),
     amount: z
       .string()
       .describe('The amount of tokens to hold in display units (human-readable, e.g. "100.5")'),
     escrow: z.string().describe('The account ID of the escrow agent (e.g., "0.0.789012")'),
-    expirationDate: z.string().describe('Unix timestamp (seconds) for expiration'),
+    expirationDate: z
+      .string()
+      .describe('Unix timestamp (seconds) or relative duration (e.g., "1h") for expiration'),
     accountId: z
       .string()
-      .optional()
-      .default(accountId)
       .describe(
-        `The Hedera account ID for the hold (e.g., "0.0.789012"). Default: ${accountId || 'operator account'}`,
+        `The Hedera account ID that will receive the tokens form the hold (e.g., "0.0.789012").`, // FIXME: hold should not default to operator account. This is an account that will receive the held tokens!
       ),
   });
 };
 
-const postProcess = (response: RawTransactionResponse) => {
+const postProcess = (response: RawTransactionResponse & { holdId?: string }) => {
   return `Hold created successfully.
+Hold ID: ${response.holdId || 'N/A'}
 Transaction ID: ${response.transactionId}`;
 };
 
@@ -96,11 +99,13 @@ export class CreateHoldStablecoinTool extends BaseTool {
     await initSdk(network, this.config);
     await connectSdk(network, this.config, context);
 
+    const expirationDate = resolveExpirationDate(params.expirationDate);
+
     return new CreateHoldRequest({
       tokenId: params.tokenId,
       amount: params.amount,
       escrow: params.escrow,
-      expirationDate: params.expirationDate,
+      expirationDate: expirationDate,
       targetId: params.accountId,
     });
   }
@@ -115,8 +120,21 @@ export class CreateHoldStablecoinTool extends BaseTool {
     return true;
   }
 
+  extendResponse = async (
+    raw: RawTransactionResponse,
+    record: TransactionRecord,
+  ): Promise<RawTransactionResponse & { holdId?: string }> => {
+    return { ...raw, holdId: extractHoldIdFromRecord(record) || undefined };
+  };
+
   async secondaryAction(transaction: Transaction, client: Client, context: Context) {
-    return await handleTransaction(transaction, client, context, postProcess);
+    return await handleTransaction(
+      transaction,
+      client,
+      context,
+      postProcess as any,
+      this.extendResponse,
+    );
   }
 
   async handleError(error: unknown, _context: Context): Promise<any> {

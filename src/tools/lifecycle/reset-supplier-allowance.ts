@@ -10,8 +10,8 @@ import {
 import { handleTransaction } from '@/shared/handle-transaction';
 import { PromptGenerator } from '@/shared/utils/prompt-generator';
 import {
-  StableCoin,
-  CashInRequest,
+  Role,
+  ResetSupplierAllowanceRequest,
   SerializedTransactionData,
 } from '@hashgraph/stablecoin-npm-sdk';
 import {
@@ -21,27 +21,26 @@ import {
   extractStatus,
 } from '@/stablecoin-sdk-utils';
 
-export const CASH_IN_STABLECOIN_TOOL = 'cash_in_stablecoin_tool';
+export const RESET_SUPPLIER_ALLOWANCE_TOOL = 'reset_supplier_allowance_tool';
 
-const cashInStablecoinPrompt = (context: Context = {}) => {
+const resetSupplierAllowancePrompt = (context: Context = {}) => {
   const contextSnippet = PromptGenerator.getContextSnippet(context);
   const usageInstructions = PromptGenerator.getParameterUsageInstructions();
 
   return `
 ${contextSnippet}
 
-This tool mints (cash-in) new stablecoin tokens to a target account on the Hedera network. Requires the cash-in role.
+This tool resets the minting allowance for a specific account (supplier) to zero for a stablecoin on the Hedera network. Requires appropriate admin permissions.
 
 Parameters:
 - tokenId (str, required): The Hedera token ID of the stablecoin (e.g., "0.0.123456").
-- targetId (str, optional): The Hedera account ID to receive the minted tokens (e.g., "0.0.789012"). If not provided, defaults to the user account in context.
-- amount (str, required): The amount of tokens to mint in display units (e.g., "100.5"). The tool will handle parsing to base units.
+- targetId (str, required): The Hedera account ID to reset the allowance for (e.g., "0.0.789012").
 - startDate (str, optional): ISO 8601 date for scheduling the operation.
 ${usageInstructions}
 `;
 };
 
-const cashInStablecoinParameters = (context: Context = {}) => {
+const resetSupplierAllowanceParameters = (context: Context = {}) => {
   const accountId = (context as any).accountId;
   return z.object({
     tokenId: z.string().describe('The Hedera token ID of the stablecoin (e.g., "0.0.123456")'),
@@ -50,33 +49,30 @@ const cashInStablecoinParameters = (context: Context = {}) => {
       .optional()
       .default(accountId)
       .describe(
-        `The Hedera account ID to receive the minted tokens (e.g., "0.0.789012"). Default: ${accountId || 'operator account'}`,
+        `The Hedera account ID to reset the allowance for (e.g., "0.0.789012"). Default: ${accountId || 'operator account'}`,
       ),
-    amount: z
-      .string()
-      .describe('The amount of tokens to mint in display units (human-readable, e.g. "100.5")'),
     startDate: z.string().optional().describe('ISO 8601 date for scheduling the operation'),
   });
 };
 
 const postProcess = (response: RawTransactionResponse) => {
-  return `Successfully minted tokens for stablecoin.
+  return `Supplier allowance reset successfully.
 Transaction ID: ${response.transactionId}`;
 };
 
-export class CashInStablecoinTool extends BaseTool {
-  method = CASH_IN_STABLECOIN_TOOL;
-  name = 'Cash In Stablecoin';
+export class ResetSupplierAllowanceTool extends BaseTool {
+  method = RESET_SUPPLIER_ALLOWANCE_TOOL;
+  name = 'Reset Supplier Allowance';
   description: string;
-  parameters: ReturnType<typeof cashInStablecoinParameters>;
+  parameters: ReturnType<typeof resetSupplierAllowanceParameters>;
   outputParser = transactionToolOutputParser;
 
   private config: StablecoinStudioPluginConfig;
 
   constructor(context: Context, config: StablecoinStudioPluginConfig) {
     super();
-    this.description = cashInStablecoinPrompt(context);
-    this.parameters = cashInStablecoinParameters(context);
+    this.description = resetSupplierAllowancePrompt(context);
+    this.parameters = resetSupplierAllowanceParameters(context);
     this.config = config;
   }
 
@@ -91,16 +87,15 @@ export class CashInStablecoinTool extends BaseTool {
 
     await ensureSdkConnected(client, this.config, context);
 
-    return new CashInRequest({
+    return new ResetSupplierAllowanceRequest({
       tokenId: params.tokenId,
       targetId: params.targetId,
-      amount: params.amount,
       startDate: params.startDate,
     });
   }
 
-  async coreAction(request: CashInRequest, _context: Context, _client: Client) {
-    const response: SerializedTransactionData = await StableCoin.buildCashIn(request);
+  async coreAction(request: ResetSupplierAllowanceRequest, _context: Context, _client: Client) {
+    const response: SerializedTransactionData = await Role.buildResetAllowance(request);
     const bytes = hexToUint8Array(response.serializedTransaction);
     return Transaction.fromBytes(bytes);
   }
@@ -114,7 +109,7 @@ export class CashInStablecoinTool extends BaseTool {
   }
 
   async handleError(error: unknown, _context: Context): Promise<any> {
-    const desc = 'Failed to cash in (mint) stablecoin';
+    const desc = 'Failed to reset supplier allowance';
     const message = desc + (error instanceof Error ? `: ${error.message}` : '');
     return {
       raw: {
@@ -127,6 +122,6 @@ export class CashInStablecoinTool extends BaseTool {
 }
 
 const tool = (context: Context, config: StablecoinStudioPluginConfig): BaseTool =>
-  new CashInStablecoinTool(context, config);
+  new ResetSupplierAllowanceTool(context, config);
 
 export default tool;

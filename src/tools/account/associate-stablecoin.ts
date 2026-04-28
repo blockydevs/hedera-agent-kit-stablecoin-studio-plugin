@@ -12,6 +12,7 @@ import { PromptGenerator } from '@/shared/utils/prompt-generator';
 import {
   StableCoin,
   AssociateTokenRequest,
+  IsAccountAssociatedTokenRequest,
   SerializedTransactionData,
 } from '@hashgraph/stablecoin-npm-sdk';
 import {
@@ -91,6 +92,17 @@ export class AssociateStablecoinTool extends BaseTool {
 
     await ensureSdkConnected(client, this.config, context);
 
+    const isAssociated = await StableCoin.isAccountAssociated(
+      new IsAccountAssociatedTokenRequest({
+        targetId: params.targetId,
+        tokenId: params.tokenId,
+      }),
+    );
+
+    if (isAssociated) {
+      throw new Error(`Token ${params.tokenId} is already associated with account ${params.targetId}`);
+    }
+
     return new AssociateTokenRequest({
       tokenId: params.tokenId,
       targetId: params.targetId,
@@ -113,10 +125,19 @@ export class AssociateStablecoinTool extends BaseTool {
 
   async handleError(error: unknown, _context: Context): Promise<any> {
     const desc = 'Failed to associate stablecoin';
-    const message = desc + (error instanceof Error ? `: ${error.message}` : '');
+    const message = error instanceof Error ? error.message : String(error);
+
+    if (message.includes('already associated')) {
+      return {
+        raw: { status: Status.Success.toString() },
+        humanMessage: `Account is already associated with token.`,
+      };
+    }
+
+    const fullMessage = `${desc}: ${message}`;
     return {
-      raw: { status: Status.InvalidTransaction, error: message },
-      humanMessage: message,
+      raw: { status: Status.InvalidTransaction.toString(), error: fullMessage },
+      humanMessage: fullMessage,
     };
   }
 }

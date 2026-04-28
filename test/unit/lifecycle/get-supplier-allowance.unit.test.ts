@@ -6,8 +6,8 @@ vi.mock('@hashgraph/stablecoin-npm-sdk', () => {
   return {
     Network: { init: vi.fn(), connect: vi.fn() },
     SupportedWallets: { CLIENT: 'CLIENT', EXTERNAL_HEDERA: 'EXTERNAL_HEDERA' },
-    StableCoin: { getInfo: vi.fn() },
-    GetStableCoinDetailsRequest: class { constructor(x: any) { Object.assign(this, x); } },
+    Role: { getAllowance: vi.fn() },
+    GetSupplierAllowanceRequest: class { constructor(x: any) { Object.assign(this, x); } },
     ConnectRequest: class { constructor(x: any) { Object.assign(this, x); } },
     InitializationRequest: class { constructor(x: any) { Object.assign(this, x); } },
   };
@@ -35,15 +35,11 @@ vi.mock('@/stablecoin-sdk-utils', () => ({
   ensureSdkConnected: vi.fn(),
 }));
 
-vi.mock('@/shared/handle-transaction', () => ({
-  handleTransaction: vi.fn(),
-}));
-
-import toolFactory, { GET_STABLECOIN_INFO_TOOL } from '@/tools/lifecycle/get-stablecoin-info';
+import toolFactory, { GET_SUPPLIER_ALLOWANCE_TOOL } from '@/tools/lifecycle/get-supplier-allowance';
 
 const makeClient = () => Client.forNetwork({});
 
-describe('get-stablecoin-info tool (unit)', () => {
+describe('get-supplier-allowance tool (unit)', () => {
   const config = { accountId: '0.0.1001', network: 'testnet' };
   const autonomousContext: any = { mode: AgentMode.AUTONOMOUS, accountId: '0.0.1001' };
 
@@ -53,51 +49,42 @@ describe('get-stablecoin-info tool (unit)', () => {
 
   it('should expose the correct method and name', () => {
     const tool = toolFactory(autonomousContext, config);
-    expect(tool.method).toBe(GET_STABLECOIN_INFO_TOOL);
-    expect(tool.name).toBe('Get Stablecoin Info');
+    expect(tool.method).toBe(GET_SUPPLIER_ALLOWANCE_TOOL);
+    expect(tool.name).toBe('Get Supplier Allowance');
   });
 
-  it('should get stablecoin info successfully', async () => {
+  it('should get supplier allowance successfully', async () => {
     const tool = toolFactory(autonomousContext, config);
     const client = makeClient();
 
-    const { StableCoin } = await import('@hashgraph/stablecoin-npm-sdk');
-    const fakeInfo = {
-      tokenId: '0.0.5555',
-      name: 'Test Token',
-      symbol: 'TEST',
-      decimals: 2,
-      totalSupply: '1000000',
-      maxSupply: '2000000',
-      treasury: '0.0.1001',
-      proxyAddress: '0.0.2001',
-      supplyType: 'INFINITE',
-      paused: false,
-      deleted: false,
+    const { Role } = await import('@hashgraph/stablecoin-npm-sdk');
+    const fakeAllowance = {
+      value: {
+        toString: () => '100.5',
+        toBigInt: () => BigInt(10050),
+      },
     };
-    (StableCoin.getInfo as any).mockResolvedValue(fakeInfo);
+    (Role.getAllowance as any).mockResolvedValue(fakeAllowance);
 
-    const params = { tokenId: '0.0.5555' };
+    const params = { tokenId: '0.0.5555', targetId: '0.0.6666' };
     const res: any = await tool.execute(client, autonomousContext, params);
 
-    expect(res.raw.details).toEqual(fakeInfo);
-    expect(res.humanMessage).toContain('Stablecoin Details for **0.0.5555**');
-    expect(res.humanMessage).toContain('#### Proof of Reserve');
-    expect(res.humanMessage).toContain('_Not enabled for this stablecoin_');
-    expect(StableCoin.getInfo).toHaveBeenCalled();
+    expect(res.raw.allowance).toBe('100.5');
+    expect(res.humanMessage).toContain('Minting allowance of token 0.0.5555 for account 0.0.6666: 100.5');
+    expect(Role.getAllowance).toHaveBeenCalled();
   });
 
   it('should handle SDK errors', async () => {
     const tool = toolFactory(autonomousContext, config);
     const client = makeClient();
-    const { StableCoin } = await import('@hashgraph/stablecoin-npm-sdk');
+    const { Role } = await import('@hashgraph/stablecoin-npm-sdk');
 
-    (StableCoin.getInfo as any).mockRejectedValue(new Error('SDK Error'));
+    (Role.getAllowance as any).mockRejectedValue(new Error('SDK Error'));
 
-    const params = { tokenId: '0.0.5555' };
+    const params = { tokenId: '0.0.5555', targetId: '0.0.6666' };
     const res = await tool.execute(client, autonomousContext, params);
 
-    expect(res.humanMessage).toContain('Failed to get stablecoin info: SDK Error');
+    expect(res.humanMessage).toContain('Failed to get supplier allowance: SDK Error');
     expect(res.raw.status).toBe(Status.InvalidTransaction);
   });
 });

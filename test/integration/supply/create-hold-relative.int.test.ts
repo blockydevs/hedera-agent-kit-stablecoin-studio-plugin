@@ -9,17 +9,15 @@ import {
   BALANCE_TIERS,
   wait,
 } from '../test-utils';
-import revokeRoleTool from '@/tools/lifecycle/revoke-role-stablecoin';
-import { StableCoinRole } from '@hashgraph/stablecoin-npm-sdk';
+import createHoldTool from '@/tools/supply/create-hold';
 
-describe('Revoke Role Stablecoin Integration Tests', () => {
+describe('Create Hold Relative Duration Integration Tests', () => {
   let operatorClient: Client;
   let executorClient: Client;
   let operatorWrapper: HederaOperationsWrapper;
   let executorWrapper: HederaOperationsWrapper;
   let context: Context;
   let tokenId: string;
-  let userAccountId: string;
   let config: any;
 
   beforeAll(async () => {
@@ -30,13 +28,12 @@ describe('Revoke Role Stablecoin Integration Tests', () => {
       PrivateKey.fromStringECDSA(process.env.PRIVATE_KEY || '')
     );
 
-    // Create executor account
     const executorKey = PrivateKey.generateECDSA();
     const executorAccountId = await operatorWrapper
       .createAccount({
         key: executorKey.publicKey,
         initialBalance: UsdToHbarService.usdToHbar(BALANCE_TIERS.ELEVATED),
-        accountMemo: 'executor account for Revoke Role Integration Tests',
+        accountMemo: 'executor account for Hold Relative Duration Tests',
       })
       .then((resp) => resp.accountId!);
 
@@ -58,34 +55,35 @@ describe('Revoke Role Stablecoin Integration Tests', () => {
       privateKey: executorKey.toStringDer(),
     };
 
-    // 1. Create a stablecoin
     tokenId = await executorWrapper.createStablecoin({
-      name: `Revoke Role Test ${Date.now()}`,
-      symbol: 'RVT',
+      name: `Hold Rel Test ${Date.now()}`,
+      symbol: 'HRT',
       config,
       context,
     });
 
-    // 2. Create a test account
-    const newKey = PrivateKey.generateECDSA();
-    userAccountId = await executorWrapper
-      .createAccount({
-        key: newKey.publicKey,
-        initialBalance: UsdToHbarService.usdToHbar(BALANCE_TIERS.MINIMAL),
-        accountMemo: 'role target account',
-      })
-      .then((resp) => resp.accountId!.toString());
-
-    await executorWrapper.waitForAccount(userAccountId);
-    
-    // Grant role before testing revoke
-    await executorWrapper.grantRole({
+    await executorWrapper.associateToken({
       tokenId,
-      targetId: userAccountId,
-      role: StableCoinRole.CASHIN_ROLE,
+      accountId: context.accountId!,
     });
+
+    await executorWrapper.waitForAssociation(context.accountId!, tokenId);
+
+    await executorWrapper.grantKyc({
+      targetId: context.accountId!,
+      tokenId,
+    });
+    
+    await executorWrapper.waitForKyc(context.accountId!, tokenId);
+
+    await executorWrapper.cashIn({
+      tokenId,
+      targetId: executorAccountId.toString(),
+      amount: '100',
+    });
+
     await wait();
-  });
+  }, 60000);
 
   afterAll(async () => {
     if (executorClient && operatorClient) {
@@ -104,29 +102,30 @@ describe('Revoke Role Stablecoin Integration Tests', () => {
     }
   });
 
-  it('should revoke a role from the account', async () => {
-    const revoke = revokeRoleTool(context, config);
+  it('should create a hold using relative duration "1h"', async () => {
+    const createHold = createHoldTool(context, config);
 
-    // Revoke CASHIN_ROLE
-    const revokeRes: any = await revoke.execute(executorClient, context, {
+    const result: any = await createHold.execute(executorClient, context, {
       tokenId,
-      targetId: userAccountId,
-      role: 'CASHIN_ROLE',
+      amount: '10',
+      escrow: context.accountId!,
+      expirationDate: '1h',
     });
-    expect(revokeRes.humanMessage).toContain(
-      'Successfully revoked role from account for stablecoin.',
-    );
 
-    await wait(15000);
+    expect(result.humanMessage).toContain('Hold created successfully');
+  }, 30000);
 
-    // Verify role revoked with retries
-    let hasCashInRole = true;
-    for (let i = 0; i < 5; i++) {
-        hasCashInRole = await executorWrapper.hasRole(userAccountId, tokenId, StableCoinRole.CASHIN_ROLE);
-        if (!hasCashInRole) break;
-        await wait(5000);
-    }
-    
-    expect(hasCashInRole).toBe(false);
-  });
+  it('should create a hold using absolute timestamp (legacy support)', async () => {
+    const createHold = createHoldTool(context, config);
+    const expirationDate = (Math.floor(Date.now() / 1000) + 7200).toString();
+
+    const result: any = await createHold.execute(executorClient, context, {
+      tokenId,
+      amount: '5',
+      escrow: context.accountId!,
+      expirationDate,
+    });
+
+    expect(result.humanMessage).toContain('Hold created successfully');
+  }, 30000);
 });

@@ -1,4 +1,16 @@
-import { Client, AccountId, PrivateKey, LedgerId, TokenId, AccountInfoQuery, TokenInfoQuery, Hbar, TokenAssociateTransaction, TransferTransaction, AccountBalanceQuery } from '@hiero-ledger/sdk';
+import {
+  Client,
+  AccountId,
+  PrivateKey,
+  LedgerId,
+  TokenId,
+  AccountInfoQuery,
+  TokenInfoQuery,
+  Hbar,
+  TokenAssociateTransaction,
+  TransferTransaction,
+  AccountBalanceQuery,
+} from '@hiero-ledger/sdk';
 import { z } from 'zod';
 import {
   StableCoin,
@@ -24,16 +36,31 @@ import {
   UpdateReserveAddressRequest,
   CapabilitiesRequest,
   HasRoleRequest,
+  IncreaseSupplierAllowanceRequest,
+  DecreaseSupplierAllowanceRequest,
+  ResetSupplierAllowanceRequest,
+  GetSupplierAllowanceRequest,
+  GetRolesRequest,
   StableCoinViewModel,
 } from '@hashgraph/stablecoin-npm-sdk';
-import { Context, HederaMirrornodeServiceDefaultImpl, HederaBuilder, ExecuteStrategy } from '@hashgraph/hedera-agent-kit';
-import { initSdk, connectSdkClientMode, resolveNetwork, StablecoinStudioPluginConfig } from '@/stablecoin-sdk-utils';
+import {
+  HederaMirrornodeServiceDefaultImpl,
+  HederaBuilder,
+  ExecuteStrategy,
+} from '@hashgraph/hedera-agent-kit';
+import {
+  resolveNetwork,
+  initSdk,
+  connectSdkClientMode,
+  StablecoinStudioPluginConfig,
+  parsePublicKey,
+} from '@/stablecoin-sdk-utils';
 import { STABLECOIN_CONFIG_ID, STABLECOIN_CONFIG_VERSION } from '@/constants';
 
 export const MIRROR_NODE_DELAY = 6000;
 
 export const wait = (ms: number = MIRROR_NODE_DELAY) =>
-  new Promise((resolve) => setTimeout(resolve, ms));
+  new Promise(resolve => setTimeout(resolve, ms));
 
 const envSchema = z.object({
   ACCOUNT_ID: z.string().regex(/^0\.0\.[0-9]+$/),
@@ -92,7 +119,10 @@ export class HederaOperationsWrapper {
   private executeStrategy = new ExecuteStrategy();
   private mirrornode: HederaMirrornodeServiceDefaultImpl;
 
-  constructor(private client: Client, private operatorPrivateKey?: PrivateKey) {
+  constructor(
+    private client: Client,
+    private operatorPrivateKey?: PrivateKey,
+  ) {
     this.mirrornode = new HederaMirrornodeServiceDefaultImpl(LedgerId.TESTNET);
     this.client.setDefaultMaxTransactionFee(new Hbar(20));
   }
@@ -145,13 +175,15 @@ export class HederaOperationsWrapper {
       try {
         const balance = await this.getAccountHbarBalance(params.accountId);
         const balanceTinybars = balance.toTinybars();
-        
+
         // leave a small amount to pay for the tx (0.1 HBAR = 10,000,000 tinybars)
         const reserveTinybars = 10_000_000;
         const transferAmountTinybars = balanceTinybars.sub(reserveTinybars);
 
         if (transferAmountTinybars.isNegative() || transferAmountTinybars.isZero()) {
-          console.warn(`Not enough HBAR in ${params.accountId} to return - couldn't delete the account.`);
+          console.warn(
+            `Not enough HBAR in ${params.accountId} to return - couldn't delete the account.`,
+          );
           return;
         }
 
@@ -203,17 +235,19 @@ export class HederaOperationsWrapper {
   }
 
   async grantKyc(params: { targetId: string; tokenId: string }) {
-    const network = resolveNetwork(this.client, { accountId: this.client.operatorAccountId!.toString() });
-    await initSdk(network, { accountId: this.client.operatorAccountId!.toString() });
-    console.log('DEBUG grantKyc connecting with:', this.client.operatorAccountId!.toString());
+    const network = resolveNetwork(this.client, {
+      accountId: this.client.operatorAccountId!.toString(),
+    });
     await connectSdkClientMode(network, {
       accountId: this.client.operatorAccountId!.toString(),
       privateKey: this.operatorPrivateKey!.toStringDer(),
     });
-    await StableCoin.grantKyc(new KYCRequest({
-      tokenId: params.tokenId,
-      targetId: params.targetId,
-    }));
+    await StableCoin.grantKyc(
+      new KYCRequest({
+        tokenId: params.tokenId,
+        targetId: params.targetId,
+      }),
+    );
     return { status: 'SUCCESS' };
   }
 
@@ -228,7 +262,9 @@ export class HederaOperationsWrapper {
           const data = await response.json();
           if (data.tokens && data.tokens.length > 0) {
             const token = data.tokens.find((t: any) => t.token_id === tokenId);
-            console.log(`DEBUG waitForKyc account: ${accountId}, token: ${tokenId}, status: ${token?.kyc_status}`);
+            console.log(
+              `DEBUG waitForKyc account: ${accountId}, token: ${tokenId}, status: ${token?.kyc_status}`,
+            );
             if (token && token.kyc_status?.toUpperCase() === 'GRANTED') {
               return true;
             }
@@ -243,7 +279,9 @@ export class HederaOperationsWrapper {
   }
 
   async cashIn(params: { tokenId: string; targetId: string; amount: string }) {
-    const network = resolveNetwork(this.client, { accountId: this.client.operatorAccountId!.toString() });
+    const network = resolveNetwork(this.client, {
+      accountId: this.client.operatorAccountId!.toString(),
+    });
     await connectSdkClientMode(network, {
       accountId: this.client.operatorAccountId!.toString(),
       privateKey: this.operatorPrivateKey!.toStringDer(),
@@ -254,7 +292,7 @@ export class HederaOperationsWrapper {
         tokenId: params.tokenId,
         targetId: params.targetId,
         amount: params.amount,
-      })
+      }),
     );
     return { status: 'SUCCESS' };
   }
@@ -266,7 +304,9 @@ export class HederaOperationsWrapper {
     expirationDate: string;
     targetId?: string;
   }) {
-    const network = resolveNetwork(this.client, { accountId: this.client.operatorAccountId!.toString() });
+    const network = resolveNetwork(this.client, {
+      accountId: this.client.operatorAccountId!.toString(),
+    });
     await connectSdkClientMode(network, {
       accountId: this.client.operatorAccountId!.toString(),
       privateKey: this.operatorPrivateKey!.toStringDer(),
@@ -279,7 +319,7 @@ export class HederaOperationsWrapper {
         escrow: params.escrow,
         expirationDate: params.expirationDate,
         targetId: params.targetId,
-      })
+      }),
     );
 
     return {
@@ -289,13 +329,10 @@ export class HederaOperationsWrapper {
     };
   }
 
-  async releaseHold(params: {
-    tokenId: string;
-    holdId: number;
-    amount: string;
-    sourceId: string;
-  }) {
-    const network = resolveNetwork(this.client, { accountId: this.client.operatorAccountId!.toString() });
+  async releaseHold(params: { tokenId: string; holdId: number; amount: string; sourceId: string }) {
+    const network = resolveNetwork(this.client, {
+      accountId: this.client.operatorAccountId!.toString(),
+    });
     await connectSdkClientMode(network, {
       accountId: this.client.operatorAccountId!.toString(),
       privateKey: this.operatorPrivateKey!.toStringDer(),
@@ -307,13 +344,15 @@ export class HederaOperationsWrapper {
         holdId: params.holdId,
         amount: params.amount,
         sourceId: params.sourceId,
-      })
+      }),
     );
     return { status: 'SUCCESS' };
   }
 
   async reclaimHold(params: { tokenId: string; holdId: number; sourceId: string }) {
-    const network = resolveNetwork(this.client, { accountId: this.client.operatorAccountId!.toString() });
+    const network = resolveNetwork(this.client, {
+      accountId: this.client.operatorAccountId!.toString(),
+    });
     await connectSdkClientMode(network, {
       accountId: this.client.operatorAccountId!.toString(),
       privateKey: this.operatorPrivateKey!.toStringDer(),
@@ -324,13 +363,15 @@ export class HederaOperationsWrapper {
         tokenId: params.tokenId,
         holdId: params.holdId,
         sourceId: params.sourceId,
-      })
+      }),
     );
     return { status: 'SUCCESS' };
   }
 
   async updateReserveAddress(params: { tokenId: string; reserveAddress: string }) {
-    const network = resolveNetwork(this.client, { accountId: this.client.operatorAccountId!.toString() });
+    const network = resolveNetwork(this.client, {
+      accountId: this.client.operatorAccountId!.toString(),
+    });
     await connectSdkClientMode(network, {
       accountId: this.client.operatorAccountId!.toString(),
       privateKey: this.operatorPrivateKey!.toStringDer(),
@@ -349,7 +390,11 @@ export class HederaOperationsWrapper {
     // We assume 6 decimals as per createStablecoin default
     const amountBase = Math.round(Number(params.amount) * 1000000);
     const tx = new TransferTransaction()
-      .addTokenTransfer(params.tokenId, params.senderId || this.client.operatorAccountId!.toString(), -amountBase)
+      .addTokenTransfer(
+        params.tokenId,
+        params.senderId || this.client.operatorAccountId!.toString(),
+        -amountBase,
+      )
       .addTokenTransfer(params.tokenId, params.targetId, amountBase);
 
     const txResponse = await tx.execute(this.client);
@@ -358,33 +403,43 @@ export class HederaOperationsWrapper {
   }
 
   async unfreeze(params: { accountId: string; tokenId: string }) {
-    const network = resolveNetwork(this.client, { accountId: this.client.operatorAccountId!.toString() });
+    const network = resolveNetwork(this.client, {
+      accountId: this.client.operatorAccountId!.toString(),
+    });
     await connectSdkClientMode(network, {
       accountId: this.client.operatorAccountId!.toString(),
       privateKey: this.operatorPrivateKey!.toStringDer(),
     });
-    await StableCoin.unFreeze(new FreezeAccountRequest({
-      tokenId: params.tokenId,
-      targetId: params.accountId,
-    }));
+    await StableCoin.unFreeze(
+      new FreezeAccountRequest({
+        tokenId: params.tokenId,
+        targetId: params.accountId,
+      }),
+    );
     return { status: 'SUCCESS' };
   }
 
   async freezeAccount(params: { accountId: string; tokenId: string }) {
-    const network = resolveNetwork(this.client, { accountId: this.client.operatorAccountId!.toString() });
+    const network = resolveNetwork(this.client, {
+      accountId: this.client.operatorAccountId!.toString(),
+    });
     await connectSdkClientMode(network, {
       accountId: this.client.operatorAccountId!.toString(),
       privateKey: this.operatorPrivateKey!.toStringDer(),
     });
-    await StableCoin.freeze(new FreezeAccountRequest({
-      tokenId: params.tokenId,
-      targetId: params.accountId,
-    }));
+    await StableCoin.freeze(
+      new FreezeAccountRequest({
+        tokenId: params.tokenId,
+        targetId: params.accountId,
+      }),
+    );
     return { status: 'SUCCESS' };
   }
 
   async pauseStablecoin(params: { tokenId: string }) {
-    const network = resolveNetwork(this.client, { accountId: this.client.operatorAccountId!.toString() });
+    const network = resolveNetwork(this.client, {
+      accountId: this.client.operatorAccountId!.toString(),
+    });
     await connectSdkClientMode(network, {
       accountId: this.client.operatorAccountId!.toString(),
       privateKey: this.operatorPrivateKey!.toStringDer(),
@@ -394,7 +449,9 @@ export class HederaOperationsWrapper {
   }
 
   async unpauseStablecoin(params: { tokenId: string }) {
-    const network = resolveNetwork(this.client, { accountId: this.client.operatorAccountId!.toString() });
+    const network = resolveNetwork(this.client, {
+      accountId: this.client.operatorAccountId!.toString(),
+    });
     await connectSdkClientMode(network, {
       accountId: this.client.operatorAccountId!.toString(),
       privateKey: this.operatorPrivateKey!.toStringDer(),
@@ -403,63 +460,213 @@ export class HederaOperationsWrapper {
     return { status: 'SUCCESS' };
   }
 
-  async grantRole(params: { tokenId: string; targetId: string; role: string }) {
-    const network = resolveNetwork(this.client, { accountId: this.client.operatorAccountId!.toString() });
+  async grantRole(params: {
+    tokenId: string;
+    targetId: string;
+    role: StableCoinRole;
+    supplierType?: 'limited' | 'unlimited';
+    amount?: string;
+  }) {
+    const network = resolveNetwork(this.client, {
+      accountId: this.client.operatorAccountId!.toString(),
+    });
     await connectSdkClientMode(network, {
       accountId: this.client.operatorAccountId!.toString(),
       privateKey: this.operatorPrivateKey!.toStringDer(),
     });
-    await Role.grantRole(new GrantRoleRequest({
-      tokenId: params.tokenId,
-      targetId: params.targetId,
-      role: (StableCoinRole as any)[params.role],
-    }));
+    await Role.grantRole(
+      new GrantRoleRequest({
+        tokenId: params.tokenId,
+        targetId: params.targetId,
+        role: params.role,
+        supplierType: params.supplierType,
+        amount: params.amount,
+      }),
+    );
     return { status: 'SUCCESS' };
   }
 
-  async revokeRole(params: { tokenId: string; targetId: string; role: string }) {
-    const network = resolveNetwork(this.client, { accountId: this.client.operatorAccountId!.toString() });
+  async grantSupplierRole(params: { tokenId: string; targetId: string }) {
+    const network = resolveNetwork(this.client, {
+      accountId: this.client.operatorAccountId!.toString(),
+    });
     await connectSdkClientMode(network, {
       accountId: this.client.operatorAccountId!.toString(),
       privateKey: this.operatorPrivateKey!.toStringDer(),
     });
-    await Role.revokeRole(new RevokeRoleRequest({
-      tokenId: params.tokenId,
-      targetId: params.targetId,
-      role: (StableCoinRole as any)[params.role],
-    }));
+
+    await Role.grantRole(
+      new GrantRoleRequest({
+        tokenId: params.tokenId,
+        targetId: params.targetId,
+        role: StableCoinRole.CASHIN_ROLE,
+      }),
+    );
+
+    return { status: 'SUCCESS' };
+  }
+
+  async increaseSupplierAllowance(params: {
+    tokenId: string;
+    targetId: string;
+    amount: string;
+    startDate?: string;
+  }) {
+    const network = resolveNetwork(this.client, {
+      accountId: this.client.operatorAccountId!.toString(),
+    });
+    await connectSdkClientMode(network, {
+      accountId: this.client.operatorAccountId!.toString(),
+      privateKey: this.operatorPrivateKey!.toStringDer(),
+    });
+
+    await Role.increaseAllowance(
+      new IncreaseSupplierAllowanceRequest({
+        tokenId: params.tokenId,
+        targetId: params.targetId,
+        amount: params.amount,
+        startDate: params.startDate,
+      }),
+    );
+    return { status: 'SUCCESS' };
+  }
+
+  async decreaseSupplierAllowance(params: {
+    tokenId: string;
+    targetId: string;
+    amount: string;
+    startDate?: string;
+  }) {
+    const network = resolveNetwork(this.client, {
+      accountId: this.client.operatorAccountId!.toString(),
+    });
+    await connectSdkClientMode(network, {
+      accountId: this.client.operatorAccountId!.toString(),
+      privateKey: this.operatorPrivateKey!.toStringDer(),
+    });
+
+    await Role.decreaseAllowance(
+      new DecreaseSupplierAllowanceRequest({
+        tokenId: params.tokenId,
+        targetId: params.targetId,
+        amount: params.amount,
+        startDate: params.startDate,
+      }),
+    );
+    return { status: 'SUCCESS' };
+  }
+
+  async resetSupplierAllowance(params: { tokenId: string; targetId: string; startDate?: string }) {
+    const network = resolveNetwork(this.client, {
+      accountId: this.client.operatorAccountId!.toString(),
+    });
+    await connectSdkClientMode(network, {
+      accountId: this.client.operatorAccountId!.toString(),
+      privateKey: this.operatorPrivateKey!.toStringDer(),
+    });
+
+    await Role.resetAllowance(
+      new ResetSupplierAllowanceRequest({
+        tokenId: params.tokenId,
+        targetId: params.targetId,
+        startDate: params.startDate,
+      }),
+    );
+    return { status: 'SUCCESS' };
+  }
+
+  async getSupplierAllowance(params: { tokenId: string; targetId: string }) {
+    const network = resolveNetwork(this.client, {
+      accountId: this.client.operatorAccountId!.toString(),
+    });
+    await connectSdkClientMode(network, {
+      accountId: this.client.operatorAccountId!.toString(),
+      privateKey: this.operatorPrivateKey!.toStringDer(),
+    });
+
+    const allowance = await Role.getAllowance(
+      new GetSupplierAllowanceRequest({
+        tokenId: params.tokenId,
+        targetId: params.targetId,
+      }),
+    );
+    return allowance.value.toString();
+  }
+
+  async getRoles(params: { tokenId: string; targetId: string }) {
+    const network = resolveNetwork(this.client, {
+      accountId: this.client.operatorAccountId!.toString(),
+    });
+    await connectSdkClientMode(network, {
+      accountId: this.client.operatorAccountId!.toString(),
+      privateKey: this.operatorPrivateKey!.toStringDer(),
+    });
+
+    return await Role.getRoles(
+      new GetRolesRequest({
+        tokenId: params.tokenId,
+        targetId: params.targetId,
+      }),
+    );
+  }
+
+  async revokeRole(params: { tokenId: string; targetId: string; role: string }) {
+    const network = resolveNetwork(this.client, {
+      accountId: this.client.operatorAccountId!.toString(),
+    });
+    await connectSdkClientMode(network, {
+      accountId: this.client.operatorAccountId!.toString(),
+      privateKey: this.operatorPrivateKey!.toStringDer(),
+    });
+    await Role.revokeRole(
+      new RevokeRoleRequest({
+        tokenId: params.tokenId,
+        targetId: params.targetId,
+        role: (StableCoinRole as any)[params.role],
+      }),
+    );
     return { status: 'SUCCESS' };
   }
 
   async wipeStablecoin(params: { tokenId: string; targetId: string; amount: string }) {
-    const network = resolveNetwork(this.client, { accountId: this.client.operatorAccountId!.toString() });
+    const network = resolveNetwork(this.client, {
+      accountId: this.client.operatorAccountId!.toString(),
+    });
     await connectSdkClientMode(network, {
       accountId: this.client.operatorAccountId!.toString(),
       privateKey: this.operatorPrivateKey!.toStringDer(),
     });
-    await StableCoin.wipe(new WipeRequest({
-      tokenId: params.tokenId,
-      targetId: params.targetId,
-      amount: params.amount,
-    }));
+    await StableCoin.wipe(
+      new WipeRequest({
+        tokenId: params.tokenId,
+        targetId: params.targetId,
+        amount: params.amount,
+      }),
+    );
     return { status: 'SUCCESS' };
   }
 
   async burnStablecoin(params: { tokenId: string; amount: string }) {
-    const network = resolveNetwork(this.client, { accountId: this.client.operatorAccountId!.toString() });
+    const network = resolveNetwork(this.client, {
+      accountId: this.client.operatorAccountId!.toString(),
+    });
     await connectSdkClientMode(network, {
       accountId: this.client.operatorAccountId!.toString(),
       privateKey: this.operatorPrivateKey!.toStringDer(),
     });
-    await StableCoin.burn(new BurnRequest({
-      tokenId: params.tokenId,
-      amount: params.amount,
-    }));
+    await StableCoin.burn(
+      new BurnRequest({
+        tokenId: params.tokenId,
+        amount: params.amount,
+      }),
+    );
     return { status: 'SUCCESS' };
   }
 
   async updateStablecoin(params: { tokenId: string; name?: string; symbol?: string }) {
-    const network = resolveNetwork(this.client, { accountId: this.client.operatorAccountId!.toString() });
+    const network = resolveNetwork(this.client, {
+      accountId: this.client.operatorAccountId!.toString(),
+    });
     await connectSdkClientMode(network, {
       accountId: this.client.operatorAccountId!.toString(),
       privateKey: this.operatorPrivateKey!.toStringDer(),
@@ -491,10 +698,12 @@ export class HederaOperationsWrapper {
       } catch (_e) {
         // Ignore errors and retry
       }
-      await new Promise((r) => setTimeout(r, 2000));
+      await new Promise(r => setTimeout(r, 2000));
     }
-    await new Promise((r) => setTimeout(r, 4000));
-    throw new Error(`Timeout waiting for mirror node association between ${accountId} and ${tokenId}`);
+    await new Promise(r => setTimeout(r, 4000));
+    throw new Error(
+      `Timeout waiting for mirror node association between ${accountId} and ${tokenId}`,
+    );
   }
 
   async getAccountInfo(accountId: string) {
@@ -552,7 +761,7 @@ export class HederaOperationsWrapper {
       new CapabilitiesRequest({
         tokenId,
         account: { accountId },
-      })
+      }),
     );
   }
 
@@ -573,14 +782,14 @@ export class HederaOperationsWrapper {
         tokenId,
         targetId: accountId,
         role,
-      })
+      }),
     );
   }
 
   async isTokenAssociated(accountId: string, tokenId: string): Promise<boolean> {
     try {
       const balances = await this.mirrornode.getAccountTokenBalances(accountId, tokenId);
-      return balances.tokens.some((t) => t.token_id === tokenId);
+      return balances.tokens.some(t => t.token_id === tokenId);
     } catch (_e) {
       return false;
     }
@@ -614,7 +823,7 @@ export class HederaOperationsWrapper {
     if (name) {
       try {
         const response = await fetch(
-          `https://${networkName}.mirrornode.hedera.com/api/v1/tokens?name=${encodeURIComponent(name)}&order=desc&limit=5`
+          `https://${networkName}.mirrornode.hedera.com/api/v1/tokens?name=${encodeURIComponent(name)}&order=desc&limit=5`,
         );
         const data = await response.json();
         if (data.tokens && data.tokens.length > 0) {
@@ -633,27 +842,42 @@ export class HederaOperationsWrapper {
   async createStablecoin(params: {
     name: string;
     symbol: string;
-    config: Partial<StablecoinStudioPluginConfig>;
-    context: Context;
+    config?: any;
+    context?: any;
+    keys?: {
+      kycKey?: string;
+      wipeKey?: string;
+      freezeKey?: string;
+      pauseKey?: string;
+      feeScheduleKey?: string;
+    };
   }): Promise<string> {
     const operatorId = this.client.operatorAccountId?.toString();
-    const network = resolveNetwork(this.client, params.config as StablecoinStudioPluginConfig);
+    const configToUse = params.config || {};
+    const network = resolveNetwork(this.client, configToUse as StablecoinStudioPluginConfig);
 
     const fullConfig: StablecoinStudioPluginConfig = {
-      accountId: params.config.accountId || operatorId || '',
-      privateKey: params.config.privateKey || this.operatorPrivateKey?.toString(),
-      network: params.config.network || network,
-      ...params.config,
+      accountId: configToUse.accountId || operatorId || '',
+      privateKey: configToUse.privateKey || this.operatorPrivateKey?.toString(),
+      network: configToUse.network || network,
+      ...configToUse,
     };
 
     if (!fullConfig.accountId) {
       throw new Error('AccountId is required for stablecoin creation');
     }
 
-    console.log(`Creating stablecoin ${params.name} on network ${network} with account ${fullConfig.accountId}`);
+    console.log(
+      `Creating stablecoin ${params.name} on network ${network} with account ${fullConfig.accountId}`,
+    );
 
     await initSdk(network, fullConfig);
     await connectSdkClientMode(network, fullConfig);
+
+    const processKey = (keyString: string | undefined) => {
+      if (!keyString) return Account.NullPublicKey;
+      return parsePublicKey(keyString);
+    };
 
     const request = new CreateRequest({
       name: params.name,
@@ -672,10 +896,11 @@ export class HederaOperationsWrapper {
       kycRoleAccount: fullConfig.accountId,
       cashInRoleAccount: fullConfig.accountId,
       feeRoleAccount: fullConfig.accountId,
-      freezeKey: Account.NullPublicKey,
-      wipeKey: Account.NullPublicKey,
-      pauseKey: Account.NullPublicKey,
-      kycKey: Account.NullPublicKey,
+      freezeKey: processKey(params.keys?.freezeKey),
+      wipeKey: processKey(params.keys?.wipeKey),
+      pauseKey: processKey(params.keys?.pauseKey),
+      kycKey: processKey(params.keys?.kycKey),
+      feeScheduleKey: processKey(params.keys?.feeScheduleKey),
       configId: STABLECOIN_CONFIG_ID,
       configVersion: STABLECOIN_CONFIG_VERSION,
     });
@@ -691,4 +916,3 @@ export class HederaOperationsWrapper {
     throw new Error(`Failed to create token ${params.name}: no tokenId found in SDK response`);
   }
 }
-
