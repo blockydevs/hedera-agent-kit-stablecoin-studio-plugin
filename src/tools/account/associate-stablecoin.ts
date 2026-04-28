@@ -129,14 +129,14 @@ export class AssociateStablecoinTool extends BaseTool {
 
     if (message.includes('already associated')) {
       return {
-        raw: { status: Status.Success.toString() },
+        raw: { status: Status.Success },
         humanMessage: `Account is already associated with token.`,
       };
     }
 
     const fullMessage = `${desc}: ${message}`;
     return {
-      raw: { status: Status.InvalidTransaction.toString(), error: fullMessage },
+      raw: { status: Status.InvalidTransaction, error: fullMessage },
       humanMessage: fullMessage,
     };
   }

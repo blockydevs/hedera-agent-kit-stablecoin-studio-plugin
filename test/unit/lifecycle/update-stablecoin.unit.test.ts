@@ -60,6 +60,7 @@ vi.mock('@/stablecoin-sdk-utils', () => ({
   ensureSdkConnected: vi.fn(),
   hexToUint8Array: vi.fn(hex => Buffer.from(hex, 'hex')),
   parsePublicKey: vi.fn(key => ({ key, type: 'ED25519' })),
+  extractStatus: vi.fn(() => Status.InvalidTransaction),
 }));
 
 vi.mock('@/shared/handle-transaction', () => ({

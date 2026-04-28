@@ -58,6 +58,7 @@ const createHoldParameters = (_context: Context = {}) => {
       .describe('Unix timestamp (seconds) or relative duration (e.g., "1h") for expiration'),
     accountId: z
       .string()
+      .optional()
       .describe(
         `The Hedera account ID that will receive the tokens form the hold (e.g., "0.0.789012").`, // FIXME: hold should not default to operator account. This is an account that will receive the held tokens!
       ),

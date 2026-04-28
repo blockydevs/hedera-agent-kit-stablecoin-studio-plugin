@@ -48,6 +48,7 @@ vi.mock('@/stablecoin-sdk-utils', () => ({
   resolveNetwork: vi.fn(() => 'testnet'),
   ensureSdkConnected: vi.fn(),
   hexToUint8Array: vi.fn(hex => Buffer.from(hex, 'hex')),
+  extractStatus: vi.fn(() => Status.InvalidTransaction),
 }));
 
 vi.mock('@/shared/handle-transaction', () => ({

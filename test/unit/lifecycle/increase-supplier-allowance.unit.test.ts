@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { Client } from '@hiero-ledger/sdk';
+import { Client, Status } from '@hiero-ledger/sdk';
 import { AgentMode } from '@hashgraph/hedera-agent-kit';
 
 vi.mock('@hiero-ledger/sdk', async (importOriginal) => {
@@ -48,6 +48,7 @@ vi.mock('@/stablecoin-sdk-utils', () => ({
   resolveNetwork: vi.fn(() => 'testnet'),
   ensureSdkConnected: vi.fn(),
   hexToUint8Array: vi.fn(() => new Uint8Array()),
+  extractStatus: vi.fn(() => Status.InvalidTransaction),
 }));
 
 vi.mock('@/shared/handle-transaction', () => ({

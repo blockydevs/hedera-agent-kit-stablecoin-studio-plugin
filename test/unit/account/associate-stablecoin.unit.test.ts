@@ -20,8 +20,12 @@ vi.mock('@hashgraph/stablecoin-npm-sdk', () => {
   return {
     Network: { init: vi.fn(), connect: vi.fn() },
     SupportedWallets: { CLIENT: 'CLIENT', EXTERNAL_HEDERA: 'EXTERNAL_HEDERA' },
-    StableCoin: { buildAssociate: vi.fn() },
+    StableCoin: {
+      buildAssociate: vi.fn(),
+      isAccountAssociated: vi.fn().mockResolvedValue(false),
+    },
     AssociateTokenRequest: class { constructor(x: any) { Object.assign(this, x); } },
+    IsAccountAssociatedTokenRequest: class { constructor(x: any) { Object.assign(this, x); } },
     ConnectRequest: class { constructor(x: any) { Object.assign(this, x); } },
     InitializationRequest: class { constructor(x: any) { Object.assign(this, x); } },
   };
@@ -47,6 +51,7 @@ vi.mock('@/stablecoin-sdk-utils', () => ({
   resolveNetwork: vi.fn(() => 'testnet'),
   ensureSdkConnected: vi.fn(),
   hexToUint8Array: vi.fn(hex => Buffer.from(hex, 'hex')),
+  extractStatus: vi.fn(() => Status.InvalidTransaction),
 }));
 
 vi.mock('@/shared/handle-transaction', () => ({

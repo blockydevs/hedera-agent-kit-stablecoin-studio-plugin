@@ -6,8 +6,12 @@ vi.mock('@hashgraph/stablecoin-npm-sdk', () => {
   return {
     Network: { init: vi.fn(), connect: vi.fn() },
     SupportedWallets: { CLIENT: 'CLIENT', EXTERNAL_HEDERA: 'EXTERNAL_HEDERA' },
-    Role: { getAllowance: vi.fn() },
+    Role: {
+      getAllowance: vi.fn(),
+      isUnlimited: vi.fn().mockResolvedValue(false),
+    },
     GetSupplierAllowanceRequest: class { constructor(x: any) { Object.assign(this, x); } },
+    CheckSupplierLimitRequest: class { constructor(x: any) { Object.assign(this, x); } },
     ConnectRequest: class { constructor(x: any) { Object.assign(this, x); } },
     InitializationRequest: class { constructor(x: any) { Object.assign(this, x); } },
   };
@@ -33,6 +37,7 @@ vi.mock('@/stablecoin-sdk-utils', () => ({
   connectSdk: vi.fn(),
   resolveNetwork: vi.fn(() => 'testnet'),
   ensureSdkConnected: vi.fn(),
+  extractStatus: vi.fn(() => Status.InvalidTransaction),
 }));
 
 import toolFactory, { GET_SUPPLIER_ALLOWANCE_TOOL } from '@/tools/lifecycle/get-supplier-allowance';
