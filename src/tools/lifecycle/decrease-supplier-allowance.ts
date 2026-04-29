@@ -29,14 +29,25 @@ const decreaseSupplierAllowancePrompt = (context: Context = {}) => {
 
   return `
 ${contextSnippet}
+Decreases the minting allowance for a specific account (supplier) for a stablecoin. Requires appropriate admin permissions.
 
-This tool decreases the minting allowance for a specific account (supplier) for a stablecoin on the Hedera network. Requires appropriate admin permissions.
+MANDATORY: Show a complete execution plan and wait for explicit user approval ("yes", "confirm", "proceed") BEFORE calling this tool. NEVER call this tool without approval, UNLESS the user has already provided explicit confirmation in the current request (e.g., "proceed immediately").
 
-Parameters:
-- tokenId (str, required): The Hedera token ID of the stablecoin (e.g., "0.0.123456").
-- targetId (str, required): The Hedera account ID to decrease the allowance for (e.g., "0.0.789012").
-- amount (str, required): The amount to subtract from the supplier's current minting allowance in display units (e.g., "100.5").
-- startDate (str, optional): ISO 8601 date for scheduling the operation.
+REQUIRED PARAMETERS — ask ONLY for these if missing:
+- tokenId: The Hedera token ID of the stablecoin (e.g., "0.0.123456")
+- amount: The amount to subtract from the supplier's current minting allowance (e.g., "100.5")
+
+ALL other parameters are optional. NEVER ask the user about them. Apply defaults silently:
+- targetId: Defaults to the user account in context.
+- startDate: null (execution is immediate)
+- amount is in display units (human-readable), the tool will handle parsing to base units.
+
+STATE MANAGEMENT:
+- When user requests changes, update ONLY the referenced fields. Preserve all other values exactly.
+- Never rebuild the plan from scratch — always update incrementally.
+
+PLAN FORMAT:
+Show all parameters as a flat list (- Field: value). End with a confirmation request.
 ${usageInstructions}
 `;
 };

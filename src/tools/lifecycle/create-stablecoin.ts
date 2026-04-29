@@ -36,7 +36,7 @@ const createStablecoinPrompt = (context: Context = {}) => {
 ${contextSnippet}
 Creates a new stablecoin on Hedera using Stablecoin Studio.
 
-MANDATORY: Show a complete execution plan and wait for explicit user approval ("yes", "confirm", "proceed") BEFORE calling this tool. NEVER call this tool without approval.
+MANDATORY: Show a complete execution plan and wait for explicit user approval ("yes", "confirm", "proceed") BEFORE calling this tool. NEVER call this tool without approval, UNLESS the user has already provided explicit confirmation in the current request (e.g., "proceed immediately").
 
 REQUIRED PARAMETERS — ask ONLY for these if missing:
 - name: Stablecoin name (e.g., "USD Coin")

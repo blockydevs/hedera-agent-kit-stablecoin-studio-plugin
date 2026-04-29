@@ -30,14 +30,25 @@ const releaseHoldPrompt = (context: Context = {}) => {
 
   return `
 ${contextSnippet}
+Releases a previously created token hold, returning the tokens to the source account. Requires the escrow role for that hold.
 
-This tool releases a previously created token hold for a stablecoin on the Hedera network, returning the tokens to the source account. Requires the escrow role for that hold.
+MANDATORY: Show a complete execution plan and wait for explicit user approval ("yes", "confirm", "proceed") BEFORE calling this tool. NEVER call this tool without approval, UNLESS the user has already provided explicit confirmation in the current request (e.g., "proceed immediately").
 
-Parameters:
-- tokenId (str, required): The Hedera token ID of the stablecoin (e.g., "0.0.123456").
-- holdId (number, required): The ID of the hold to release (e.g., 123).
-- amount (str, required): The amount of tokens to release (e.g., "50").
-- sourceId (str, optional): The account ID from which the tokens were held (where they will be returned).
+REQUIRED PARAMETERS — ask ONLY for these if missing:
+- tokenId: The Hedera token ID of the stablecoin (e.g., "0.0.123456")
+- holdId: The numeric ID of the hold (e.g., 123)
+- amount: The amount of tokens to release (e.g., "50.5")
+
+ALL other parameters are optional. NEVER ask the user about them. Apply defaults silently:
+- sourceId: Defaults to the user account in context.
+- amount is in display units (human-readable), the tool will handle parsing to base units.
+
+STATE MANAGEMENT:
+- When user requests changes, update ONLY the referenced fields. Preserve all other values exactly.
+- Never rebuild the plan from scratch — always update incrementally.
+
+PLAN FORMAT:
+Show all parameters as a flat list (- Field: value). End with a confirmation request.
 ${usageInstructions}
 `;
 };

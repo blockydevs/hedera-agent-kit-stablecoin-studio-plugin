@@ -28,12 +28,23 @@ const rescueStablecoinPrompt = (context: Context = {}) => {
 
   return `
 ${contextSnippet}
+Rescues stablecoin tokens from the contract to the treasury account. Requires the rescue role.
 
-This tool rescues stablecoin tokens from the contract to the treasury account. Requires the rescue role.
+MANDATORY: Show a complete execution plan and wait for explicit user approval ("yes", "confirm", "proceed") BEFORE calling this tool. NEVER call this tool without approval, UNLESS the user has already provided explicit confirmation in the current request (e.g., "proceed immediately").
 
-Parameters:
-- tokenId (str, required): The Hedera token ID of the stablecoin (e.g., "0.0.123456").
-- amount (str, required): The amount of tokens to rescue in display units (e.g., "100.5"). The tool will handle parsing to base units.
+REQUIRED PARAMETERS — ask ONLY for these if missing:
+- tokenId: The Hedera token ID of the stablecoin (e.g., "0.0.123456")
+- amount: The amount of tokens to rescue (e.g., "100.5")
+
+ALL other parameters are optional. NEVER ask the user about them. Apply defaults silently:
+- amount is in display units (human-readable), the tool will handle parsing to base units.
+
+STATE MANAGEMENT:
+- When user requests changes, update ONLY the referenced fields. Preserve all other values exactly.
+- Never rebuild the plan from scratch — always update incrementally.
+
+PLAN FORMAT:
+Show all parameters as a flat list (- Field: value). End with a confirmation request.
 ${usageInstructions}
 `;
 };

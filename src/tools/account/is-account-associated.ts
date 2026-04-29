@@ -15,12 +15,16 @@ const isAccountAssociatedPrompt = (context: Context = {}) => {
 
   return `
 ${contextSnippet}
+Checks whether a Hedera account is associated with a specific stablecoin token.
 
-This tool checks whether a Hedera account is associated with a specific stablecoin token.
+REQUIRED PARAMETERS — ask ONLY for these if missing:
+- tokenId: The Hedera token ID of the stablecoin (e.g., "0.0.123456")
 
-Parameters:
-- tokenId (str, required): The Hedera token ID of the stablecoin (e.g., "0.0.123456").
-- targetId (str, optional): The Hedera account ID to check association for (e.g., "0.0.789012").
+ALL other parameters are optional. NEVER ask the user about them. Apply defaults silently:
+- targetId: Defaults to the user account in context.
+
+IMPORTANT: Do NOT use markdown formatting (like bolding or italics) for the status result.
+
 ${usageInstructions}
 `;
 };

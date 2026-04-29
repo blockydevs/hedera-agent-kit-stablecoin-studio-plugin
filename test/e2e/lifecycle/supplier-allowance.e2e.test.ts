@@ -97,6 +97,16 @@ describe('Supplier Allowance E2E Tests', () => {
     let result = await testSetup.agent.invoke({
       messages: [{ role: 'user', content: grantInput }],
     });
+
+    if (!result.messages.some((m: any) => m._getType() === 'tool')) {
+      result = await testSetup.agent.invoke({
+        messages: [
+          ...result.messages,
+          { role: 'user', content: 'yes, please grant the role' }
+        ],
+      });
+    }
+
     let parsedResponse = testSetup.responseParser.parseNewToolMessages(result);
     expect(parsedResponse[0].parsedData.humanMessage.toLowerCase()).toContain('successfully');
     await wait(10000);
@@ -113,6 +123,16 @@ describe('Supplier Allowance E2E Tests', () => {
     result = await testSetup.agent.invoke({
       messages: [{ role: 'user', content: increaseInput }],
     });
+
+    if (!result.messages.some((m: any) => m._getType() === 'tool')) {
+      result = await testSetup.agent.invoke({
+        messages: [
+          ...result.messages,
+          { role: 'user', content: 'yes, please increase it' }
+        ],
+      });
+    }
+
     parsedResponse = testSetup.responseParser.parseNewToolMessages(result);
     expect(parsedResponse[0].parsedData.humanMessage.toLowerCase()).toContain('successfully');
     await wait(10000);
@@ -128,6 +148,16 @@ describe('Supplier Allowance E2E Tests', () => {
     result = await testSetup.agent.invoke({
       messages: [{ role: 'user', content: decreaseInput }],
     });
+
+    if (!result.messages.some((m: any) => m._getType() === 'tool')) {
+      result = await testSetup.agent.invoke({
+        messages: [
+          ...result.messages,
+          { role: 'user', content: 'yes, please decrease it' }
+        ],
+      });
+    }
+
     parsedResponse = testSetup.responseParser.parseNewToolMessages(result);
     expect(parsedResponse[0].parsedData.humanMessage.toLowerCase()).toContain('successfully');
     await wait(10000);
@@ -143,6 +173,16 @@ describe('Supplier Allowance E2E Tests', () => {
     result = await testSetup.agent.invoke({
       messages: [{ role: 'user', content: resetInput }],
     });
+
+    if (!result.messages.some((m: any) => m._getType() === 'tool')) {
+      result = await testSetup.agent.invoke({
+        messages: [
+          ...result.messages,
+          { role: 'user', content: 'yes, please reset it' }
+        ],
+      });
+    }
+
     parsedResponse = testSetup.responseParser.parseNewToolMessages(result);
     expect(parsedResponse[0].parsedData.humanMessage.toLowerCase()).toContain('successfully');
     await wait(10000);
@@ -158,6 +198,16 @@ describe('Supplier Allowance E2E Tests', () => {
     result = await testSetup.agent.invoke({
       messages: [{ role: 'user', content: revokeInput }],
     });
+
+    if (!result.messages.some((m: any) => m._getType() === 'tool')) {
+      result = await testSetup.agent.invoke({
+        messages: [
+          ...result.messages,
+          { role: 'user', content: 'yes, please revoke it' }
+        ],
+      });
+    }
+
     parsedResponse = testSetup.responseParser.parseNewToolMessages(result);
     expect(parsedResponse[0].parsedData.humanMessage.toLowerCase()).toContain('successfully');
     await wait(10000);

@@ -30,15 +30,26 @@ const executeHoldPrompt = (context: Context = {}) => {
 
   return `
 ${contextSnippet}
+Executes a previously created token hold. Tokens are transferred from source to target. Requires the escrow role for that hold.
 
-This tool executes a previously created token hold for a stablecoin on the Hedera network. This results in the tokens being transferred from the source account to the target account. Requires the escrow role for that hold. Amounts are in display units (human-readable).
+MANDATORY: Show a complete execution plan and wait for explicit user approval ("yes", "confirm", "proceed") BEFORE calling this tool. NEVER call this tool without approval, UNLESS the user has already provided explicit confirmation in the current request (e.g., "proceed immediately").
 
-Parameters:
-- tokenId (str, required): The Hedera token ID of the stablecoin (e.g., "0.0.123456").
-- holdId (number, required): The ID of the hold to execute (e.g., 123).
-- amount (str, required): The amount of tokens to execute in display units (e.g., "50.5"). The tool will handle parsing to base units.
-- sourceId (str, required): The account ID from which the tokens were held (origin).
-- targetId (str, optional): The account ID to receive the tokens. Defaults to escrow.
+REQUIRED PARAMETERS — ask ONLY for these if missing:
+- tokenId: The Hedera token ID of the stablecoin (e.g., "0.0.123456")
+- holdId: The numeric ID of the hold (e.g., 123)
+- amount: The amount of tokens to execute (e.g., "50.5")
+
+ALL other parameters are optional. NEVER ask the user about them. Apply defaults silently:
+- sourceId: Defaults to the user account in context.
+- targetId: Defaults to the escrow account of the hold.
+- amount is in display units (human-readable), the tool will handle parsing to base units.
+
+STATE MANAGEMENT:
+- When user requests changes, update ONLY the referenced fields. Preserve all other values exactly.
+- Never rebuild the plan from scratch — always update incrementally.
+
+PLAN FORMAT:
+Show all parameters as a flat list (- Field: value). End with a confirmation request.
 ${usageInstructions}
 `;
 };

@@ -29,14 +29,25 @@ const cashInStablecoinPrompt = (context: Context = {}) => {
 
   return `
 ${contextSnippet}
+Mints (cash-in) new stablecoin tokens to a target account on the Hedera network. Requires the cash-in role.
 
-This tool mints (cash-in) new stablecoin tokens to a target account on the Hedera network. Requires the cash-in role.
+MANDATORY: Show a complete execution plan and wait for explicit user approval ("yes", "confirm", "proceed") BEFORE calling this tool. NEVER call this tool without approval, UNLESS the user has already provided explicit confirmation in the current request (e.g., "proceed immediately").
 
-Parameters:
-- tokenId (str, required): The Hedera token ID of the stablecoin (e.g., "0.0.123456").
-- targetId (str, optional): The Hedera account ID to receive the minted tokens (e.g., "0.0.789012"). If not provided, defaults to the user account in context.
-- amount (str, required): The amount of tokens to mint in display units (e.g., "100.5"). The tool will handle parsing to base units.
-- startDate (str, optional): ISO 8601 date for scheduling the operation.
+REQUIRED PARAMETERS — ask ONLY for these if missing:
+- tokenId: The Hedera token ID of the stablecoin (e.g., "0.0.123456")
+- amount: The amount of tokens to mint (e.g., "100.5")
+
+ALL other parameters are optional. NEVER ask the user about them. Apply defaults silently:
+- targetId: Defaults to the user account in context.
+- startDate: null (execution is immediate)
+- amount is in display units (human-readable), the tool will handle parsing to base units.
+
+STATE MANAGEMENT:
+- When user requests changes, update ONLY the referenced fields. Preserve all other values exactly.
+- Never rebuild the plan from scratch — always update incrementally.
+
+PLAN FORMAT:
+Show all parameters as a flat list (- Field: value). End with a confirmation request.
 ${usageInstructions}
 `;
 };

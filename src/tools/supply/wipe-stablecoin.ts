@@ -25,14 +25,25 @@ const wipeStablecoinPrompt = (context: Context = {}) => {
 
   return `
 ${contextSnippet}
+Wipes (removes) a specified amount of stablecoin tokens from a target account. This is an admin operation that requires the wipe role.
 
-This tool wipes (removes) a specified amount of stablecoin tokens from a target account. This is an admin operation that requires the wipe role.
+MANDATORY: Show a complete execution plan and wait for explicit user approval ("yes", "confirm", "proceed") BEFORE calling this tool. NEVER call this tool without approval, UNLESS the user has already provided explicit confirmation in the current request (e.g., "proceed immediately").
 
-Parameters:
-- tokenId (str, required): The Hedera token ID of the stablecoin (e.g., "0.0.123456").
-- targetId (str, required): The Hedera account ID to wipe tokens from (e.g., "0.0.789012").
-- amount (str, required): The amount of tokens to wipe in display units (e.g., "100.5"). The tool will handle parsing to base units.
-- startDate (str, optional): ISO 8601 date for scheduling the operation.
+REQUIRED PARAMETERS — ask ONLY for these if missing:
+- tokenId: The Hedera token ID of the stablecoin (e.g., "0.0.123456")
+- targetId: The Hedera account ID to wipe tokens from (e.g., "0.0.789012")
+- amount: The amount of tokens to wipe (e.g., "100.5")
+
+ALL other parameters are optional. NEVER ask the user about them. Apply defaults silently:
+- startDate: null (execution is immediate)
+- amount is in display units (human-readable), the tool will handle parsing to base units.
+
+STATE MANAGEMENT:
+- When user requests changes, update ONLY the referenced fields. Preserve all other values exactly.
+- Never rebuild the plan from scratch — always update incrementally.
+
+PLAN FORMAT:
+Show all parameters as a flat list (- Field: value). End with a confirmation request.
 ${usageInstructions}
 `;
 };

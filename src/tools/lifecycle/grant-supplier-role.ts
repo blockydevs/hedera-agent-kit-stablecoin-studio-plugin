@@ -30,13 +30,24 @@ const grantSupplierRolePrompt = (context: Context = {}) => {
 
   return `
 ${contextSnippet}
+Grants the CASHIN_ROLE (minting permission) to an account for a stablecoin, along with an optional initial minting allowance.
 
-This tool grants the CASHIN_ROLE (minting permission) to an account for a stablecoin on the Hedera network, along with an initial minting allowance. Requires appropriate admin permissions.
+MANDATORY: Show a complete execution plan and wait for explicit user approval ("yes", "confirm", "proceed") BEFORE calling this tool. NEVER call this tool without approval, UNLESS the user has already provided explicit confirmation in the current request (e.g., "proceed immediately"). UNLESS the user has already provided explicit confirmation in the current request (e.g., "proceed immediately").
 
-Parameters:
-- tokenId (str, required): The Hedera token ID of the stablecoin (e.g., "0.0.123456").
-- targetId (str, required): The Hedera account ID to receive the role (e.g., "0.0.789012").
-- amount (str, optional): The initial minting allowance in display units (e.g., "100.5"). If not provided or set to "0", it defaults to unlimited.
+REQUIRED PARAMETERS — ask ONLY for these if missing:
+- tokenId: The Hedera token ID of the stablecoin (e.g., "0.0.123456")
+
+ALL other parameters are optional. NEVER ask the user about them. Apply defaults silently:
+- targetId: Defaults to the user account in context.
+- amount: Defaults to unlimited if not provided.
+- amount is in display units (human-readable), the tool will handle parsing to base units.
+
+STATE MANAGEMENT:
+- When user requests changes, update ONLY the referenced fields. Preserve all other values exactly.
+- Never rebuild the plan from scratch — always update incrementally.
+
+PLAN FORMAT:
+Show all parameters as a flat list (- Field: value). End with a confirmation request.
 ${usageInstructions}
 `;
 };

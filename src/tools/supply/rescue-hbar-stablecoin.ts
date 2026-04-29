@@ -28,12 +28,23 @@ const rescueHbarStablecoinPrompt = (context: Context = {}) => {
 
   return `
 ${contextSnippet}
+Rescues HBAR from the stablecoin contract to the treasury account. Requires the rescue role.
 
-This tool rescues HBAR from the stablecoin contract to a specified account. Requires the rescue role.
+MANDATORY: Show a complete execution plan and wait for explicit user approval ("yes", "confirm", "proceed") BEFORE calling this tool. NEVER call this tool without approval, UNLESS the user has already provided explicit confirmation in the current request (e.g., "proceed immediately").
 
-Parameters:
-- tokenId (str, required): The Hedera token ID of the stablecoin (e.g., "0.0.123456").
-- amount (str, required): The amount of HBAR to rescue (e.g., "10.5").
+REQUIRED PARAMETERS — ask ONLY for these if missing:
+- tokenId: The Hedera token ID of the stablecoin (e.g., "0.0.123456")
+- amount: The amount of HBAR to rescue (e.g., "10.5")
+
+ALL other parameters are optional. NEVER ask the user about them. Apply defaults silently:
+- amount is in HBAR.
+
+STATE MANAGEMENT:
+- When user requests changes, update ONLY the referenced fields. Preserve all other values exactly.
+- Never rebuild the plan from scratch — always update incrementally.
+
+PLAN FORMAT:
+Show all parameters as a flat list (- Field: value). End with a confirmation request.
 ${usageInstructions}
 `;
 };

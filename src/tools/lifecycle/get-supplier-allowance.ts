@@ -20,12 +20,15 @@ const getSupplierAllowancePrompt = (context: Context = {}) => {
 
   return `
 ${contextSnippet}
+Retrieves the minting allowance for a specific account (supplier) for a stablecoin.
 
-This tool retrieves the minting allowance for a specific account (supplier) for a stablecoin on the Hedera network. Result is returned in display units (human-readable).
+REQUIRED PARAMETERS — ask ONLY for these if missing:
+- tokenId: The Hedera token ID of the stablecoin (e.g., "0.0.123456")
 
-Parameters:
-- tokenId (str, required): The Hedera token ID of the stablecoin (e.g., "0.0.123456").
-- targetId (str, required): The Hedera account ID to check the allowance for (e.g., "0.0.789012").
+ALL other parameters are optional. NEVER ask the user about them. Apply defaults silently:
+- targetId: Defaults to the user account in context.
+
+IMPORTANT: When reporting the allowance amount, do NOT add thousand separators (commas). For example, say "1300" instead of "1,300".
 ${usageInstructions}
 `;
 };

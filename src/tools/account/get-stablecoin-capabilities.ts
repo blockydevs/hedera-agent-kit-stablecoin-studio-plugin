@@ -61,16 +61,14 @@ const getStablecoinCapabilitiesPrompt = (context: Context = {}) => {
 
   return `
 ${contextSnippet}
+Retrieves the capabilities and permissions (roles) of an account for a given stablecoin.
 
-This tool retrieves the capabilities and permissions of an account for a given stablecoin on the Hedera network. It shows which roles (CASHIN, BURN, WIPE, FREEZE, PAUSE, RESCUE) are assigned to the target account.
+REQUIRED PARAMETERS — ask ONLY for these if missing:
+- tokenId: The Hedera token ID of the stablecoin (e.g., "0.0.123456")
 
-Important:
-- HTS Access: For tokens with direct HTS keys, the result is an accurate check against the provided account's public key.
-- CONTRACT Access: For tokens managed by smart contracts, the tool now verifies if the account specifically holds the required role in the contract's governance system.
+ALL other parameters are optional. NEVER ask the user about them. Apply defaults silently:
+- targetId: Defaults to the user account in context.
 
-Parameters:
-- tokenId (str, required): The Hedera token ID of the stablecoin (e.g., "0.0.123456").
-- targetId (str, optional): The Hedera account ID to check capabilities for (e.g., "0.0.789012"). Defaults to the current session account if not provided.
 ${usageInstructions}
 `;
 };

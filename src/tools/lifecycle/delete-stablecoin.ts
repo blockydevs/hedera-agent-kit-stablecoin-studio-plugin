@@ -29,11 +29,22 @@ const deleteStablecoinPrompt = (context: Context = {}) => {
 
   return `
 ${contextSnippet}
+Permanently deletes a stablecoin. This action is IRREVERSIBLE. Requires zero total supply and the delete role.
 
-This tool permanently deletes a stablecoin on the Hedera network. This action is irreversible. Deletion requires zero balances, an empty treasury, and DELETE role permissions.
+MANDATORY: Show a complete execution plan and wait for explicit user approval ("yes", "confirm", "proceed") BEFORE calling this tool. NEVER call this tool without approval, UNLESS the user has already provided explicit confirmation in the current request (e.g., "proceed immediately").
 
-Parameters:
-- tokenId (str, required): The Hedera token ID of the stablecoin to delete (e.g., "0.0.123456").
+REQUIRED PARAMETERS — ask ONLY for these if missing:
+- tokenId: The Hedera token ID of the stablecoin to delete (e.g., "0.0.123456")
+
+ALL other parameters are optional. NEVER ask the user about them.
+
+STATE MANAGEMENT:
+- When user requests changes, update ONLY the referenced fields. Preserve all other values exactly.
+- Never rebuild the plan from scratch — always update incrementally.
+
+PLAN FORMAT:
+Show all parameters as a flat list (- Field: value). End with a confirmation request.
+WARNING: Remind the user that this action is permanent and irreversible.
 ${usageInstructions}
 `;
 };

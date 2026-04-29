@@ -24,12 +24,13 @@ const getStablecoinInfoPrompt = (context: Context = {}) => {
 
   return `
 ${contextSnippet}
+Returns detailed information about a stablecoin (supply, keys, metadata, configuration).
 
-This tool returns detailed information about a stablecoin managed by Stablecoin Studio on the Hedera network.
-Supply values are returned in display units (human-readable).
+REQUIRED PARAMETERS — ask ONLY for these if missing:
+- tokenId: The Hedera token ID of the stablecoin to query (e.g., "0.0.123456")
 
-Parameters:
-- tokenId (str, required): The Hedera token ID of the stablecoin to query (e.g., "0.0.123456").
+ALL other parameters are optional. NEVER ask the user about them.
+
 ${usageInstructions}
 `;
 };

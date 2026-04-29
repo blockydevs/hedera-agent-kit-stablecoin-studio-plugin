@@ -33,15 +33,26 @@ const createHoldPrompt = (context: Context = {}) => {
 
   return `
 ${contextSnippet}
+Creates a token hold (escrow) for a stablecoin on the Hedera network. Tokens are locked until the hold is executed, released, or expired.
 
-This tool creates a token hold (escrow) for a stablecoin on the Hedera network. Tokens are locked until the hold is executed, released, or expired. Amounts are in display units (human-readable).
+MANDATORY: Show a complete execution plan and wait for explicit user approval ("yes", "confirm", "proceed") BEFORE calling this tool. NEVER call this tool without approval, UNLESS the user has already provided explicit confirmation in the current request (e.g., "proceed immediately").
 
-Parameters:
-- tokenId (str, required): The Hedera token ID of the stablecoin (e.g., "0.0.123456").
-- amount (str, required): The amount of tokens to hold in display units (e.g., "50.5"). The tool will handle parsing to base units.
-- escrow (str, required): The account ID of the escrow agent (who can execute/release).
-- expirationDate (str, required): Expiration for the hold. Accepts absolute Unix timestamps in seconds (e.g., "1777377064") OR relative durations (e.g., "1h", "2d", "30m").
-- accountId (str, optional): The Hedera account ID for the hold.
+REQUIRED PARAMETERS — ask ONLY for these if missing:
+- tokenId: The Hedera token ID of the stablecoin (e.g., "0.0.123456")
+- amount: The amount of tokens to hold (e.g., "50.5")
+- escrow: The account ID of the escrow agent (who can execute/release)
+- expirationDate: Expiration for the hold. Accepts absolute Unix timestamps in seconds OR relative durations (e.g., "1h", "2d", "30m").
+
+ALL other parameters are optional. NEVER ask the user about them. Apply defaults silently:
+- accountId: Defaults to the user account in context.
+- amount is in display units (human-readable), the tool will handle parsing to base units.
+
+STATE MANAGEMENT:
+- When user requests changes, update ONLY the referenced fields. Preserve all other values exactly.
+- Never rebuild the plan from scratch — always update incrementally.
+
+PLAN FORMAT:
+Show all parameters as a flat list (- Field: value). End with a confirmation request.
 ${usageInstructions}
 `;
 };

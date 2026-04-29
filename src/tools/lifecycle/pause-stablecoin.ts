@@ -24,11 +24,21 @@ const pauseStablecoinPrompt = (context: Context = {}) => {
 
   return `
 ${contextSnippet}
+Pauses a stablecoin, preventing all token transfers while preserving balances and ownership. Requires the pause role.
 
-This tool pauses a stablecoin on the Hedera network, preventing all token transfers while preserving balances and ownership. Requires the pause key.
+MANDATORY: Show a complete execution plan and wait for explicit user approval ("yes", "confirm", "proceed") BEFORE calling this tool. NEVER call this tool without approval, UNLESS the user has already provided explicit confirmation in the current request (e.g., "proceed immediately").
 
-Parameters:
-- tokenId (str, required): The Hedera token ID of the stablecoin to pause (e.g., "0.0.123456").
+REQUIRED PARAMETERS — ask ONLY for these if missing:
+- tokenId: The Hedera token ID of the stablecoin (e.g., "0.0.123456")
+
+ALL other parameters are optional. NEVER ask the user about them.
+
+STATE MANAGEMENT:
+- When user requests changes, update ONLY the referenced fields. Preserve all other values exactly.
+- Never rebuild the plan from scratch — always update incrementally.
+
+PLAN FORMAT:
+Show all parameters as a flat list (- Field: value). End with a confirmation request.
 ${usageInstructions}
 `;
 };

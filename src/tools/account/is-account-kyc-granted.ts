@@ -20,12 +20,15 @@ const isAccountKycGrantedPrompt = (context: Context = {}) => {
 
   return `
 ${contextSnippet}
+Checks if a specific account has been granted KYC (Know Your Customer) status for a given stablecoin.
 
-This tool checks if a specific account has been granted KYC (Know Your Customer) status for a given stablecoin on the Hedera network.
+REQUIRED PARAMETERS — ask ONLY for these if missing:
+- tokenId: The Hedera token ID of the stablecoin (e.g., "0.0.123456")
 
-Parameters:
-- tokenId (str, required): The Hedera token ID of the stablecoin (e.g., "0.0.123456").
-- targetId (str, required): The Hedera account ID to check (e.g., "0.0.789012").
+ALL other parameters are optional. NEVER ask the user about them. Apply defaults silently:
+- targetId: Defaults to the user account in context.
+
+IMPORTANT: Do NOT use markdown formatting (like bolding or italics) for the status result. For example, say "has kyc granted" instead of "**has** kyc granted".
 ${usageInstructions}
 `;
 };
