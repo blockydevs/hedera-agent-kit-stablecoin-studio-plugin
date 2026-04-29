@@ -7,7 +7,7 @@ import {
   RawTransactionResponse,
   transactionToolOutputParser,
 } from '@hashgraph/hedera-agent-kit';
-import { handleTransaction } from '@/shared/handle-transaction';
+import { handleTransaction } from '@/shared/utils/handle-transaction';
 import { PromptGenerator } from '@/shared/utils/prompt-generator';
 import {
   SerializedTransactionData,
@@ -18,7 +18,7 @@ import {
   ensureSdkConnected,
   hexToUint8Array,
   StablecoinStudioPluginConfig,
-} from '@/stablecoin-sdk-utils';
+} from '@/shared/utils/stablecoin-sdk-utils';
 
 export const UPDATE_RESERVE_ADDRESS_STABLECOIN_TOOL = 'update_reserve_address_stablecoin_tool';
 

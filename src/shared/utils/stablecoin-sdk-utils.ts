@@ -7,7 +7,7 @@ import {
   SupportedWallets,
   PublicKey as SdkPublicKey,
 } from '@hashgraph/stablecoin-npm-sdk';
-import { getFactoryAddress, getResolverAddress } from './constants';
+import { getFactoryAddress, getResolverAddress } from '@/shared/constants';
 
 export type StablecoinStudioPluginConfig = {
   accountId: string;

@@ -7,7 +7,7 @@ import {
   RawTransactionResponse,
   transactionToolOutputParser,
 } from '@hashgraph/hedera-agent-kit';
-import { handleTransaction } from '@/shared/handle-transaction';
+import { handleTransaction } from '@/shared/utils/handle-transaction';
 import { PromptGenerator } from '@/shared/utils/prompt-generator';
 import {
   StableCoin,
@@ -19,7 +19,7 @@ import {
   hexToUint8Array,
   StablecoinStudioPluginConfig,
   extractStatus,
-} from '@/stablecoin-sdk-utils';
+} from '@/shared/utils/stablecoin-sdk-utils';
 
 export const CASH_IN_STABLECOIN_TOOL = 'cash_in_stablecoin_tool';
 

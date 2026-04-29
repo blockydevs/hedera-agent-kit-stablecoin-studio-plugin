@@ -8,7 +8,7 @@ import {
   resolveNetwork,
   StablecoinStudioPluginConfig,
   extractStatus,
-} from '@/stablecoin-sdk-utils';
+} from '@/shared/utils/stablecoin-sdk-utils';
 
 export const GET_SUPPLIER_ALLOWANCE_TOOL = 'get_supplier_allowance_tool';
 

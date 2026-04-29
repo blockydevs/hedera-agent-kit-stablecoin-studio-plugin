@@ -7,7 +7,7 @@ import {
   RawTransactionResponse,
   transactionToolOutputParser,
 } from '@hashgraph/hedera-agent-kit';
-import { handleTransaction } from '@/shared/handle-transaction';
+import { handleTransaction } from '@/shared/utils/handle-transaction';
 import { PromptGenerator } from '@/shared/utils/prompt-generator';
 import { extractHoldIdFromRecord } from '@/shared/utils/token-utils';
 import {
@@ -21,7 +21,7 @@ import {
   resolveNetwork,
   StablecoinStudioPluginConfig,
   hexToUint8Array,
-} from '@/stablecoin-sdk-utils';
+} from '@/shared/utils/stablecoin-sdk-utils';
 import { resolveExpirationDate } from '@/shared/utils/duration-parser';
 import { TransactionRecord } from '@hiero-ledger/sdk';
 

@@ -7,7 +7,7 @@ import {
   RawTransactionResponse,
   transactionToolOutputParser,
 } from '@hashgraph/hedera-agent-kit';
-import { handleTransaction } from '@/shared/handle-transaction';
+import { handleTransaction } from '@/shared/utils/handle-transaction';
 import { PromptGenerator } from '@/shared/utils/prompt-generator';
 import {
   Role,
@@ -20,7 +20,7 @@ import {
   hexToUint8Array,
   StablecoinStudioPluginConfig,
   extractStatus,
-} from '@/stablecoin-sdk-utils';
+} from '@/shared/utils/stablecoin-sdk-utils';
 
 export const REVOKE_SUPPLIER_ROLE_TOOL = 'revoke_supplier_role_tool';
 

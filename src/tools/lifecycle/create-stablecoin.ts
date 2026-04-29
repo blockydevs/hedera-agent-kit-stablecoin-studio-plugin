@@ -7,7 +7,7 @@ import {
   RawTransactionResponse,
   transactionToolOutputParser,
 } from '@hashgraph/hedera-agent-kit';
-import { handleTransaction } from '@/shared/handle-transaction';
+import { handleTransaction } from '@/shared/utils/handle-transaction';
 import { PromptGenerator } from '@/shared/utils/prompt-generator';
 import {
   Account,
@@ -22,8 +22,8 @@ import {
   StablecoinStudioPluginConfig,
   parsePublicKey,
   extractStatus,
-} from '@/stablecoin-sdk-utils';
-import { STABLECOIN_CONFIG_ID, STABLECOIN_CONFIG_VERSION } from '@/constants';
+} from '@/shared/utils/stablecoin-sdk-utils';
+import { STABLECOIN_CONFIG_ID, STABLECOIN_CONFIG_VERSION } from '@/shared/constants';
 import { extractTokenIdFromFactoryRecord } from '@/shared/utils/token-utils';
 
 export const CREATE_STABLECOIN_TOOL = 'create_stablecoin_tool';

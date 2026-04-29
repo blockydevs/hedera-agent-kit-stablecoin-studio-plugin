@@ -42,7 +42,7 @@ vi.mock('@hashgraph/hedera-agent-kit', async importOriginal => {
   };
 });
 
-vi.mock('@/stablecoin-sdk-utils', () => ({
+vi.mock('@/shared/utils/stablecoin-sdk-utils', () => ({
   initSdk: vi.fn(),
   connectSdk: vi.fn(),
   resolveNetwork: vi.fn(() => 'testnet'),
@@ -51,7 +51,7 @@ vi.mock('@/stablecoin-sdk-utils', () => ({
   extractStatus: vi.fn(() => Status.InvalidTransaction),
 }));
 
-vi.mock('@/shared/handle-transaction', () => ({
+vi.mock('@/shared/utils/handle-transaction', () => ({
   handleTransaction: vi.fn(),
 }));
 
@@ -78,7 +78,7 @@ describe('increase-supplier-allowance tool (unit)', () => {
     const client = makeClient();
 
     const { Role } = await import('@hashgraph/stablecoin-npm-sdk');
-    const { handleTransaction } = await import('@/shared/handle-transaction');
+    const { handleTransaction } = await import('@/shared/utils/handle-transaction');
 
     (Role.buildIncreaseAllowance as any).mockResolvedValue({
       serializedTransaction: 'hex-bytes',

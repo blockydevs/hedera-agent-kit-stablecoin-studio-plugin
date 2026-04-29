@@ -18,7 +18,7 @@ import {
   resolveNetwork,
   StablecoinStudioPluginConfig,
   extractStatus,
-} from '@/stablecoin-sdk-utils';
+} from '@/shared/utils/stablecoin-sdk-utils';
 
 export const GET_STABLECOIN_CAPABILITIES_TOOL = 'get_stablecoin_capabilities_tool';
 

@@ -3,7 +3,7 @@ import { Client, Status } from '@hiero-ledger/sdk';
 import { Context, BaseTool } from '@hashgraph/hedera-agent-kit';
 import { PromptGenerator } from '@/shared/utils/prompt-generator';
 import { StableCoin, IsAccountAssociatedTokenRequest } from '@hashgraph/stablecoin-npm-sdk';
-import { initSdk, resolveNetwork, StablecoinStudioPluginConfig } from '@/stablecoin-sdk-utils';
+import { initSdk, resolveNetwork, StablecoinStudioPluginConfig } from '@/shared/utils/stablecoin-sdk-utils';
 
 export const IS_ACCOUNT_ASSOCIATED_TOOL = 'is_account_associated_tool';
 

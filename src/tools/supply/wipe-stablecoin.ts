@@ -7,7 +7,7 @@ import {
   RawTransactionResponse,
   transactionToolOutputParser,
 } from '@hashgraph/hedera-agent-kit';
-import { handleTransaction } from '@/shared/handle-transaction';
+import { handleTransaction } from '@/shared/utils/handle-transaction';
 import { PromptGenerator } from '@/shared/utils/prompt-generator';
 import { SerializedTransactionData, StableCoin, WipeRequest } from '@hashgraph/stablecoin-npm-sdk';
 import {
@@ -15,7 +15,7 @@ import {
   hexToUint8Array,
   StablecoinStudioPluginConfig,
   extractStatus,
-} from '@/stablecoin-sdk-utils';
+} from '@/shared/utils/stablecoin-sdk-utils';
 
 export const WIPE_STABLECOIN_TOOL = 'wipe_stablecoin_tool';
 

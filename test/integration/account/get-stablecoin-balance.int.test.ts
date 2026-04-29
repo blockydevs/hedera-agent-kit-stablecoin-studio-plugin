@@ -9,7 +9,7 @@ import {
   BALANCE_TIERS,
   wait,
 } from '../test-utils';
-import { initSdk, connectSdk, connectSdkClientMode } from '@/stablecoin-sdk-utils';
+import { initSdk, connectSdk, connectSdkClientMode } from '@/shared/utils/stablecoin-sdk-utils';
 import getBalanceTool from '@/tools/account/get-stablecoin-balance';
 import grantKycTool from '@/tools/account/grant-kyc';
 import { CashInRequest, StableCoin } from '@hashgraph/stablecoin-npm-sdk';

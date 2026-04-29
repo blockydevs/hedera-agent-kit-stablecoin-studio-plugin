@@ -32,7 +32,7 @@ vi.mock('@hashgraph/hedera-agent-kit', async importOriginal => {
   };
 });
 
-vi.mock('@/stablecoin-sdk-utils', () => ({
+vi.mock('@/shared/utils/stablecoin-sdk-utils', () => ({
   initSdk: vi.fn(),
   connectSdk: vi.fn(),
   resolveNetwork: vi.fn(() => 'testnet'),

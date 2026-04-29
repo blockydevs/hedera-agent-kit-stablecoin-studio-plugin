@@ -8,7 +8,7 @@ import {
   connectSdk,
   resolveNetwork,
   StablecoinStudioPluginConfig,
-} from '@/stablecoin-sdk-utils';
+} from '@/shared/utils/stablecoin-sdk-utils';
 
 export const IS_ACCOUNT_FROZEN_TOOL = 'is_account_frozen_tool';
 

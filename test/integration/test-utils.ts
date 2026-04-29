@@ -54,8 +54,8 @@ import {
   connectSdkClientMode,
   StablecoinStudioPluginConfig,
   parsePublicKey,
-} from '@/stablecoin-sdk-utils';
-import { STABLECOIN_CONFIG_ID, STABLECOIN_CONFIG_VERSION } from '@/constants';
+} from '@/shared/utils/stablecoin-sdk-utils';
+import { STABLECOIN_CONFIG_ID, STABLECOIN_CONFIG_VERSION } from '@/shared/constants';
 
 export const MIRROR_NODE_DELAY = 6000;
 

@@ -7,14 +7,14 @@ import {
   RawTransactionResponse,
   transactionToolOutputParser,
 } from '@hashgraph/hedera-agent-kit';
-import { handleTransaction } from '@/shared/handle-transaction';
+import { handleTransaction } from '@/shared/utils/handle-transaction';
 import { PromptGenerator } from '@/shared/utils/prompt-generator';
 import { StableCoin, PauseRequest, SerializedTransactionData } from '@hashgraph/stablecoin-npm-sdk';
 import {
   ensureSdkConnected,
   hexToUint8Array,
   StablecoinStudioPluginConfig,
-} from '@/stablecoin-sdk-utils';
+} from '@/shared/utils/stablecoin-sdk-utils';
 
 export const PAUSE_STABLECOIN_TOOL = 'pause_stablecoin_tool';
 

@@ -7,7 +7,7 @@ import {
   RawTransactionResponse,
   transactionToolOutputParser,
 } from '@hashgraph/hedera-agent-kit';
-import { handleTransaction } from '@/shared/handle-transaction';
+import { handleTransaction } from '@/shared/utils/handle-transaction';
 import { PromptGenerator } from '@/shared/utils/prompt-generator';
 import {
   StableCoin,
@@ -20,7 +20,7 @@ import {
   resolveNetwork,
   StablecoinStudioPluginConfig,
   hexToUint8Array,
-} from '@/stablecoin-sdk-utils';
+} from '@/shared/utils/stablecoin-sdk-utils';
 
 export const RECLAIM_HOLD_STABLECOIN_TOOL = 'reclaim_hold_stablecoin_tool';
 

@@ -53,7 +53,7 @@ vi.mock('@hashgraph/hedera-agent-kit', async importOriginal => {const original =
     
   };});
 
-vi.mock('@/stablecoin-sdk-utils', () => ({
+vi.mock('@/shared/utils/stablecoin-sdk-utils', () => ({
   initSdk: vi.fn(),
   connectSdk: vi.fn(),
   resolveNetwork: vi.fn(() => 'testnet'),
@@ -63,7 +63,7 @@ vi.mock('@/stablecoin-sdk-utils', () => ({
   extractStatus: vi.fn(() => Status.InvalidTransaction),
 }));
 
-vi.mock('@/shared/handle-transaction', () => ({
+vi.mock('@/shared/utils/handle-transaction', () => ({
   handleTransaction: vi.fn(),
 }));
 
@@ -91,7 +91,7 @@ describe('update-stablecoin tool (unit)', () => {
     const client = makeClient();
 
     const { StableCoin } = await import('@hashgraph/stablecoin-npm-sdk');
-    const { handleTransaction } = await import('@/shared/handle-transaction');
+    const { handleTransaction } = await import('@/shared/utils/handle-transaction');
 
     const fakeTxBytes = '1234';
     (StableCoin.buildUpdate as any).mockResolvedValue({ serializedTransaction: fakeTxBytes });
@@ -117,7 +117,7 @@ describe('update-stablecoin tool (unit)', () => {
     const client = makeClient();
 
     const { StableCoin } = await import('@hashgraph/stablecoin-npm-sdk');
-    const { handleTransaction } = await import('@/shared/handle-transaction');
+    const { handleTransaction } = await import('@/shared/utils/handle-transaction');
 
     const fakeTxBytes = '1234';
     (StableCoin.buildUpdate as any).mockResolvedValue({ serializedTransaction: fakeTxBytes });
@@ -143,7 +143,7 @@ describe('update-stablecoin tool (unit)', () => {
     const client = makeClient();
 
     const { StableCoin } = await import('@hashgraph/stablecoin-npm-sdk');
-    const { handleTransaction } = await import('@/shared/handle-transaction');
+    const { handleTransaction } = await import('@/shared/utils/handle-transaction');
 
     const fakeTxBytes = '1234';
     (StableCoin.buildUpdate as any).mockResolvedValue({ serializedTransaction: fakeTxBytes });
@@ -180,7 +180,7 @@ describe('update-stablecoin tool (unit)', () => {
     const client = makeClient();
 
     const { StableCoin, Account } = await import('@hashgraph/stablecoin-npm-sdk');
-    const { handleTransaction } = await import('@/shared/handle-transaction');
+    const { handleTransaction } = await import('@/shared/utils/handle-transaction');
 
     const fakeTxBytes = '1234';
     (StableCoin.buildUpdate as any).mockResolvedValue({ serializedTransaction: fakeTxBytes });
@@ -211,7 +211,7 @@ describe('update-stablecoin tool (unit)', () => {
     const client = makeClient();
 
     const { StableCoin } = await import('@hashgraph/stablecoin-npm-sdk');
-    const { handleTransaction } = await import('@/shared/handle-transaction');
+    const { handleTransaction } = await import('@/shared/utils/handle-transaction');
 
     const fakeTxBytes = '1234';
     (StableCoin.buildUpdate as any).mockResolvedValue({ serializedTransaction: fakeTxBytes });

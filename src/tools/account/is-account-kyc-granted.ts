@@ -8,7 +8,7 @@ import {
   connectSdk,
   resolveNetwork,
   StablecoinStudioPluginConfig,
-} from '@/stablecoin-sdk-utils';
+} from '@/shared/utils/stablecoin-sdk-utils';
 
 export const IS_ACCOUNT_KYC_GRANTED_TOOL = 'is_account_kyc_granted_tool';
 
