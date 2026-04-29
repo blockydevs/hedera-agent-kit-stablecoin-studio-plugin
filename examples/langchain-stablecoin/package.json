@@ -3,7 +3,9 @@
   "version": "1.0.0",
   "type": "commonjs",
   "scripts": {
-    "start": "npx tsx agent.ts"
+    "start": "npx tsx autonomous-agent.ts",
+    "start:autonomous": "npx tsx autonomous-agent.ts",
+    "start:return-bytes": "npx tsx return-bytes-agent.ts"
   },
   "dependencies": {
     "@hashgraph/hedera-agent-kit": "4.0.0",

@@ -4,6 +4,13 @@ This document provides a detailed reference for all tools available in the Heder
 These tools interact with the Stablecoin Studio smart contracts to provide a regulated, secure framework for token
 management.
 
+## Agent Modes
+
+This plugin supports two primary execution modes via the `hedera-agent-kit`:
+
+1.  **AUTONOMOUS Mode**: The agent signs and executes transactions directly using the `privateKey` provided in the plugin configuration.
+2.  **RETURN_BYTES Mode**: The agent generates the raw transaction bytes and returns them to the caller. This allows for **external signing** (e.g., via a browser wallet or a hardware security module). State-changing tools in this mode do not require a private key in the plugin config.
+
 ## Lifecycle Tools
 
 ### CREATE_STABLECOIN_TOOL
@@ -272,7 +279,7 @@ Zero out minting allowance of 0.0.789012. Proceed immediately.
 **Supports Hooks & Policies**: ✅ Yes
 **Who can call it**: Any account. This is a read-only query.
 
-Checks the current remaining minting allowance for a specific supplier.
+Retrieves the current remaining minting allowance for a specific supplier. Returns both the display amount and whether the supplier has an "unlimited" allowance.
 
 #### Parameters
 
