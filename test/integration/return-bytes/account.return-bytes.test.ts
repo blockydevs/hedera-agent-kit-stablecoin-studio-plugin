@@ -6,10 +6,18 @@ import {
   HederaOperationsWrapper,
   UsdToHbarService,
   BALANCE_TIERS,
+  wait,
 } from '../test-utils';
 import associateTool from '@/tools/account/associate-stablecoin';
 import getCapabilitiesTool from '@/tools/account/get-stablecoin-capabilities';
 import getBalanceTool from '@/tools/account/get-stablecoin-balance';
+import freezeTool from '@/tools/account/freeze-account';
+import unfreezeTool from '@/tools/account/unfreeze-account';
+import grantKycTool from '@/tools/account/grant-kyc';
+import revokeKycTool from '@/tools/account/revoke-kyc';
+import isAssociatedTool from '@/tools/account/is-account-associated';
+import isFrozenTool from '@/tools/account/is-account-frozen';
+import isKycGrantedTool from '@/tools/account/is-account-kyc-granted';
 
 describe('Account Return Bytes Mode Integration Tests', () => {
   let operatorClient: Client;
@@ -59,6 +67,11 @@ describe('Account Return Bytes Mode Integration Tests', () => {
       },
       context,
     });
+
+    // Grant roles to executor account
+    await operatorWrapper.grantRole({ tokenId, targetId: executorAccountId, role: 'FREEZE_ROLE' as any });
+    await operatorWrapper.grantRole({ tokenId, targetId: executorAccountId, role: 'KYC_ROLE' as any });
+    await wait(8000);
   });
 
   afterAll(async () => {
@@ -120,5 +133,103 @@ describe('Account Return Bytes Mode Integration Tests', () => {
 
     expect(result.raw).toBeDefined();
     expect(result.humanMessage).toContain('Balance of token');
+  });
+
+  it('should return transaction bytes for freeze/unfreeze and allow external signing', async () => {
+    const freeze = freezeTool(context, config);
+    const result: any = await freeze.execute(operatorClient, context, {
+      tokenId,
+      targetId: executorAccountId,
+    });
+
+    expect(result.raw.bytes).toBeDefined();
+    const transaction = Transaction.fromBytes(result.raw.bytes);
+
+    // Sign with executor key (payer and role holder)
+    await transaction.sign(executorKey);
+    const response = await transaction.execute(operatorClient);
+    await response.getReceipt(operatorClient);
+    await wait(5000);
+
+    // Verify using query tool in RB mode
+    const isFrozen = isFrozenTool(context, config);
+    const frozenResult = await isFrozen.execute(operatorClient, context, {
+      tokenId,
+      targetId: executorAccountId,
+    });
+    expect(frozenResult.humanMessage.toLowerCase()).toContain('is frozen');
+
+    // Unfreeze
+    const unfreeze = unfreezeTool(context, config);
+    const unfreezeResult: any = await unfreeze.execute(operatorClient, context, {
+      tokenId,
+      targetId: executorAccountId,
+    });
+    const unfreezeTx = Transaction.fromBytes(unfreezeResult.raw.bytes);
+    await unfreezeTx.sign(executorKey);
+    await unfreezeTx.execute(operatorClient);
+    await response.getReceipt(operatorClient);
+    await wait(5000);
+
+    // Verify
+    const unfrozenResult = await isFrozen.execute(operatorClient, context, {
+      tokenId,
+      targetId: executorAccountId,
+    });
+    expect(unfrozenResult.humanMessage.toLowerCase()).toContain('is not frozen');
+  });
+
+  it('should return transaction bytes for KYC grant/revoke and allow external signing', async () => {
+    const grantKyc = grantKycTool(context, config);
+    const result: any = await grantKyc.execute(operatorClient, context, {
+      tokenId,
+      targetId: executorAccountId,
+    });
+
+    expect(result.raw.bytes).toBeDefined();
+    const transaction = Transaction.fromBytes(result.raw.bytes);
+
+    await transaction.sign(executorKey);
+    const response = await transaction.execute(operatorClient);
+    await response.getReceipt(operatorClient);
+    await wait(5000);
+
+    // Verify using query tool
+    const isKycGranted = isKycGrantedTool(context, config);
+    const kycResult = await isKycGranted.execute(operatorClient, context, {
+      tokenId,
+      targetId: executorAccountId,
+    });
+    expect(kycResult.humanMessage.toLowerCase()).toContain('kyc granted');
+
+    // Revoke
+    const revokeKyc = revokeKycTool(context, config);
+    const revokeResult: any = await revokeKyc.execute(operatorClient, context, {
+      tokenId,
+      targetId: executorAccountId,
+    });
+    const revokeTx = Transaction.fromBytes(revokeResult.raw.bytes);
+    await revokeTx.sign(executorKey);
+    await revokeTx.execute(operatorClient);
+    await response.getReceipt(operatorClient);
+    await wait(5000);
+
+    // Verify
+    const revokedResult = await isKycGranted.execute(operatorClient, context, {
+      tokenId,
+      targetId: executorAccountId,
+    });
+    expect(revokedResult.humanMessage.toLowerCase()).toContain('does not have kyc granted');
+  });
+
+  it('should allow querying association status in RETURN_BYTES mode', async () => {
+    const isAssociated = isAssociatedTool(context, config);
+    const result = await isAssociated.execute(operatorClient, context, {
+      tokenId,
+      targetId: executorAccountId,
+    });
+
+    expect(result.raw).toBeDefined();
+    expect(result.humanMessage).toContain('is associated');
   });
 });

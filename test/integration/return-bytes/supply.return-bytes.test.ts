@@ -13,6 +13,7 @@ import {
 import cashInTool from '@/tools/supply/cash-in-stablecoin';
 import burnTool from '@/tools/supply/burn-stablecoin';
 import wipeTool from '@/tools/supply/wipe-stablecoin';
+import rescueTool from '@/tools/supply/rescue-stablecoin';
 
 describe('Supply Return Bytes Mode Integration Tests', () => {
   let fundingClient: Client;
@@ -115,8 +116,6 @@ describe('Supply Return Bytes Mode Integration Tests', () => {
       // targetId should default to context.accountId (executorAccountId)
     });
 
-    console.log(JSON.stringify(result, null, 2));
-
     expect(result.raw.bytes).toBeDefined();
     const transaction = Transaction.fromBytes(result.raw.bytes);
 
@@ -159,8 +158,6 @@ describe('Supply Return Bytes Mode Integration Tests', () => {
       tokenId,
       amount: '40',
     });
-
-    console.log(JSON.stringify(result, null, 2));
 
     expect(result.raw.bytes).toBeDefined();
     const transaction = Transaction.fromBytes(result.raw.bytes);
@@ -239,5 +236,24 @@ describe('Supply Return Bytes Mode Integration Tests', () => {
     // Verify
     const balance = await executorWrapper.getStablecoinBalance(targetAccountId, tokenId);
     expect(balance).toBe('5'); // 20 - 15
+  });
+
+  it('should return transaction bytes for rescue and allow external signing', async () => {
+    const rescue = rescueTool(context, config);
+    const targetAccountId = fundingClient.operatorAccountId!.toString();
+
+    const result: any = await rescue.execute(operatorNonKeyClient, context, {
+      tokenId,
+      amount: '1',
+      targetId: targetAccountId,
+    });
+
+    expect(result.raw.bytes).toBeDefined();
+    const transaction = Transaction.fromBytes(result.raw.bytes);
+    await transaction.sign(executorKey);
+    const response = await transaction.execute(fundingClient);
+    await response.getReceipt(fundingClient);
+
+    expect(response.transactionId).toBeDefined();
   });
 });

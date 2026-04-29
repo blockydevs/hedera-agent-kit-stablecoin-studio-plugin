@@ -12,6 +12,7 @@ import pauseTool from '@/tools/lifecycle/pause-stablecoin';
 import unpauseTool from '@/tools/lifecycle/unpause-stablecoin';
 import updateTool from '@/tools/lifecycle/update-stablecoin';
 import grantRoleTool from '@/tools/lifecycle/grant-role-stablecoin';
+import getStablecoinInfoTool from '@/tools/lifecycle/get-stablecoin-info';
 
 describe('Lifecycle Return Bytes Mode Integration Tests', () => {
   let operatorClient: Client;
@@ -161,5 +162,15 @@ describe('Lifecycle Return Bytes Mode Integration Tests', () => {
     const capabilities = await operatorWrapper.getCapabilities(targetAccountId, tokenId);
     const canCashIn = capabilities.capabilities.some(c => c.operation === 'Cash_in');
     expect(canCashIn).toBe(true);
+  });
+
+  it('should allow querying stablecoin info in RETURN_BYTES mode', async () => {
+    const getInfo = getStablecoinInfoTool(context, config);
+    const result = await getInfo.execute(operatorClient, context, {
+      tokenId,
+    });
+
+    expect(result.raw).toBeDefined();
+    expect(result.humanMessage).toContain('Stablecoin Details for');
   });
 });
