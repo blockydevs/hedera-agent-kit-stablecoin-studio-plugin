@@ -4,6 +4,8 @@ import { Context, BaseTool } from '@hashgraph/hedera-agent-kit';
 import { PromptGenerator } from '@/shared/utils/prompt-generator';
 import { StableCoin, GetAccountBalanceRequest, Balance } from '@hashgraph/stablecoin-npm-sdk';
 import { initSdk, resolveNetwork, StablecoinStudioPluginConfig } from '@/shared/utils/stablecoin-sdk-utils';
+import { stablecoinOutputParser } from '@/shared/utils/stablecoin-output-parser';
+
 
 export const GET_STABLECOIN_BALANCE_TOOL = 'get_stablecoin_balance_tool';
 
@@ -42,6 +44,8 @@ export class GetStablecoinBalanceTool extends BaseTool {
   name = 'Get Stablecoin Balance';
   description: string;
   parameters: ReturnType<typeof getStablecoinBalanceParameters>;
+  outputParser = stablecoinOutputParser;
+
 
   private config: StablecoinStudioPluginConfig;
 

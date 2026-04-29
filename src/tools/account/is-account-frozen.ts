@@ -9,6 +9,8 @@ import {
   resolveNetwork,
   StablecoinStudioPluginConfig,
 } from '@/shared/utils/stablecoin-sdk-utils';
+import { stablecoinOutputParser } from '@/shared/utils/stablecoin-output-parser';
+
 
 export const IS_ACCOUNT_FROZEN_TOOL = 'is_account_frozen_tool';
 
@@ -47,6 +49,8 @@ export class IsAccountFrozenTool extends BaseTool {
   name = 'Is Account Frozen';
   description: string;
   parameters: ReturnType<typeof isAccountFrozenParameters>;
+  outputParser = stablecoinOutputParser;
+
 
   private config: StablecoinStudioPluginConfig;
 

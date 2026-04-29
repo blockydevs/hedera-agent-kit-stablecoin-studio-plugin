@@ -40,7 +40,7 @@ ${usageInstructions}
 };
 
 const associateStablecoinParameters = (context: Context = {}) => {
-  const accountId = (context as any).accountId;
+  const accountId = context.accountId || "";
   return z.object({
     tokenId: z.string().describe('The Hedera token ID of the stablecoin (e.g., "0.0.123456")'),
     targetId: z

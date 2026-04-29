@@ -13,6 +13,8 @@ import {
   StablecoinStudioPluginConfig,
   extractStatus,
 } from '@/shared/utils/stablecoin-sdk-utils';
+import { stablecoinOutputParser } from '@/shared/utils/stablecoin-output-parser';
+
 
 export const GET_STABLECOIN_INFO_TOOL = 'get_stablecoin_info_tool';
 
@@ -123,6 +125,8 @@ export class GetStablecoinInfoTool extends BaseTool {
   name = 'Get Stablecoin Info';
   description: string;
   parameters: ReturnType<typeof getStablecoinInfoParameters>;
+  outputParser = stablecoinOutputParser;
+
 
   private config: StablecoinStudioPluginConfig;
 

@@ -9,6 +9,8 @@ import {
   StablecoinStudioPluginConfig,
   extractStatus,
 } from '@/shared/utils/stablecoin-sdk-utils';
+import { stablecoinOutputParser } from '@/shared/utils/stablecoin-output-parser';
+
 
 export const GET_SUPPLIER_ALLOWANCE_TOOL = 'get_supplier_allowance_tool';
 
@@ -47,6 +49,8 @@ export class GetSupplierAllowanceTool extends BaseTool {
   name = 'Get Supplier Allowance';
   description: string;
   parameters: ReturnType<typeof getSupplierAllowanceParameters>;
+  outputParser = stablecoinOutputParser;
+
 
   private config: StablecoinStudioPluginConfig;
 
