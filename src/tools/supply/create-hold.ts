@@ -46,7 +46,8 @@ ${usageInstructions}
 `;
 };
 
-const createHoldParameters = (_context: Context = {}) => {
+const createHoldParameters = (context: Context = {}) => {
+  const accountId = context.accountId || "";
   return z.object({
     tokenId: z.string().describe('The Hedera token ID of the stablecoin (e.g., "0.0.123456")'),
     amount: z
@@ -59,11 +60,13 @@ const createHoldParameters = (_context: Context = {}) => {
     accountId: z
       .string()
       .optional()
+      .default(accountId)
       .describe(
-        `The Hedera account ID that will receive the tokens form the hold (e.g., "0.0.789012").`, // FIXME: hold should not default to operator account. This is an account that will receive the held tokens!
+        `The Hedera account ID that will receive the tokens form the hold (e.g., "0.0.789012"). Default: ${accountId}`,
       ),
   });
 };
+
 
 const postProcess = (response: RawTransactionResponse & { holdId?: string }) => {
   return `Hold created successfully.

@@ -69,7 +69,7 @@ ${usageInstructions}
 };
 
 const grantRoleParameters = (context: Context = {}) => {
-  const accountId = (context as any).accountId;
+  const accountId = context.accountId || "";
   return z.object({
     tokenId: z.string().describe('The Hedera token ID of the stablecoin (e.g., "0.0.123456")'),
     targetId: z
@@ -77,7 +77,7 @@ const grantRoleParameters = (context: Context = {}) => {
       .optional()
       .default(accountId)
       .describe(
-        `The Hedera account ID or Public Key to receive the role (e.g., "0.0.789012" or hex key). Default: ${accountId || 'operator account'}`,
+        `The Hedera account ID or Public Key to receive the role (e.g., "0.0.789012" or hex key). Default: ${accountId}`,
       ),
     role: z.enum(roles).describe('The role to grant'),
   });

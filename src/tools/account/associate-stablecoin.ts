@@ -48,7 +48,7 @@ const associateStablecoinParameters = (context: Context = {}) => {
       .optional()
       .default(accountId)
       .describe(
-        `The Hedera account ID to associate with the token (e.g., "0.0.789012"). Default: ${accountId || 'operator account'}`,
+        `The Hedera account ID to associate with the token (e.g., "0.0.789012"). Default: ${accountId}`,
       ),
   });
 };

@@ -39,14 +39,14 @@ ${usageInstructions}
 };
 
 const updateReserveAddressParameters = (context: Context = {}) => {
-  const accountId = (context as any).accountId;
+  const accountId = context.accountId || "";
   return z.object({
     tokenId: z.string().describe('The Hedera token ID of the stablecoin (e.g., "0.0.123456")'),
     reserveAddress: z
       .string()
       .optional()
       .default(accountId)
-      .describe(`The new reserve address. Default: ${accountId || 'operator account'}`),
+      .describe(`The new reserve address. Default: ${accountId}`),
   });
 };
 

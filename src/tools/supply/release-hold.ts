@@ -43,7 +43,7 @@ ${usageInstructions}
 };
 
 const releaseHoldParameters = (context: Context = {}) => {
-  const accountId = (context as any).accountId;
+  const accountId = context.accountId || "";
   return z.object({
     tokenId: z.string().describe('The Hedera token ID of the stablecoin (e.g., "0.0.123456")'),
     holdId: z.number().int().describe('The ID of the hold to release'),
@@ -55,7 +55,7 @@ const releaseHoldParameters = (context: Context = {}) => {
       .optional()
       .default(accountId)
       .describe(
-        `The source account ID (origin of the hold). Default: ${accountId || 'operator account'}`,
+        `The source account ID (origin of the hold). Default: ${accountId}`,
       ),
   });
 };

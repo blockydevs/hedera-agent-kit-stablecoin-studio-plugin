@@ -42,7 +42,7 @@ ${usageInstructions}
 };
 
 const reclaimHoldParameters = (context: Context = {}) => {
-  const accountId = (context as any).accountId;
+  const accountId = context.accountId || "";
   return z.object({
     tokenId: z.string().describe('The Hedera token ID of the stablecoin (e.g., "0.0.123456")'),
     holdId: z.number().int().describe('The ID of the hold to reclaim'),
@@ -51,7 +51,7 @@ const reclaimHoldParameters = (context: Context = {}) => {
       .optional()
       .default(accountId)
       .describe(
-        `The source account ID (origin) to return tokens to. Default: ${accountId || 'operator account'}`,
+        `The source account ID (origin) to return tokens to. Default: ${accountId}`,
       ),
   });
 };

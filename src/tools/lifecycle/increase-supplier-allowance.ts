@@ -42,7 +42,7 @@ ${usageInstructions}
 };
 
 const increaseSupplierAllowanceParameters = (context: Context = {}) => {
-  const accountId = (context as any).accountId;
+  const accountId = context.accountId || "";
   return z.object({
     tokenId: z.string().describe('The Hedera token ID of the stablecoin (e.g., "0.0.123456")'),
     targetId: z
@@ -50,7 +50,7 @@ const increaseSupplierAllowanceParameters = (context: Context = {}) => {
       .optional()
       .default(accountId)
       .describe(
-        `The Hedera account ID to increase the allowance for (e.g., "0.0.789012"). Default: ${accountId || 'operator account'}`,
+        `The Hedera account ID to increase the allowance for (e.g., "0.0.789012"). Default: ${accountId}`,
       ),
     amount: z
       .string()

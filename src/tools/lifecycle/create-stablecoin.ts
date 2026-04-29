@@ -60,9 +60,9 @@ ${usageInstructions}
 const toSupplyType = (type: string) =>
   type === 'FINITE' ? TokenSupplyType.FINITE : TokenSupplyType.INFINITE;
 
-const createStablecoinParameters = (context: Context = {}, configOperatorAccount: string) => {
-  const accountId = (context as any).accountId || configOperatorAccount;
-  const accountDesc = accountId || 'operator account';
+const createStablecoinParameters = (context: Context = {}) => {
+  const accountId = (context as any).accountId || "";
+
 
   return z.object({
     name: z.string().describe('The name of the stablecoin (e.g., "USD Coin")'),
@@ -118,57 +118,57 @@ const createStablecoinParameters = (context: Context = {}, configOperatorAccount
       .string()
       .optional()
       .default(accountId)
-      .describe(`Account ID or Public Key for proxy owner. Default: ${accountDesc}`),
+      .describe(`Account ID or Public Key. Default: ${accountId}`),
     burnRoleAccount: z
       .string()
       .optional()
       .default(accountId)
-      .describe(`Account ID or Public Key for burn role. Default: ${accountDesc}`),
+      .describe(`Account ID or Public Key. Default: ${accountId}`),
     wipeRoleAccount: z
       .string()
       .optional()
       .default(accountId)
-      .describe(`Account ID or Public Key for wipe role. Default: ${accountDesc}`),
+      .describe(`Account ID or Public Key. Default: ${accountId}`),
     rescueRoleAccount: z
       .string()
       .optional()
       .default(accountId)
-      .describe(`Account ID or Public Key for rescue role. Default: ${accountDesc}`),
+      .describe(`Account ID or Public Key. Default: ${accountId}`),
     pauseRoleAccount: z
       .string()
       .optional()
       .default(accountId)
-      .describe(`Account ID or Public Key for pause role. Default: ${accountDesc}`),
+      .describe(`Account ID or Public Key. Default: ${accountId}`),
     freezeRoleAccount: z
       .string()
       .optional()
       .default(accountId)
-      .describe(`Account ID or Public Key for freeze role. Default: ${accountDesc}`),
+      .describe(`Account ID or Public Key. Default: ${accountId}`),
     deleteRoleAccount: z
       .string()
       .optional()
       .default(accountId)
-      .describe(`Account ID or Public Key for delete role. Default: ${accountDesc}`),
+      .describe(`Account ID or Public Key. Default: ${accountId}`),
     kycRoleAccount: z
       .string()
       .optional()
       .default(accountId)
-      .describe(`Account ID or Public Key for KYC role. Default: ${accountDesc}`),
+      .describe(`Account ID or Public Key. Default: ${accountId}`),
     cashInRoleAccount: z
       .string()
       .optional()
       .default(accountId)
-      .describe(`Account ID or Public Key for cash-in role. Default: ${accountDesc}`),
+      .describe(`Account ID or Public Key. Default: ${accountId}`),
     feeRoleAccount: z
       .string()
       .optional()
       .default(accountId)
-      .describe(`Account ID or Public Key for fee role. Default: ${accountDesc}`),
+      .describe(`Account ID or Public Key. Default: ${accountId}`),
     holdCreatorRoleAccount: z
       .string()
       .optional()
       .default(accountId)
-      .describe(`Account ID or Public Key for hold creator role. Default: ${accountDesc}`),
+      .describe(`Account ID or Public Key. Default: ${accountId}`),
     freezeKey: z
       .string()
       .optional()
@@ -221,7 +221,7 @@ export class CreateStablecoinTool extends BaseTool {
   constructor(context: Context, config: StablecoinStudioPluginConfig) {
     super();
     this.description = createStablecoinPrompt(context);
-    this.parameters = createStablecoinParameters(context, config.accountId);
+    this.parameters = createStablecoinParameters(context);
     this.config = config;
   }
 

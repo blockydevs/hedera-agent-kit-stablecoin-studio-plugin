@@ -41,7 +41,7 @@ ${usageInstructions}
 };
 
 const resetSupplierAllowanceParameters = (context: Context = {}) => {
-  const accountId = (context as any).accountId;
+  const accountId = context.accountId || "";
   return z.object({
     tokenId: z.string().describe('The Hedera token ID of the stablecoin (e.g., "0.0.123456")'),
     targetId: z
@@ -49,7 +49,7 @@ const resetSupplierAllowanceParameters = (context: Context = {}) => {
       .optional()
       .default(accountId)
       .describe(
-        `The Hedera account ID to reset the allowance for (e.g., "0.0.789012"). Default: ${accountId || 'operator account'}`,
+        `The Hedera account ID to reset the allowance for (e.g., "0.0.789012"). Default: ${accountId}`,
       ),
     startDate: z.string().optional().describe('ISO 8601 date for scheduling the operation'),
   });
