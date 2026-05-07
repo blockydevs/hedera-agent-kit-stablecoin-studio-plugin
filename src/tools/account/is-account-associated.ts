@@ -1,8 +1,15 @@
 import { z } from 'zod';
-import { Client, Status } from '@hashgraph/sdk';
-import { Context, Tool, PromptGenerator } from '@hashgraph/hedera-agent-kit';
+import { Client } from '@hiero-ledger/sdk';
+import { Context, BaseTool } from '@hashgraph/hedera-agent-kit';
+import { PromptGenerator } from '@/shared/utils/prompt-generator';
 import { StableCoin, IsAccountAssociatedTokenRequest } from '@hashgraph/stablecoin-npm-sdk';
-import { initSdk, resolveNetwork, StablecoinStudioPluginConfig } from '@/stablecoin-sdk-utils';
+import {
+  initSdk,
+  resolveNetwork,
+  StablecoinStudioPluginConfig,
+  extractStatus,
+} from '@/shared/utils/stablecoin-sdk-utils';
+import { stablecoinOutputParser } from '@/shared/utils/stablecoin-output-parser';
 
 export const IS_ACCOUNT_ASSOCIATED_TOOL = 'is_account_associated_tool';
 
@@ -12,61 +19,87 @@ const isAccountAssociatedPrompt = (context: Context = {}) => {
 
   return `
 ${contextSnippet}
+Checks whether a Hedera account is associated with a specific stablecoin token.
 
-This tool checks whether a Hedera account is associated with a specific stablecoin token.
+REQUIRED PARAMETERS — ask ONLY for these if missing:
+- tokenId: The Hedera token ID of the stablecoin (e.g., "0.0.123456")
 
-Parameters:
-- tokenId (str, required): The Hedera token ID of the stablecoin (e.g., "0.0.123456").
-- targetId (str, required): The Hedera account ID to check association for (e.g., "0.0.789012").
+ALL other parameters are optional. NEVER ask the user about them. Apply defaults silently:
+- targetId: Defaults to the user account in context.
+
+IMPORTANT: Do NOT use markdown formatting (like bolding or italics) for the status result.
+
 ${usageInstructions}
 `;
 };
 
-const isAccountAssociatedParameters = (_context: Context = {}) =>
-  z.object({
+const isAccountAssociatedParameters = (context: Context = {}) => {
+  const accountId = context.accountId || '';
+  return z.object({
     tokenId: z.string().describe('The Hedera token ID of the stablecoin (e.g., "0.0.123456")'),
     targetId: z
       .string()
-      .describe('The Hedera account ID to check association for (e.g., "0.0.789012")'),
+      .optional()
+      .default(accountId)
+      .describe(`The Hedera account ID to check (e.g., "0.0.789012"). Default: ${accountId}`),
   });
+};
 
-const isAccountAssociated = async (
-  client: Client,
-  _context: Context,
-  params: z.infer<ReturnType<typeof isAccountAssociatedParameters>>,
-  config: StablecoinStudioPluginConfig,
-) => {
-  try {
-    const network = resolveNetwork(client, config);
-    await initSdk(network, config);
+export class IsAccountAssociatedTool extends BaseTool {
+  method = IS_ACCOUNT_ASSOCIATED_TOOL;
+  name = 'Is Account Associated';
+  description: string;
+  parameters: ReturnType<typeof isAccountAssociatedParameters>;
+  outputParser = stablecoinOutputParser;
 
-    const request = new IsAccountAssociatedTokenRequest({
+  private config: StablecoinStudioPluginConfig;
+
+  constructor(context: Context, config: StablecoinStudioPluginConfig) {
+    super();
+    this.description = isAccountAssociatedPrompt(context);
+    this.parameters = isAccountAssociatedParameters(context);
+    this.config = config;
+  }
+
+  async normalizeParams(inputParams: any, _context: Context, client: Client) {
+    const params = this.parameters.parse(inputParams);
+
+    const network = resolveNetwork(client, this.config);
+    await initSdk(network, this.config);
+
+    return new IsAccountAssociatedTokenRequest({
       tokenId: params.tokenId,
       targetId: params.targetId,
     });
-    const associated = await StableCoin.isAccountAssociated(request);
+  }
 
+  async coreAction(request: IsAccountAssociatedTokenRequest, _context: Context, _client: Client) {
+    const associated: boolean = await StableCoin.isAccountAssociated(request);
     return {
-      raw: { tokenId: params.tokenId, targetId: params.targetId, associated },
-      humanMessage: `Account ${params.targetId} is ${associated ? '' : 'not '}associated with token ${params.tokenId}.`,
+      raw: { tokenId: request.tokenId, targetId: request.targetId, isAssociated: associated },
+      humanMessage: `Account ${request.targetId} is ${associated ? '' : 'not '}associated with token ${request.tokenId}.`,
     };
-  } catch (error) {
+  }
+
+  async shouldSecondaryAction() {
+    return false;
+  }
+
+  async secondaryAction(request: any, _client: Client, _context: Context) {
+    return request;
+  }
+
+  async handleError(error: unknown, _context: Context): Promise<any> {
     const desc = 'Failed to check stablecoin association';
     const message = desc + (error instanceof Error ? `: ${error.message}` : '');
     return {
-      raw: { status: Status.InvalidTransaction, error: message },
+      raw: { status: extractStatus(error), error: message },
       humanMessage: message,
     };
   }
-};
+}
 
-const tool = (context: Context, config: StablecoinStudioPluginConfig): Tool => ({
-  method: IS_ACCOUNT_ASSOCIATED_TOOL,
-  name: 'Is Account Associated',
-  description: isAccountAssociatedPrompt(context),
-  parameters: isAccountAssociatedParameters(context),
-  execute: (client: Client, ctx: Context, params: any) =>
-    isAccountAssociated(client, ctx, params, config),
-});
+const tool = (context: Context, config: StablecoinStudioPluginConfig): BaseTool =>
+  new IsAccountAssociatedTool(context, config);
 
 export default tool;

@@ -1,0 +1,176 @@
+import { describe, it, expect, beforeAll, afterAll } from 'vitest';
+import { Client, PrivateKey } from '@hiero-ledger/sdk';
+import { AgentMode, type Context } from '@hashgraph/hedera-agent-kit';
+import {
+  getOperatorClientForTests,
+  getCustomClient,
+  HederaOperationsWrapper,
+  UsdToHbarService,
+  BALANCE_TIERS,
+  wait,
+} from '../test-utils';
+import createHoldTool from '@/tools/supply/create-hold';
+
+describe('Create Hold Stablecoin Integration Tests', () => {
+  let operatorClient: Client;
+  let executorClient: Client;
+  let operatorWrapper: HederaOperationsWrapper;
+  let executorWrapper: HederaOperationsWrapper;
+  let context: Context;
+  let tokenId: string;
+  let config: any;
+
+  beforeAll(async () => {
+    await UsdToHbarService.initialize();
+    operatorClient = getOperatorClientForTests();
+    operatorWrapper = new HederaOperationsWrapper(
+      operatorClient,
+      PrivateKey.fromStringECDSA(process.env.PRIVATE_KEY || '')
+    );
+
+    // Create executor account
+    const executorKey = PrivateKey.generateECDSA();
+    const executorAccountId = await operatorWrapper
+      .createAccount({
+        key: executorKey.publicKey,
+        initialBalance: UsdToHbarService.usdToHbar(BALANCE_TIERS.ELEVATED),
+        accountMemo: 'executor account for Create Hold Integration Tests',
+      })
+      .then((resp) => resp.accountId!);
+
+    await operatorWrapper.waitForAccount(executorAccountId.toString());
+
+    executorClient = getCustomClient(executorAccountId, executorKey);
+    executorWrapper = new HederaOperationsWrapper(
+      executorClient,
+      PrivateKey.fromStringECDSA(executorKey.toString())
+    );
+
+    context = {
+      mode: AgentMode.AUTONOMOUS,
+      accountId: executorAccountId.toString(),
+    };
+
+    config = {
+      accountId: executorAccountId.toString(),
+      privateKey: executorKey.toStringDer(),
+    };
+
+    // 1. Create a stablecoin
+    tokenId = await executorWrapper.createStablecoin({
+      name: `Hold Test ${Date.now()}`,
+      symbol: 'CHT',
+      config,
+      context,
+    });
+
+    // 2. Associate the executor account
+    await executorWrapper.associateToken({
+      tokenId,
+      accountId: context.accountId!,
+    });
+
+    // wait for association to be indexed
+    await executorWrapper.waitForAssociation(context.accountId!, tokenId);
+
+    // Grant KYC to executor (token has a kycKey, so KYC is required before receiving tokens)
+    await executorWrapper.grantKyc({
+      targetId: context.accountId!,
+      tokenId,
+    });
+    
+    // wait for KYC to be indexed
+    await executorWrapper.waitForKyc(context.accountId!, tokenId);
+
+    // 3. Mint tokens to executor
+    await executorWrapper.cashIn({
+      tokenId,
+      targetId: executorAccountId.toString(),
+      amount: '100',
+    });
+
+    await wait();
+  });
+
+  afterAll(async () => {
+    if (executorClient && operatorClient) {
+      try {
+        await executorWrapper.deleteAccount({
+          accountId: executorClient.operatorAccountId!,
+          transferAccountId: operatorClient.operatorAccountId!,
+        });
+      } catch (error) {
+        console.warn('Failed to clean up executor account:', error);
+      }
+      executorClient.close();
+    }
+    if (operatorClient) {
+      operatorClient.close();
+    }
+  });
+
+  it('should create a hold on tokens', async () => {
+    const createHold = createHoldTool(context, config);
+
+    // 1. Check the initial balance
+    const initialBalance = await executorWrapper.getStablecoinBalance(
+      context.accountId!,
+      tokenId
+    );
+
+    // 2. Create a hold (1-hour expiration) using the tool
+    const expirationDate = (Math.floor(Date.now() / 1000) + 3600).toString();
+    const result: any = await createHold.execute(executorClient, context, {
+      tokenId,
+      amount: '10',
+      escrow: context.accountId!,
+      expirationDate,
+    });
+
+    expect(result.humanMessage).toContain('Hold created successfully');
+    expect(result.humanMessage).toContain('Hold ID:');
+    expect(result.raw.holdId).toBeDefined();
+
+    await wait();
+
+    // 3. Verify balance decreased
+    const balanceAfterHold = await executorWrapper.getStablecoinBalance(
+      context.accountId!,
+      tokenId
+    );
+    expect(Number(balanceAfterHold)).toBe(Number(initialBalance) - 10);
+  });
+
+  it('should create a hold using explicit accountId', async () => {
+    const createHold = createHoldTool(context, config);
+
+    // 1. Create a hold for the executor account explicitly
+    const accountId = context.accountId!;
+    
+    const initialBalance = await executorWrapper.getStablecoinBalance(
+      accountId,
+      tokenId
+    );
+
+    const expirationDate = (Math.floor(Date.now() / 1000) + 3600).toString();
+    const result: any = await createHold.execute(executorClient, context, {
+      tokenId,
+      amount: '5',
+      escrow: context.accountId!,
+      expirationDate,
+      accountId: accountId,
+    });
+
+    expect(result.humanMessage).toContain('Hold created successfully');
+    expect(result.humanMessage).toContain('Hold ID:');
+    expect(result.raw.holdId).toBeDefined();
+
+    await wait(10000);
+
+    const finalBalance = await executorWrapper.getStablecoinBalance(
+      accountId,
+      tokenId
+    );
+    expect(Number(finalBalance)).toBe(Number(initialBalance) - 5);
+  });
+});

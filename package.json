@@ -1,6 +1,7 @@
 {
   "name": "hak-stablecoin-studio-plugin",
   "version": "1.0.0",
+  "type": "commonjs",
   "description": "Hedera Agent Kit plugin for Stablecoin Studio management including lifecycle, supply, and account operations.",
   "main": "./dist/cjs/index.js",
   "types": "./dist/cjs/index.d.ts",
@@ -27,7 +28,6 @@
     "lint:fix": "eslint src/ --fix",
     "test": "vitest run",
     "test:unit": "vitest run test/unit",
-
     "test:coverage": "vitest run --coverage"
   },
   "engines": {
@@ -42,17 +42,20 @@
   "author": "Hashgraph",
   "license": "Apache-2.0",
   "dependencies": {
-    "@hashgraph/stablecoin-npm-sdk": "^4.1.0"
+    "@hashgraph/stablecoin-npm-sdk": "file:./hashgraph-stablecoin-npm-sdk-4.2.0.tgz",
+    "@hashgraph/stablecoin-npm-contracts": "file:./hashgraph-stablecoin-npm-contracts-4.2.0.tgz"
   },
   "peerDependencies": {
     "@hashgraph/hedera-agent-kit": ">=4.0.0",
-    "@hashgraph/sdk": ">=2.80.0",
+    "@hiero-ledger/sdk": "2.81.0",
     "zod": ">=3.20.0"
   },
   "devDependencies": {
     "@eslint/js": "9.31.0",
     "@hashgraph/hedera-agent-kit": "4.0.0",
-    "@hashgraph/sdk": "2.80.0",
+    "@hiero-ledger/sdk": "2.81.0",
+    "@langchain/core": "1.1.24",
+    "@langchain/openai": "1.2.7",
     "@typescript-eslint/eslint-plugin": "8.37.0",
     "@typescript-eslint/parser": "8.37.0",
     "@vitest/coverage-v8": "4.0.16",
@@ -60,12 +63,14 @@
     "eslint-config-prettier": "10.1.5",
     "eslint-plugin-prettier": "5.5.1",
     "globals": "16.3.0",
+    "langchain": "1.2.24",
     "prettier": "3.6.2",
     "tsup": "8.5.0",
     "typescript": "5.8.3",
     "typescript-eslint": "8.37.0",
     "vitest": "4.0.16",
-    "zod": "3.25.76"
+    "zod": "3.25.76",
+    "@hashgraph/hedera-agent-kit-langchain": "1.0.0"
   },
   "files": [
     "dist/**/*"

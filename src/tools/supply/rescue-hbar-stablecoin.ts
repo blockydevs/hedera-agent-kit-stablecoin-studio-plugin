@@ -1,14 +1,25 @@
 import { z } from 'zod';
-import { Client, Status } from '@hashgraph/sdk';
-import { AgentMode, Context, Tool, PromptGenerator } from '@hashgraph/hedera-agent-kit';
-import { StableCoin, RescueHBARRequest } from '@hashgraph/stablecoin-npm-sdk';
+import { Client, Transaction } from '@hiero-ledger/sdk';
 import {
-  initSdk,
-  connectSdk,
-  resolveNetwork,
+  AgentMode,
+  Context,
+  BaseTool,
+  RawTransactionResponse,
+  transactionToolOutputParser,
+} from '@hashgraph/hedera-agent-kit';
+import { handleTransaction } from '@/shared/utils/handle-transaction';
+import { PromptGenerator } from '@/shared/utils/prompt-generator';
+import {
+  RescueHBARRequest,
+  SerializedTransactionData,
+  StableCoin,
+} from '@hashgraph/stablecoin-npm-sdk';
+import {
+  ensureSdkConnected,
+  hexToUint8Array,
   StablecoinStudioPluginConfig,
-} from '@/stablecoin-sdk-utils';
-import { stablecoinOutputParser } from '@/stablecoin-output-parser';
+  extractStatus,
+} from '@/shared/utils/stablecoin-sdk-utils';
 
 export const RESCUE_HBAR_STABLECOIN_TOOL = 'rescue_hbar_stablecoin_tool';
 
@@ -18,70 +29,101 @@ const rescueHbarStablecoinPrompt = (context: Context = {}) => {
 
   return `
 ${contextSnippet}
+Rescues HBAR from the stablecoin contract to the treasury account. Requires the rescue role.
 
-This tool rescues (recovers) HBAR from the stablecoin's smart contract treasury. Requires the rescue role.
+REQUIRED PARAMETERS — ask ONLY for these if missing:
+- tokenId: The Hedera token ID of the stablecoin (e.g., "0.0.123456")
+- amount: The amount of HBAR to rescue (e.g., "10.5")
 
-Parameters:
-- tokenId (str, required): The Hedera token ID of the stablecoin (e.g., "0.0.123456").
-- amount (str, required): The amount of HBAR to rescue (e.g., "10").
-- startDate (str, optional): ISO 8601 date for scheduling the operation.
+ALL other parameters are optional. NEVER ask the user about them. Apply defaults silently:
+- amount is in HBAR.
+
+STATE MANAGEMENT:
+- When user requests changes, update ONLY the referenced fields. Preserve all other values exactly.
+- Never rebuild the plan from scratch — always update incrementally.
+
+PLAN FORMAT:
+Show all parameters as a flat list (- Field: value). End with a confirmation request.
 ${usageInstructions}
 `;
 };
 
-const rescueHbarStablecoinParameters = (_context: Context = {}) =>
-  z.object({
+const rescueHbarStablecoinParameters = (_context: Context = {}) => {
+  return z.object({
     tokenId: z.string().describe('The Hedera token ID of the stablecoin (e.g., "0.0.123456")'),
-    amount: z.string().describe('The amount of HBAR to rescue (e.g., "10")'),
-    startDate: z.string().optional().describe('ISO 8601 date for scheduling the operation'),
+    amount: z.string().describe('The amount of HBAR to rescue (e.g., "10.5")'),
   });
+};
 
-const rescueHbarStablecoin = async (
-  client: Client,
-  context: Context,
-  params: z.infer<ReturnType<typeof rescueHbarStablecoinParameters>>,
-  config: StablecoinStudioPluginConfig,
-) => {
-  try {
-    if (context.mode !== AgentMode.RETURN_BYTES && !config.privateKey) {
+const postProcess = (response: RawTransactionResponse) => {
+  return `Successfully rescued HBAR for stablecoin.
+Transaction ID: ${response.transactionId}`;
+};
+
+export class RescueHbarStablecoinTool extends BaseTool {
+  method = RESCUE_HBAR_STABLECOIN_TOOL;
+  name = 'Rescue HBAR Stablecoin';
+  description: string;
+  parameters: ReturnType<typeof rescueHbarStablecoinParameters>;
+  outputParser = transactionToolOutputParser;
+
+  private config: StablecoinStudioPluginConfig;
+
+  constructor(context: Context, config: StablecoinStudioPluginConfig) {
+    super();
+    this.description = rescueHbarStablecoinPrompt(context);
+    this.parameters = rescueHbarStablecoinParameters(context);
+    this.config = config;
+  }
+
+  async normalizeParams(inputParams: any, context: Context, client: Client) {
+    const params = this.parameters.parse(inputParams);
+
+    if (context.mode !== AgentMode.RETURN_BYTES && !this.config.privateKey) {
       throw new Error(
         'privateKey is required in plugin config for AUTONOMOUS mode. Provide it via createStablecoinStudioPlugin({ privateKey: "..." }).',
       );
     }
 
-    const network = resolveNetwork(client, config);
-    await initSdk(network, config);
-    await connectSdk(network, config, context);
+    await ensureSdkConnected(client, this.config, context);
 
-    const request = new RescueHBARRequest({
+    return new RescueHBARRequest({
       tokenId: params.tokenId,
       amount: params.amount,
-      startDate: params.startDate,
     });
-    const response = await StableCoin.rescueHBAR(request);
+  }
 
-    return {
-      raw: response,
-      humanMessage: `Successfully rescued ${params.amount} HBAR from stablecoin ${params.tokenId}.`,
-    };
-  } catch (error) {
+  async coreAction(request: RescueHBARRequest, _context: Context, _client: Client) {
+    const response: SerializedTransactionData = await StableCoin.buildRescueHBAR(request);
+    if (!response?.serializedTransaction) {
+      throw new Error(
+        'SDK failed to build the transaction: serializedTransaction is missing from the response.',
+      );
+    }
+
+    const bytes = hexToUint8Array(response.serializedTransaction);
+    return Transaction.fromBytes(bytes);
+  }
+
+  async shouldSecondaryAction() {
+    return true;
+  }
+
+  async secondaryAction(transaction: Transaction, client: Client, context: Context) {
+    return await handleTransaction(transaction, client, context, postProcess);
+  }
+
+  async handleError(error: unknown, _context: Context): Promise<any> {
     const desc = 'Failed to rescue HBAR from stablecoin';
     const message = desc + (error instanceof Error ? `: ${error.message}` : '');
     return {
-      raw: { status: Status.InvalidTransaction, error: message },
+      raw: { status: extractStatus(error), error: message },
       humanMessage: message,
     };
   }
-};
+}
 
-const tool = (context: Context, config: StablecoinStudioPluginConfig): Tool => ({
-  method: RESCUE_HBAR_STABLECOIN_TOOL,
-  name: 'Rescue HBAR Stablecoin',
-  description: rescueHbarStablecoinPrompt(context),
-  parameters: rescueHbarStablecoinParameters(context),
-  execute: (client: Client, ctx: Context, params: any) =>
-    rescueHbarStablecoin(client, ctx, params, config),
-  outputParser: stablecoinOutputParser,
-});
+const tool = (context: Context, config: StablecoinStudioPluginConfig): BaseTool =>
+  new RescueHbarStablecoinTool(context, config);
 
 export default tool;

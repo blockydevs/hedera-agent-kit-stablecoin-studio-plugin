@@ -1,14 +1,21 @@
 import { z } from 'zod';
-import { Client, Status } from '@hashgraph/sdk';
-import { AgentMode, Context, Tool, PromptGenerator } from '@hashgraph/hedera-agent-kit';
-import { StableCoin, BurnRequest } from '@hashgraph/stablecoin-npm-sdk';
+import { Client, Transaction } from '@hiero-ledger/sdk';
 import {
-  initSdk,
-  connectSdk,
-  resolveNetwork,
+  AgentMode,
+  Context,
+  BaseTool,
+  RawTransactionResponse,
+  transactionToolOutputParser,
+} from '@hashgraph/hedera-agent-kit';
+import { handleTransaction } from '@/shared/utils/handle-transaction';
+import { PromptGenerator } from '@/shared/utils/prompt-generator';
+import { StableCoin, BurnRequest, SerializedTransactionData } from '@hashgraph/stablecoin-npm-sdk';
+import {
+  ensureSdkConnected,
+  hexToUint8Array,
   StablecoinStudioPluginConfig,
-} from '@/stablecoin-sdk-utils';
-import { stablecoinOutputParser } from '@/stablecoin-output-parser';
+  extractStatus,
+} from '@/shared/utils/stablecoin-sdk-utils';
 
 export const BURN_STABLECOIN_TOOL = 'burn_stablecoin_tool';
 
@@ -18,13 +25,22 @@ const burnStablecoinPrompt = (context: Context = {}) => {
 
   return `
 ${contextSnippet}
+Burns (destroys) a specified amount of stablecoin tokens from the treasury account. Requires the burn role.
 
-This tool burns (destroys) a specified amount of stablecoin tokens from the treasury account. Requires the burn role.
+REQUIRED PARAMETERS — ask ONLY for these if missing:
+- tokenId: The Hedera token ID of the stablecoin (e.g., "0.0.123456")
+- amount: The amount of tokens to burn (e.g., "100.5")
 
-Parameters:
-- tokenId (str, required): The Hedera token ID of the stablecoin (e.g., "0.0.123456").
-- amount (str, required): The amount of tokens to burn (e.g., "1000").
-- startDate (str, optional): ISO 8601 date for scheduling the operation.
+ALL other parameters are optional. NEVER ask the user about them. Apply defaults silently:
+- startDate: null (execution is immediate)
+- amount is in display units (human-readable), the tool will handle parsing to base units.
+
+STATE MANAGEMENT:
+- When user requests changes, update ONLY the referenced fields. Preserve all other values exactly.
+- Never rebuild the plan from scratch — always update incrementally.
+
+PLAN FORMAT:
+Show all parameters as a flat list (- Field: value). End with a confirmation request.
 ${usageInstructions}
 `;
 };
@@ -32,56 +48,85 @@ ${usageInstructions}
 const burnStablecoinParameters = (_context: Context = {}) =>
   z.object({
     tokenId: z.string().describe('The Hedera token ID of the stablecoin (e.g., "0.0.123456")'),
-    amount: z.string().describe('The amount of tokens to burn (e.g., "1000")'),
+    amount: z
+      .string()
+      .describe('The amount of tokens to burn in display units (human-readable, e.g. "100.5")'),
     startDate: z.string().optional().describe('ISO 8601 date for scheduling the operation'),
   });
 
-const burnStablecoin = async (
-  client: Client,
-  context: Context,
-  params: z.infer<ReturnType<typeof burnStablecoinParameters>>,
-  config: StablecoinStudioPluginConfig,
-) => {
-  try {
-    if (context.mode !== AgentMode.RETURN_BYTES && !config.privateKey) {
+const postProcess = (response: RawTransactionResponse) => {
+  return `Successfully burned tokens for stablecoin.
+Transaction ID: ${response.transactionId}`;
+};
+
+export class BurnStablecoinTool extends BaseTool {
+  method = BURN_STABLECOIN_TOOL;
+  name = 'Burn Stablecoin';
+  description: string;
+  parameters: ReturnType<typeof burnStablecoinParameters>;
+  outputParser = transactionToolOutputParser;
+
+  private config: StablecoinStudioPluginConfig;
+
+  constructor(context: Context, config: StablecoinStudioPluginConfig) {
+    super();
+    this.description = burnStablecoinPrompt(context);
+    this.parameters = burnStablecoinParameters(context);
+    this.config = config;
+  }
+
+  async normalizeParams(inputParams: any, context: Context, client: Client) {
+    const params = this.parameters.parse(inputParams);
+
+    if (context.mode !== AgentMode.RETURN_BYTES && !this.config.privateKey) {
       throw new Error(
         'privateKey is required in plugin config for AUTONOMOUS mode. Provide it via createStablecoinStudioPlugin({ privateKey: "..." }).',
       );
     }
 
-    const network = resolveNetwork(client, config);
-    await initSdk(network, config);
-    await connectSdk(network, config, context);
+    await ensureSdkConnected(client, this.config, context);
 
-    const request = new BurnRequest({
+    return new BurnRequest({
       tokenId: params.tokenId,
       amount: params.amount,
       startDate: params.startDate,
     });
-    const response = await StableCoin.burn(request);
+  }
 
-    return {
-      raw: response,
-      humanMessage: `Successfully burned ${params.amount} tokens of ${params.tokenId}.`,
-    };
-  } catch (error) {
+  async coreAction(request: BurnRequest, _context: Context, _client: Client) {
+    const response: SerializedTransactionData = await StableCoin.buildBurn(request);
+    if (!response?.serializedTransaction) {
+      throw new Error(
+        'SDK failed to build the transaction: serializedTransaction is missing from the response.',
+      );
+    }
+
+    const bytes = hexToUint8Array(response.serializedTransaction);
+    return Transaction.fromBytes(bytes);
+  }
+
+  async shouldSecondaryAction() {
+    return true;
+  }
+
+  async secondaryAction(transaction: Transaction, client: Client, context: Context) {
+    return await handleTransaction(transaction, client, context, postProcess);
+  }
+
+  async handleError(error: unknown, _context: Context): Promise<any> {
     const desc = 'Failed to burn stablecoin';
     const message = desc + (error instanceof Error ? `: ${error.message}` : '');
     return {
-      raw: { status: Status.InvalidTransaction, error: message },
+      raw: {
+        status: extractStatus(error),
+        error: message,
+      },
       humanMessage: message,
     };
   }
-};
+}
 
-const tool = (context: Context, config: StablecoinStudioPluginConfig): Tool => ({
-  method: BURN_STABLECOIN_TOOL,
-  name: 'Burn Stablecoin',
-  description: burnStablecoinPrompt(context),
-  parameters: burnStablecoinParameters(context),
-  execute: (client: Client, ctx: Context, params: any) =>
-    burnStablecoin(client, ctx, params, config),
-  outputParser: stablecoinOutputParser,
-});
+const tool = (context: Context, config: StablecoinStudioPluginConfig): BaseTool =>
+  new BurnStablecoinTool(context, config);
 
 export default tool;

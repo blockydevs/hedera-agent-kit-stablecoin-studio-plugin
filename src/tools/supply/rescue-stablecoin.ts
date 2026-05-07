@@ -1,14 +1,25 @@
 import { z } from 'zod';
-import { Client, Status } from '@hashgraph/sdk';
-import { AgentMode, Context, Tool, PromptGenerator } from '@hashgraph/hedera-agent-kit';
-import { StableCoin, RescueRequest } from '@hashgraph/stablecoin-npm-sdk';
+import { Client, Transaction } from '@hiero-ledger/sdk';
 import {
-  initSdk,
-  connectSdk,
-  resolveNetwork,
+  AgentMode,
+  Context,
+  BaseTool,
+  RawTransactionResponse,
+  transactionToolOutputParser,
+} from '@hashgraph/hedera-agent-kit';
+import { handleTransaction } from '@/shared/utils/handle-transaction';
+import { PromptGenerator } from '@/shared/utils/prompt-generator';
+import {
+  StableCoin,
+  RescueRequest,
+  SerializedTransactionData,
+} from '@hashgraph/stablecoin-npm-sdk';
+import {
+  ensureSdkConnected,
+  hexToUint8Array,
   StablecoinStudioPluginConfig,
-} from '@/stablecoin-sdk-utils';
-import { stablecoinOutputParser } from '@/stablecoin-output-parser';
+  extractStatus,
+} from '@/shared/utils/stablecoin-sdk-utils';
 
 export const RESCUE_STABLECOIN_TOOL = 'rescue_stablecoin_tool';
 
@@ -18,70 +29,103 @@ const rescueStablecoinPrompt = (context: Context = {}) => {
 
   return `
 ${contextSnippet}
+Rescues stablecoin tokens from the contract to the treasury account. Requires the rescue role.
 
-This tool rescues (recovers) stablecoin tokens from the token's smart contract treasury. Requires the rescue role.
+REQUIRED PARAMETERS — ask ONLY for these if missing:
+- tokenId: The Hedera token ID of the stablecoin (e.g., "0.0.123456")
+- amount: The amount of tokens to rescue (e.g., "100.5")
 
-Parameters:
-- tokenId (str, required): The Hedera token ID of the stablecoin (e.g., "0.0.123456").
-- amount (str, required): The amount of tokens to rescue (e.g., "1000").
-- startDate (str, optional): ISO 8601 date for scheduling the operation.
+ALL other parameters are optional. NEVER ask the user about them. Apply defaults silently:
+- amount is in display units (human-readable), the tool will handle parsing to base units.
+
+STATE MANAGEMENT:
+- When user requests changes, update ONLY the referenced fields. Preserve all other values exactly.
+- Never rebuild the plan from scratch — always update incrementally.
+
+PLAN FORMAT:
+Show all parameters as a flat list (- Field: value). End with a confirmation request.
 ${usageInstructions}
 `;
 };
 
-const rescueStablecoinParameters = (_context: Context = {}) =>
-  z.object({
+const rescueStablecoinParameters = (_context: Context = {}) => {
+  return z.object({
     tokenId: z.string().describe('The Hedera token ID of the stablecoin (e.g., "0.0.123456")'),
-    amount: z.string().describe('The amount of tokens to rescue (e.g., "1000")'),
-    startDate: z.string().optional().describe('ISO 8601 date for scheduling the operation'),
+    amount: z
+      .string()
+      .describe('The amount of tokens to rescue in display units (human-readable, e.g. "100.5")'),
   });
+};
 
-const rescueStablecoin = async (
-  client: Client,
-  context: Context,
-  params: z.infer<ReturnType<typeof rescueStablecoinParameters>>,
-  config: StablecoinStudioPluginConfig,
-) => {
-  try {
-    if (context.mode !== AgentMode.RETURN_BYTES && !config.privateKey) {
+const postProcess = (response: RawTransactionResponse) => {
+  return `Successfully rescued tokens for stablecoin.
+Transaction ID: ${response.transactionId}`;
+};
+
+export class RescueStablecoinTool extends BaseTool {
+  method = RESCUE_STABLECOIN_TOOL;
+  name = 'Rescue Stablecoin';
+  description: string;
+  parameters: ReturnType<typeof rescueStablecoinParameters>;
+  outputParser = transactionToolOutputParser;
+
+  private config: StablecoinStudioPluginConfig;
+
+  constructor(context: Context, config: StablecoinStudioPluginConfig) {
+    super();
+    this.description = rescueStablecoinPrompt(context);
+    this.parameters = rescueStablecoinParameters(context);
+    this.config = config;
+  }
+
+  async normalizeParams(inputParams: any, context: Context, client: Client) {
+    const params = this.parameters.parse(inputParams);
+
+    if (context.mode !== AgentMode.RETURN_BYTES && !this.config.privateKey) {
       throw new Error(
         'privateKey is required in plugin config for AUTONOMOUS mode. Provide it via createStablecoinStudioPlugin({ privateKey: "..." }).',
       );
     }
 
-    const network = resolveNetwork(client, config);
-    await initSdk(network, config);
-    await connectSdk(network, config, context);
+    await ensureSdkConnected(client, this.config, context);
 
-    const request = new RescueRequest({
+    return new RescueRequest({
       tokenId: params.tokenId,
       amount: params.amount,
-      startDate: params.startDate,
     });
-    const response = await StableCoin.rescue(request);
+  }
 
-    return {
-      raw: response,
-      humanMessage: `Successfully rescued ${params.amount} tokens of ${params.tokenId}.`,
-    };
-  } catch (error) {
+  async coreAction(request: RescueRequest, _context: Context, _client: Client) {
+    const response: SerializedTransactionData = await StableCoin.buildRescue(request);
+    if (!response?.serializedTransaction) {
+      throw new Error(
+        'SDK failed to build the transaction: serializedTransaction is missing from the response.',
+      );
+    }
+
+    const bytes = hexToUint8Array(response.serializedTransaction);
+    return Transaction.fromBytes(bytes);
+  }
+
+  async shouldSecondaryAction() {
+    return true;
+  }
+
+  async secondaryAction(transaction: Transaction, client: Client, context: Context) {
+    return await handleTransaction(transaction, client, context, postProcess);
+  }
+
+  async handleError(error: unknown, _context: Context): Promise<any> {
     const desc = 'Failed to rescue stablecoin';
     const message = desc + (error instanceof Error ? `: ${error.message}` : '');
     return {
-      raw: { status: Status.InvalidTransaction, error: message },
+      raw: { status: extractStatus(error), error: message },
       humanMessage: message,
     };
   }
-};
+}
 
-const tool = (context: Context, config: StablecoinStudioPluginConfig): Tool => ({
-  method: RESCUE_STABLECOIN_TOOL,
-  name: 'Rescue Stablecoin',
-  description: rescueStablecoinPrompt(context),
-  parameters: rescueStablecoinParameters(context),
-  execute: (client: Client, ctx: Context, params: any) =>
-    rescueStablecoin(client, ctx, params, config),
-  outputParser: stablecoinOutputParser,
-});
+const tool = (context: Context, config: StablecoinStudioPluginConfig): BaseTool =>
+  new RescueStablecoinTool(context, config);
 
 export default tool;

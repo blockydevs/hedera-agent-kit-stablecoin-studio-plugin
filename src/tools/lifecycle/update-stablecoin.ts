@@ -1,14 +1,27 @@
 import { z } from 'zod';
-import { Client, Status } from '@hashgraph/sdk';
-import { AgentMode, Context, Tool, PromptGenerator } from '@hashgraph/hedera-agent-kit';
-import { StableCoin, UpdateRequest } from '@hashgraph/stablecoin-npm-sdk';
+import { Client, Transaction } from '@hiero-ledger/sdk';
 import {
-  initSdk,
-  connectSdk,
-  resolveNetwork,
+  AgentMode,
+  Context,
+  BaseTool,
+  RawTransactionResponse,
+  transactionToolOutputParser,
+} from '@hashgraph/hedera-agent-kit';
+import { handleTransaction } from '@/shared/utils/handle-transaction';
+import { PromptGenerator } from '@/shared/utils/prompt-generator';
+import {
+  Account,
+  SerializedTransactionData,
+  StableCoin,
+  UpdateRequest,
+} from '@hashgraph/stablecoin-npm-sdk';
+import {
+  ensureSdkConnected,
+  hexToUint8Array,
   StablecoinStudioPluginConfig,
-} from '@/stablecoin-sdk-utils';
-import { stablecoinOutputParser } from '@/stablecoin-output-parser';
+  parsePublicKey,
+  extractStatus,
+} from '@/shared/utils/stablecoin-sdk-utils';
 
 export const UPDATE_STABLECOIN_TOOL = 'update_stablecoin_tool';
 
@@ -18,14 +31,21 @@ const updateStablecoinPrompt = (context: Context = {}) => {
 
   return `
 ${contextSnippet}
+Updates the metadata (name, symbol, keys) of an existing stablecoin. Only the admin role can update a stablecoin.
 
-This tool updates the metadata of an existing stablecoin on the Hedera network. Only the admin key holder can update a stablecoin.
+REQUIRED PARAMETERS — ask ONLY for these if missing:
+- tokenId: The Hedera token ID of the stablecoin to update (e.g., "0.0.123456")
 
-Parameters:
-- tokenId (str, required): The Hedera token ID of the stablecoin to update (e.g., "0.0.123456").
-- name (str, optional): New name for the stablecoin.
-- symbol (str, optional): New symbol for the stablecoin.
-- memo (str, optional): New memo for the stablecoin (max 100 characters).
+ALL other parameters are optional. NEVER ask the user about them. Only include them in the plan if provided by the user.
+- kycKey, wipeKey, freezeKey, pauseKey, feeScheduleKey: Must be Hex public keys. 
+- Pass empty string "" to return control to the smart contract (clears the key).
+
+STATE MANAGEMENT:
+- When user requests changes, update ONLY the referenced fields. Preserve all other values exactly.
+- Never rebuild the plan from scratch — always update incrementally.
+
+PLAN FORMAT:
+Show all parameters as a flat list (- Field: value). End with a confirmation request.
 ${usageInstructions}
 `;
 };
@@ -35,56 +55,156 @@ const updateStablecoinParameters = (_context: Context = {}) =>
     tokenId: z.string().describe('The Hedera token ID of the stablecoin (e.g., "0.0.123456")'),
     name: z.string().optional().describe('New name for the stablecoin'),
     symbol: z.string().optional().describe('New symbol for the stablecoin'),
-    memo: z.string().max(100).optional().describe('New memo (max 100 characters)'),
+    metadata: z.string().optional().describe('New metadata (arbitrary data)'),
+    kycKey: z
+      .string()
+      .optional()
+      .describe(
+        'New KYC public key (Hex). Pass empty string "" to return control to the smart contract.',
+      ),
+    wipeKey: z
+      .string()
+      .optional()
+      .describe(
+        'New wipe public key (Hex). Pass empty string "" to return control to the smart contract.',
+      ),
+    freezeKey: z
+      .string()
+      .optional()
+      .describe(
+        'New freeze public key (Hex). Pass empty string "" to return control to the smart contract.',
+      ),
+    pauseKey: z
+      .string()
+      .optional()
+      .describe(
+        'New pause public key (Hex). Pass empty string "" to return control to the smart contract.',
+      ),
+    feeScheduleKey: z
+      .string()
+      .optional()
+      .describe(
+        'New fee schedule public key (Hex). Pass empty string "" to return control to the smart contract.',
+      ),
   });
 
-const updateStablecoin = async (
-  client: Client,
-  context: Context,
-  params: z.infer<ReturnType<typeof updateStablecoinParameters>>,
-  config: StablecoinStudioPluginConfig,
-) => {
-  try {
-    if (context.mode !== AgentMode.RETURN_BYTES && !config.privateKey) {
+const postProcess = (response: RawTransactionResponse) => {
+  return `Successfully updated stablecoin.
+Transaction ID: ${response.transactionId}`;
+};
+
+export class UpdateStablecoinTool extends BaseTool {
+  method = UPDATE_STABLECOIN_TOOL;
+  name = 'Update Stablecoin';
+  description: string;
+  parameters: ReturnType<typeof updateStablecoinParameters>;
+  outputParser = transactionToolOutputParser;
+
+  private config: StablecoinStudioPluginConfig;
+
+  constructor(context: Context, config: StablecoinStudioPluginConfig) {
+    super();
+    this.description = updateStablecoinPrompt(context);
+    this.parameters = updateStablecoinParameters(context);
+    this.config = config;
+  }
+
+  async normalizeParams(inputParams: any, context: Context, client: Client) {
+    const params = this.parameters.parse(inputParams);
+
+    if (context.mode !== AgentMode.RETURN_BYTES && !this.config.privateKey) {
       throw new Error(
         'privateKey is required in plugin config for AUTONOMOUS mode. Provide it via createStablecoinStudioPlugin({ privateKey: "..." }).',
       );
     }
 
-    const network = resolveNetwork(client, config);
-    await initSdk(network, config);
-    await connectSdk(network, config, context);
+    await ensureSdkConnected(client, this.config, context);
 
     const requestConfig: any = { tokenId: params.tokenId };
     if (params.name !== undefined) requestConfig.name = params.name;
     if (params.symbol !== undefined) requestConfig.symbol = params.symbol;
-    if (params.memo !== undefined) requestConfig.memo = params.memo;
+    if (params.metadata !== undefined) requestConfig.metadata = params.metadata;
 
-    const request = new UpdateRequest(requestConfig);
-    const response = await StableCoin.update(request);
-
-    return {
-      raw: response,
-      humanMessage: `Stablecoin ${params.tokenId} updated successfully.`,
+    const processKey = (newKey: string | undefined) => {
+      if (newKey === undefined) return undefined;
+      if (newKey === '') return Account.NullPublicKey;
+      try {
+        return parsePublicKey(newKey);
+      } catch (_e) {
+        throw new Error(`Invalid public key provided: ${newKey}. Expected hex string.`);
+      }
     };
-  } catch (error) {
+
+    if (params.kycKey !== undefined) requestConfig.kycKey = processKey(params.kycKey);
+    if (params.wipeKey !== undefined) requestConfig.wipeKey = processKey(params.wipeKey);
+    if (params.freezeKey !== undefined) requestConfig.freezeKey = processKey(params.freezeKey);
+    if (params.pauseKey !== undefined) requestConfig.pauseKey = processKey(params.pauseKey);
+    if (params.feeScheduleKey !== undefined)
+      requestConfig.feeScheduleKey = processKey(params.feeScheduleKey);
+
+    console.debug('UPDATE_STABLECOIN_DEBUG: Building UpdateRequest for', params.tokenId);
+    const request = new UpdateRequest(requestConfig);
+
+    // Temporary workaround: The Hedera Stablecoin SDK has an issue where
+    // UpdateRequest instances might lose their `validate` prototype methods.
+    // This patch injects a dummy validate method to prevent the SDK from crashing downstream.
+    if (typeof (request as any).validate !== 'function') {
+      console.warn(
+        'UPDATE_STABLECOIN_DEBUG: UpdateRequest instance missing validate method, patching it.',
+      );
+      (request as any).validate = function () {
+        return [];
+      };
+    }
+
+    // Also patch prototype if possible, just in case SDK re-instantiates or uses prototype explicitly
+    if (
+      UpdateRequest &&
+      UpdateRequest.prototype &&
+      typeof UpdateRequest.prototype.validate !== 'function'
+    ) {
+      UpdateRequest.prototype.validate = function () {
+        return [];
+      };
+    }
+
+    return request;
+  }
+
+  async coreAction(request: UpdateRequest, _context: Context, _client: Client) {
+    const response: SerializedTransactionData = await StableCoin.buildUpdate(request);
+    if (!response?.serializedTransaction) {
+      throw new Error(
+        'SDK failed to build the transaction: serializedTransaction is missing from the response.',
+      );
+    }
+
+    const bytes = hexToUint8Array(response.serializedTransaction);
+    return Transaction.fromBytes(bytes);
+  }
+
+  async shouldSecondaryAction() {
+    return true;
+  }
+
+  async secondaryAction(transaction: Transaction, client: Client, context: Context) {
+    return await handleTransaction(transaction, client, context, postProcess);
+  }
+
+  async handleError(error: unknown, _context: Context): Promise<any> {
     const desc = 'Failed to update stablecoin';
     const message = desc + (error instanceof Error ? `: ${error.message}` : '');
     return {
-      raw: { status: Status.InvalidTransaction, error: message },
+      raw: {
+        status: extractStatus(error),
+        error: message,
+      },
       humanMessage: message,
     };
   }
-};
+}
 
-const tool = (context: Context, config: StablecoinStudioPluginConfig): Tool => ({
-  method: UPDATE_STABLECOIN_TOOL,
-  name: 'Update Stablecoin',
-  description: updateStablecoinPrompt(context),
-  parameters: updateStablecoinParameters(context),
-  execute: (client: Client, ctx: Context, params: any) =>
-    updateStablecoin(client, ctx, params, config),
-  outputParser: stablecoinOutputParser,
-});
+const tool = (context: Context, config: StablecoinStudioPluginConfig): BaseTool =>
+  new UpdateStablecoinTool(context, config);
 
 export default tool;
