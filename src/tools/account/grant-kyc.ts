@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { Client, Status, Transaction } from '@hiero-ledger/sdk';
+import { Client, Transaction } from '@hiero-ledger/sdk';
 import {
   AgentMode,
   Context,
@@ -14,6 +14,7 @@ import {
   ensureSdkConnected,
   hexToUint8Array,
   StablecoinStudioPluginConfig,
+  extractStatus,
 } from '@/shared/utils/stablecoin-sdk-utils';
 
 export const GRANT_KYC_TOOL = 'grant_kyc_tool';
@@ -25,8 +26,6 @@ const grantKycPrompt = (context: Context = {}) => {
   return `
 ${contextSnippet}
 Grants KYC (Know Your Customer) status to a specific account for a stablecoin. This allows the account to hold and transfer the token. Requires the kyc role.
-
-MANDATORY: Show a complete execution plan and wait for explicit user approval ("yes", "confirm", "proceed") BEFORE calling this tool. NEVER call this tool without approval, UNLESS the user has already provided explicit confirmation in the current request (e.g., "proceed immediately").
 
 REQUIRED PARAMETERS — ask ONLY for these if missing:
 - tokenId: The Hedera token ID of the stablecoin (e.g., "0.0.123456")
@@ -45,7 +44,7 @@ ${usageInstructions}
 };
 
 const grantKycParameters = (context: Context = {}) => {
-  const accountId = context.accountId || "";
+  const accountId = context.accountId || '';
   return z.object({
     tokenId: z.string().describe('The Hedera token ID of the stablecoin (e.g., "0.0.123456")'),
     targetId: z
@@ -98,6 +97,12 @@ export class GrantKycTool extends BaseTool {
 
   async coreAction(request: KYCRequest, _context: Context, _client: Client) {
     const response: SerializedTransactionData = await StableCoin.buildGrantKyc(request);
+    if (!response?.serializedTransaction) {
+      throw new Error(
+        'SDK failed to build the transaction: serializedTransaction is missing from the response.',
+      );
+    }
+
     const bytes = hexToUint8Array(response.serializedTransaction);
     return Transaction.fromBytes(bytes);
   }
@@ -114,7 +119,7 @@ export class GrantKycTool extends BaseTool {
     const desc = 'Failed to grant KYC';
     const message = desc + (error instanceof Error ? `: ${error.message}` : '');
     return {
-      raw: { status: Status.InvalidTransaction, error: message },
+      raw: { status: extractStatus(error), error: message },
       humanMessage: message,
     };
   }

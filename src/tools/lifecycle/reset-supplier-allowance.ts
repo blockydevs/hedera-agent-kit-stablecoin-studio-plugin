@@ -31,8 +31,6 @@ const resetSupplierAllowancePrompt = (context: Context = {}) => {
 ${contextSnippet}
 Resets the minting allowance for a specific account (supplier) to zero for a stablecoin. Requires appropriate admin permissions.
 
-MANDATORY: Show a complete execution plan and wait for explicit user approval ("yes", "confirm", "proceed") BEFORE calling this tool. NEVER call this tool without approval, UNLESS the user has already provided explicit confirmation in the current request (e.g., "proceed immediately").
-
 REQUIRED PARAMETERS — ask ONLY for these if missing:
 - tokenId: The Hedera token ID of the stablecoin (e.g., "0.0.123456")
 
@@ -51,7 +49,7 @@ ${usageInstructions}
 };
 
 const resetSupplierAllowanceParameters = (context: Context = {}) => {
-  const accountId = context.accountId || "";
+  const accountId = context.accountId || '';
   return z.object({
     tokenId: z.string().describe('The Hedera token ID of the stablecoin (e.g., "0.0.123456")'),
     targetId: z
@@ -106,6 +104,12 @@ export class ResetSupplierAllowanceTool extends BaseTool {
 
   async coreAction(request: ResetSupplierAllowanceRequest, _context: Context, _client: Client) {
     const response: SerializedTransactionData = await Role.buildResetAllowance(request);
+    if (!response?.serializedTransaction) {
+      throw new Error(
+        'SDK failed to build the transaction: serializedTransaction is missing from the response.',
+      );
+    }
+
     const bytes = hexToUint8Array(response.serializedTransaction);
     return Transaction.fromBytes(bytes);
   }

@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { Client, Status, Transaction } from '@hiero-ledger/sdk';
+import { Client, Transaction } from '@hiero-ledger/sdk';
 import {
   AgentMode,
   Context,
@@ -18,6 +18,7 @@ import {
   ensureSdkConnected,
   hexToUint8Array,
   StablecoinStudioPluginConfig,
+  extractStatus,
 } from '@/shared/utils/stablecoin-sdk-utils';
 
 export const UNFREEZE_ACCOUNT_TOOL = 'unfreeze_account_tool';
@@ -29,8 +30,6 @@ const unfreezeAccountPrompt = (context: Context = {}) => {
   return `
 ${contextSnippet}
 Unfreezes a previously frozen account for a stablecoin, re-enabling its ability to transfer or receive the token. Requires the freeze role.
-
-MANDATORY: Show a complete execution plan and wait for explicit user approval ("yes", "confirm", "proceed") BEFORE calling this tool. NEVER call this tool without approval, UNLESS the user has already provided explicit confirmation in the current request (e.g., "proceed immediately").
 
 REQUIRED PARAMETERS — ask ONLY for these if missing:
 - tokenId: The Hedera token ID of the stablecoin (e.g., "0.0.123456")
@@ -49,16 +48,14 @@ ${usageInstructions}
 };
 
 const unfreezeAccountParameters = (context: Context = {}) => {
-  const accountId = context.accountId || "";
+  const accountId = context.accountId || '';
   return z.object({
     tokenId: z.string().describe('The Hedera token ID of the stablecoin (e.g., "0.0.123456")'),
     targetId: z
       .string()
       .optional()
       .default(accountId)
-      .describe(
-        `The Hedera account ID to unfreeze (e.g., "0.0.789012"). Default: ${accountId}`,
-      ),
+      .describe(`The Hedera account ID to unfreeze (e.g., "0.0.789012"). Default: ${accountId}`),
   });
 };
 
@@ -102,6 +99,12 @@ export class UnfreezeAccountTool extends BaseTool {
 
   async coreAction(request: FreezeAccountRequest, _context: Context, _client: Client) {
     const response: SerializedTransactionData = await StableCoin.buildUnFreeze(request);
+    if (!response?.serializedTransaction) {
+      throw new Error(
+        'SDK failed to build the transaction: serializedTransaction is missing from the response.',
+      );
+    }
+
     const bytes = hexToUint8Array(response.serializedTransaction);
     return Transaction.fromBytes(bytes);
   }
@@ -118,7 +121,7 @@ export class UnfreezeAccountTool extends BaseTool {
     const desc = 'Failed to unfreeze account';
     const message = desc + (error instanceof Error ? `: ${error.message}` : '');
     return {
-      raw: { status: Status.InvalidTransaction, error: message },
+      raw: { status: extractStatus(error), error: message },
       humanMessage: message,
     };
   }

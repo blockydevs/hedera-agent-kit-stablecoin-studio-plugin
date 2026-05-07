@@ -32,8 +32,6 @@ const grantSupplierRolePrompt = (context: Context = {}) => {
 ${contextSnippet}
 Grants the CASHIN_ROLE (minting permission) to an account for a stablecoin, along with an optional initial minting allowance.
 
-MANDATORY: Show a complete execution plan and wait for explicit user approval ("yes", "confirm", "proceed") BEFORE calling this tool. NEVER call this tool without approval, UNLESS the user has already provided explicit confirmation in the current request (e.g., "proceed immediately"). UNLESS the user has already provided explicit confirmation in the current request (e.g., "proceed immediately").
-
 REQUIRED PARAMETERS — ask ONLY for these if missing:
 - tokenId: The Hedera token ID of the stablecoin (e.g., "0.0.123456")
 
@@ -53,7 +51,7 @@ ${usageInstructions}
 };
 
 const grantSupplierRoleParameters = (context: Context = {}) => {
-  const accountId = context.accountId || "";
+  const accountId = context.accountId || '';
   return z.object({
     tokenId: z.string().describe('The Hedera token ID of the stablecoin (e.g., "0.0.123456")'),
     targetId: z
@@ -66,9 +64,7 @@ const grantSupplierRoleParameters = (context: Context = {}) => {
     amount: z
       .string()
       .optional()
-      .describe(
-        'The initial minting allowance in display units (e.g., "100.5").',
-      ),
+      .describe('The initial minting allowance in display units (e.g., "100.5").'),
   });
 };
 
@@ -117,6 +113,12 @@ export class GrantSupplierRoleTool extends BaseTool {
 
   async coreAction(request: GrantRoleRequest, _context: Context, _client: Client) {
     const response: SerializedTransactionData = await Role.buildGrantRole(request);
+    if (!response?.serializedTransaction) {
+      throw new Error(
+        'SDK failed to build the transaction: serializedTransaction is missing from the response.',
+      );
+    }
+
     const bytes = hexToUint8Array(response.serializedTransaction);
     return Transaction.fromBytes(bytes);
   }

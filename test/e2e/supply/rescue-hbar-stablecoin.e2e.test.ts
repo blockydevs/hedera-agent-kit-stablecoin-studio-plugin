@@ -107,7 +107,7 @@ describe('Rescue HBAR Stablecoin E2E Tests', () => {
       result = await testSetup.agent.invoke({
         messages: [
           ...result.messages,
-          { role: 'user', content: 'yes, please rescue the HBAR' }
+          { role: 'user', content: 'yes, I am sure' }
         ],
       });
     }

@@ -106,6 +106,18 @@ describe('Grant KYC E2E Tests', () => {
     let result = await testSetup.agent.invoke({
       messages: [{ role: 'user', content: grantInput }],
     });
+    const messages = result.messages;
+    const toolCalled = messages.some((m: any) => m._getType() === 'tool');
+
+    if (!toolCalled) {
+      result = await testSetup.agent.invoke({
+        messages: [
+          ...result.messages,
+          { role: 'user', content: 'yes, I am sure' }
+        ],
+      });
+    }
+
 
     if (!result.messages.some((m: any) => m._getType() === 'tool')) {
       result = await testSetup.agent.invoke({

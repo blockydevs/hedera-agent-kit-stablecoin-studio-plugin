@@ -97,6 +97,18 @@ describe('Is Account Associated E2E Tests', () => {
     let result = await testSetup.agent.invoke({
       messages: [{ role: 'user', content: checkInput }],
     });
+    const messages = result.messages;
+    const toolCalled = messages.some((m: any) => m._getType() === 'tool');
+
+    if (!toolCalled) {
+      result = await testSetup.agent.invoke({
+        messages: [
+          ...result.messages,
+          { role: 'user', content: 'yes, I am sure' }
+        ],
+      });
+    }
+
     expect(result.messages[result.messages.length - 1].content.toLowerCase()).toContain('not associated');
 
     // 2. Associate (manually to avoid complex agent multi-turn for target association if needed, 

@@ -93,9 +93,21 @@ describe('Get Stablecoin Balance E2E Tests', () => {
   it('should get the stablecoin balance of an account via agent', async () => {
     const input = `What is the balance of account ${executorClient.operatorAccountId!.toString()} for stablecoin ${tokenId}?`;
 
-    const result = await testSetup.agent.invoke({
+    let result = await testSetup.agent.invoke({
       messages: [{ role: 'user', content: input }],
     });
+    const messages = result.messages;
+    const toolCalled = messages.some((m: any) => m._getType() === 'tool');
+
+    if (!toolCalled) {
+      result = await testSetup.agent.invoke({
+        messages: [
+          ...result.messages,
+          { role: 'user', content: 'yes, I am sure' }
+        ],
+      });
+    }
+
 
     const lastMessage = result.messages[result.messages.length - 1].content;
     expect(lastMessage).toContain('750');

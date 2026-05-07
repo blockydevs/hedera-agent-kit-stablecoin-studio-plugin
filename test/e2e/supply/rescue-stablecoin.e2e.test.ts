@@ -133,7 +133,7 @@ describe('Rescue Stablecoin E2E Tests', () => {
             result = await testSetup.agent.invoke({
                 messages: [
                     ...result.messages,
-                    { role: 'user', content: 'yes, please rescue them' }
+                    { role: 'user', content: 'yes, I am sure' }
                 ],
             });
         }

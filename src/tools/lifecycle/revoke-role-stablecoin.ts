@@ -46,8 +46,6 @@ const revokeRolePrompt = (context: Context = {}) => {
 ${contextSnippet}
 Revokes a specific role (permission) from an account for a stablecoin. Requires the admin role.
 
-MANDATORY: Show a complete execution plan and wait for explicit user approval ("yes", "confirm", "proceed") BEFORE calling this tool. NEVER call this tool without approval, UNLESS the user has already provided explicit confirmation in the current request (e.g., "proceed immediately").
-
 Roles:
 - CASHIN_ROLE: Allows minting new tokens.
 - BURN_ROLE: Allows destroying tokens from treasury.
@@ -79,7 +77,7 @@ ${usageInstructions}
 };
 
 const revokeRoleParameters = (context: Context = {}) => {
-  const accountId = context.accountId || "";
+  const accountId = context.accountId || '';
   return z.object({
     tokenId: z.string().describe('The Hedera token ID of the stablecoin (e.g., "0.0.123456")'),
     targetId: z
@@ -134,6 +132,12 @@ export class RevokeRoleStablecoinTool extends BaseTool {
 
   async coreAction(request: RevokeRoleRequest, _context: Context, _client: Client): Promise<any> {
     const response: SerializedTransactionData = await Role.buildRevokeRole(request);
+    if (!response?.serializedTransaction) {
+      throw new Error(
+        'SDK failed to build the transaction: serializedTransaction is missing from the response.',
+      );
+    }
+
     const bytes = hexToUint8Array(response.serializedTransaction);
     return Transaction.fromBytes(bytes);
   }

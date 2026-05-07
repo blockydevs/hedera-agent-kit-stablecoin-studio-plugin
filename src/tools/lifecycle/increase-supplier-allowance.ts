@@ -31,8 +31,6 @@ const increaseSupplierAllowancePrompt = (context: Context = {}) => {
 ${contextSnippet}
 Increases the minting allowance for a specific account (supplier) for a stablecoin. Requires appropriate admin permissions.
 
-MANDATORY: Show a complete execution plan and wait for explicit user approval ("yes", "confirm", "proceed") BEFORE calling this tool. NEVER call this tool without approval, UNLESS the user has already provided explicit confirmation in the current request (e.g., "proceed immediately").
-
 REQUIRED PARAMETERS — ask ONLY for these if missing:
 - tokenId: The Hedera token ID of the stablecoin (e.g., "0.0.123456")
 - amount: The amount to add to the supplier's current minting allowance (e.g., "100.5")
@@ -53,7 +51,7 @@ ${usageInstructions}
 };
 
 const increaseSupplierAllowanceParameters = (context: Context = {}) => {
-  const accountId = context.accountId || "";
+  const accountId = context.accountId || '';
   return z.object({
     tokenId: z.string().describe('The Hedera token ID of the stablecoin (e.g., "0.0.123456")'),
     targetId: z
@@ -112,6 +110,12 @@ export class IncreaseSupplierAllowanceTool extends BaseTool {
 
   async coreAction(request: IncreaseSupplierAllowanceRequest, _context: Context, _client: Client) {
     const response: SerializedTransactionData = await Role.buildIncreaseAllowance(request);
+    if (!response?.serializedTransaction) {
+      throw new Error(
+        'SDK failed to build the transaction: serializedTransaction is missing from the response.',
+      );
+    }
+
     const bytes = hexToUint8Array(response.serializedTransaction);
     return Transaction.fromBytes(bytes);
   }

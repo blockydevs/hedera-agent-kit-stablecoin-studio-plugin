@@ -31,8 +31,6 @@ const cashInStablecoinPrompt = (context: Context = {}) => {
 ${contextSnippet}
 Mints (cash-in) new stablecoin tokens to a target account on the Hedera network. Requires the cash-in role.
 
-MANDATORY: Show a complete execution plan and wait for explicit user approval ("yes", "confirm", "proceed") BEFORE calling this tool. NEVER call this tool without approval, UNLESS the user has already provided explicit confirmation in the current request (e.g., "proceed immediately").
-
 REQUIRED PARAMETERS — ask ONLY for these if missing:
 - tokenId: The Hedera token ID of the stablecoin (e.g., "0.0.123456")
 - amount: The amount of tokens to mint (e.g., "100.5")
@@ -53,7 +51,7 @@ ${usageInstructions}
 };
 
 const cashInStablecoinParameters = (context: Context = {}) => {
-  const accountId = context.accountId || "";
+  const accountId = context.accountId || '';
   return z.object({
     tokenId: z.string().describe('The Hedera token ID of the stablecoin (e.g., "0.0.123456")'),
     targetId: z
@@ -112,6 +110,12 @@ export class CashInStablecoinTool extends BaseTool {
 
   async coreAction(request: CashInRequest, _context: Context, _client: Client) {
     const response: SerializedTransactionData = await StableCoin.buildCashIn(request);
+    if (!response?.serializedTransaction) {
+      throw new Error(
+        'SDK failed to build the transaction: serializedTransaction is missing from the response.',
+      );
+    }
+
     const bytes = hexToUint8Array(response.serializedTransaction);
     return Transaction.fromBytes(bytes);
   }

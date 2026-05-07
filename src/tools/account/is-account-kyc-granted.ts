@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { Client, Status } from '@hiero-ledger/sdk';
+import { Client } from '@hiero-ledger/sdk';
 import { Context, BaseTool } from '@hashgraph/hedera-agent-kit';
 import { PromptGenerator } from '@/shared/utils/prompt-generator';
 import { StableCoin, KYCRequest } from '@hashgraph/stablecoin-npm-sdk';
@@ -8,9 +8,9 @@ import {
   connectSdk,
   resolveNetwork,
   StablecoinStudioPluginConfig,
+  extractStatus,
 } from '@/shared/utils/stablecoin-sdk-utils';
 import { stablecoinOutputParser } from '@/shared/utils/stablecoin-output-parser';
-
 
 export const IS_ACCOUNT_KYC_GRANTED_TOOL = 'is_account_kyc_granted_tool';
 
@@ -34,16 +34,14 @@ ${usageInstructions}
 };
 
 const isAccountKycGrantedParameters = (context: Context = {}) => {
-  const accountId = context.accountId || "";
+  const accountId = context.accountId || '';
   return z.object({
     tokenId: z.string().describe('The Hedera token ID of the stablecoin (e.g., "0.0.123456")'),
     targetId: z
       .string()
       .optional()
       .default(accountId)
-      .describe(
-        `The Hedera account ID to check (e.g., "0.0.789012"). Default: ${accountId}`,
-      ),
+      .describe(`The Hedera account ID to check (e.g., "0.0.789012"). Default: ${accountId}`),
   });
 };
 
@@ -53,7 +51,6 @@ export class IsAccountKycGrantedTool extends BaseTool {
   description: string;
   parameters: ReturnType<typeof isAccountKycGrantedParameters>;
   outputParser = stablecoinOutputParser;
-
 
   private config: StablecoinStudioPluginConfig;
 
@@ -97,7 +94,7 @@ export class IsAccountKycGrantedTool extends BaseTool {
     const desc = 'Failed to check KYC status';
     const message = desc + (error instanceof Error ? `: ${error.message}` : '');
     return {
-      raw: { status: Status.InvalidTransaction, error: message },
+      raw: { status: extractStatus(error), error: message },
       humanMessage: message,
     };
   }

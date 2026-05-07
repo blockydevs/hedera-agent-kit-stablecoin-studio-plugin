@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { Client, Status, Transaction } from '@hiero-ledger/sdk';
+import { Client, Transaction } from '@hiero-ledger/sdk';
 import {
   AgentMode,
   BaseTool,
@@ -18,6 +18,7 @@ import {
   ensureSdkConnected,
   hexToUint8Array,
   StablecoinStudioPluginConfig,
+  extractStatus,
 } from '@/shared/utils/stablecoin-sdk-utils';
 
 export const UPDATE_RESERVE_ADDRESS_STABLECOIN_TOOL = 'update_reserve_address_stablecoin_tool';
@@ -29,8 +30,6 @@ const updateReserveAddressPrompt = (context: Context = {}) => {
   return `
 ${contextSnippet}
 Updates the reserve address for a stablecoin. The reserve address is used for Proof of Reserve (PoR) verification. Requires appropriate permissions.
-
-MANDATORY: Show a complete execution plan and wait for explicit user approval ("yes", "confirm", "proceed") BEFORE calling this tool. NEVER call this tool without approval, UNLESS the user has already provided explicit confirmation in the current request (e.g., "proceed immediately").
 
 REQUIRED PARAMETERS — ask ONLY for these if missing:
 - tokenId: The Hedera token ID of the stablecoin (e.g., "0.0.123456")
@@ -49,7 +48,7 @@ ${usageInstructions}
 };
 
 const updateReserveAddressParameters = (context: Context = {}) => {
-  const accountId = context.accountId || "";
+  const accountId = context.accountId || '';
   return z.object({
     tokenId: z.string().describe('The Hedera token ID of the stablecoin (e.g., "0.0.123456")'),
     reserveAddress: z
@@ -100,6 +99,12 @@ export class UpdateReserveAddressStablecoinTool extends BaseTool {
 
   async coreAction(request: UpdateReserveAddressRequest, _context: Context, _client: Client) {
     const response: SerializedTransactionData = await StableCoin.buildUpdateReserveAddress(request);
+    if (!response?.serializedTransaction) {
+      throw new Error(
+        'SDK failed to build the transaction: serializedTransaction is missing from the response.',
+      );
+    }
+
     const bytes = hexToUint8Array(response.serializedTransaction);
     return Transaction.fromBytes(bytes);
   }
@@ -116,7 +121,7 @@ export class UpdateReserveAddressStablecoinTool extends BaseTool {
     const desc = 'Failed to update reserve address';
     const message = desc + (error instanceof Error ? `: ${error.message}` : '');
     return {
-      raw: { status: Status.InvalidTransaction, error: message },
+      raw: { status: extractStatus(error), error: message },
       humanMessage: message,
     };
   }

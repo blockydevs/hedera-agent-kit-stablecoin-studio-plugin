@@ -73,9 +73,21 @@ describe('Get Stablecoin Capabilities E2E Tests', () => {
   it('should get the capabilities of an account via agent', async () => {
     const input = `What are the capabilities/permissions of my account for stablecoin ${tokenId}?`;
 
-    const result = await testSetup.agent.invoke({
+    let result = await testSetup.agent.invoke({
       messages: [{ role: 'user', content: input }],
     });
+    const messages = result.messages;
+    const toolCalled = messages.some((m: any) => m._getType() === 'tool');
+
+    if (!toolCalled) {
+      result = await testSetup.agent.invoke({
+        messages: [
+          ...result.messages,
+          { role: 'user', content: 'yes, I am sure' }
+        ],
+      });
+    }
+
 
     const lastMessage = result.messages[result.messages.length - 1].content.toUpperCase();
     

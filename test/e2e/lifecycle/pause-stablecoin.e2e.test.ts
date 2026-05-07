@@ -81,7 +81,7 @@ describe('Pause Stablecoin E2E Tests', () => {
       result = await testSetup.agent.invoke({
         messages: [
           ...result.messages,
-          { role: 'user', content: 'yes' }
+          { role: 'user', content: 'yes, I am sure' }
         ],
       });
     }

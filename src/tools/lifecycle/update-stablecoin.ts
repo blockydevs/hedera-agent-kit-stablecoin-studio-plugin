@@ -33,8 +33,6 @@ const updateStablecoinPrompt = (context: Context = {}) => {
 ${contextSnippet}
 Updates the metadata (name, symbol, keys) of an existing stablecoin. Only the admin role can update a stablecoin.
 
-MANDATORY: Show a complete execution plan and wait for explicit user approval ("yes", "confirm", "proceed") BEFORE calling this tool. NEVER call this tool without approval, UNLESS the user has already provided explicit confirmation in the current request (e.g., "proceed immediately").
-
 REQUIRED PARAMETERS — ask ONLY for these if missing:
 - tokenId: The Hedera token ID of the stablecoin to update (e.g., "0.0.123456")
 
@@ -58,11 +56,36 @@ const updateStablecoinParameters = (_context: Context = {}) =>
     name: z.string().optional().describe('New name for the stablecoin'),
     symbol: z.string().optional().describe('New symbol for the stablecoin'),
     metadata: z.string().optional().describe('New metadata (arbitrary data)'),
-    kycKey: z.string().optional().describe('New KYC public key (Hex). Pass empty string "" to return control to the smart contract.'),
-    wipeKey: z.string().optional().describe('New wipe public key (Hex). Pass empty string "" to return control to the smart contract.'),
-    freezeKey: z.string().optional().describe('New freeze public key (Hex). Pass empty string "" to return control to the smart contract.'),
-    pauseKey: z.string().optional().describe('New pause public key (Hex). Pass empty string "" to return control to the smart contract.'),
-    feeScheduleKey: z.string().optional().describe('New fee schedule public key (Hex). Pass empty string "" to return control to the smart contract.'),
+    kycKey: z
+      .string()
+      .optional()
+      .describe(
+        'New KYC public key (Hex). Pass empty string "" to return control to the smart contract.',
+      ),
+    wipeKey: z
+      .string()
+      .optional()
+      .describe(
+        'New wipe public key (Hex). Pass empty string "" to return control to the smart contract.',
+      ),
+    freezeKey: z
+      .string()
+      .optional()
+      .describe(
+        'New freeze public key (Hex). Pass empty string "" to return control to the smart contract.',
+      ),
+    pauseKey: z
+      .string()
+      .optional()
+      .describe(
+        'New pause public key (Hex). Pass empty string "" to return control to the smart contract.',
+      ),
+    feeScheduleKey: z
+      .string()
+      .optional()
+      .describe(
+        'New fee schedule public key (Hex). Pass empty string "" to return control to the smart contract.',
+      ),
   });
 
 const postProcess = (response: RawTransactionResponse) => {
@@ -116,22 +139,33 @@ export class UpdateStablecoinTool extends BaseTool {
     if (params.wipeKey !== undefined) requestConfig.wipeKey = processKey(params.wipeKey);
     if (params.freezeKey !== undefined) requestConfig.freezeKey = processKey(params.freezeKey);
     if (params.pauseKey !== undefined) requestConfig.pauseKey = processKey(params.pauseKey);
-    if (params.feeScheduleKey !== undefined) requestConfig.feeScheduleKey = processKey(params.feeScheduleKey);
+    if (params.feeScheduleKey !== undefined)
+      requestConfig.feeScheduleKey = processKey(params.feeScheduleKey);
 
     console.debug('UPDATE_STABLECOIN_DEBUG: Building UpdateRequest for', params.tokenId);
     const request = new UpdateRequest(requestConfig);
 
-    // Workaround for "req.validate is not a function" error
+    // Temporary workaround: The Hedera Stablecoin SDK has an issue where
+    // UpdateRequest instances might lose their `validate` prototype methods.
+    // This patch injects a dummy validate method to prevent the SDK from crashing downstream.
     if (typeof (request as any).validate !== 'function') {
-      console.warn('UPDATE_STABLECOIN_DEBUG: UpdateRequest instance missing validate method, patching it.');
+      console.warn(
+        'UPDATE_STABLECOIN_DEBUG: UpdateRequest instance missing validate method, patching it.',
+      );
       (request as any).validate = function () {
         return [];
       };
     }
 
     // Also patch prototype if possible, just in case SDK re-instantiates or uses prototype explicitly
-    if (UpdateRequest && UpdateRequest.prototype && typeof UpdateRequest.prototype.validate !== 'function') {
-      UpdateRequest.prototype.validate = function () { return []; };
+    if (
+      UpdateRequest &&
+      UpdateRequest.prototype &&
+      typeof UpdateRequest.prototype.validate !== 'function'
+    ) {
+      UpdateRequest.prototype.validate = function () {
+        return [];
+      };
     }
 
     return request;
@@ -139,6 +173,12 @@ export class UpdateStablecoinTool extends BaseTool {
 
   async coreAction(request: UpdateRequest, _context: Context, _client: Client) {
     const response: SerializedTransactionData = await StableCoin.buildUpdate(request);
+    if (!response?.serializedTransaction) {
+      throw new Error(
+        'SDK failed to build the transaction: serializedTransaction is missing from the response.',
+      );
+    }
+
     const bytes = hexToUint8Array(response.serializedTransaction);
     return Transaction.fromBytes(bytes);
   }

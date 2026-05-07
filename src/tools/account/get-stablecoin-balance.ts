@@ -1,9 +1,9 @@
 import { z } from 'zod';
-import { Client, Status } from '@hiero-ledger/sdk';
+import { Client } from '@hiero-ledger/sdk';
 import { Context, BaseTool } from '@hashgraph/hedera-agent-kit';
 import { PromptGenerator } from '@/shared/utils/prompt-generator';
 import { StableCoin, GetAccountBalanceRequest, Balance } from '@hashgraph/stablecoin-npm-sdk';
-import { initSdk, resolveNetwork, StablecoinStudioPluginConfig } from '@/shared/utils/stablecoin-sdk-utils';
+import { initSdk, resolveNetwork, StablecoinStudioPluginConfig , extractStatus } from '@/shared/utils/stablecoin-sdk-utils';
 import { stablecoinOutputParser } from '@/shared/utils/stablecoin-output-parser';
 
 
@@ -100,7 +100,7 @@ export class GetStablecoinBalanceTool extends BaseTool {
     const desc = 'Failed to get stablecoin balance';
     const message = desc + (error instanceof Error ? `: ${error.message}` : '');
     return {
-      raw: { status: Status.InvalidTransaction, error: message },
+      raw: { status: extractStatus(error), error: message },
       humanMessage: message,
     };
   }

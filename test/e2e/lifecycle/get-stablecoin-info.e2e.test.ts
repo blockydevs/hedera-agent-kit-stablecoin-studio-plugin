@@ -73,6 +73,18 @@ describe('Get Stablecoin Info E2E Tests', () => {
     let result = await testSetup.agent.invoke({
       messages: [{ role: 'user', content: input }],
     });
+    const messages = result.messages;
+    const toolCalled = messages.some((m: any) => m._getType() === 'tool');
+
+    if (!toolCalled) {
+      result = await testSetup.agent.invoke({
+        messages: [
+          ...result.messages,
+          { role: 'user', content: 'yes, I am sure' }
+        ],
+      });
+    }
+
 
     const parsedResponse = testSetup.responseParser.parseNewToolMessages(result);
     expect(parsedResponse[0]).toBeDefined();

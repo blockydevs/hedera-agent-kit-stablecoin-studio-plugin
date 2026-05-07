@@ -71,10 +71,10 @@ import resetSupplierAllowanceTool, {
 } from './tools/lifecycle/reset-supplier-allowance';
 
 export type { StablecoinStudioPluginConfig } from './shared/utils/stablecoin-sdk-utils';
-export * from './shared/utils/decimals-utils';
-export * from './shared/utils/duration-parser';
-export * from './shared/utils/token-utils';
-export * from './shared/utils/stablecoin-output-parser';
+export { toBaseUnit, toDisplayUnit } from './shared/utils/decimals-utils';
+export { parseDurationToSeconds, resolveExpirationDate } from './shared/utils/duration-parser';
+export { extractTokenIdFromFactoryRecord, extractHoldIdFromRecord } from './shared/utils/token-utils';
+export { stablecoinOutputParser } from './shared/utils/stablecoin-output-parser';
 
 export const createStablecoinStudioPlugin = (config: {
   accountId: string;

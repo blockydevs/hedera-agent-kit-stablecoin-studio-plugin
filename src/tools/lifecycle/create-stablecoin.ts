@@ -36,8 +36,6 @@ const createStablecoinPrompt = (context: Context = {}) => {
 ${contextSnippet}
 Creates a new stablecoin on Hedera using Stablecoin Studio.
 
-MANDATORY: Show a complete execution plan and wait for explicit user approval ("yes", "confirm", "proceed") BEFORE calling this tool. NEVER call this tool without approval, UNLESS the user has already provided explicit confirmation in the current request (e.g., "proceed immediately").
-
 REQUIRED PARAMETERS — ask ONLY for these if missing:
 - name: Stablecoin name (e.g., "USD Coin")
 - symbol: Token symbol (e.g., "USDC")
@@ -61,8 +59,7 @@ const toSupplyType = (type: string) =>
   type === 'FINITE' ? TokenSupplyType.FINITE : TokenSupplyType.INFINITE;
 
 const createStablecoinParameters = (context: Context = {}) => {
-  const accountId = (context as any).accountId || "";
-
+  const accountId = (context as any).accountId || '';
 
   return z.object({
     name: z.string().describe('The name of the stablecoin (e.g., "USD Coin")'),
@@ -186,10 +183,7 @@ const createStablecoinParameters = (context: Context = {}) => {
       .optional()
       .describe('HTS Pause key (Hex). Use "null" for no key. Default: "null"'),
     feeScheduleKey: z.string().optional().describe('HTS Fee Schedule key (Hex)'),
-    stableCoinFactory: z
-      .string()
-      .optional()
-      .describe('Address of the stablecoin factory contract'),
+    stableCoinFactory: z.string().optional().describe('Address of the stablecoin factory contract'),
     reserveAddress: z.string().optional().describe('Address of the reserve contract'),
     reserveInitialAmount: z
       .string()
@@ -261,6 +255,12 @@ export class CreateStablecoinTool extends BaseTool {
 
   async coreAction(request: CreateRequest, _context: Context, _client: Client) {
     const response: SerializedTransactionData = await StableCoin.buildCreate(request);
+    if (!response?.serializedTransaction) {
+      throw new Error(
+        'SDK failed to build the transaction: serializedTransaction is missing from the response.',
+      );
+    }
+
     const bytes = hexToUint8Array(response.serializedTransaction);
     return Transaction.fromBytes(bytes);
   }
@@ -270,12 +270,12 @@ export class CreateStablecoinTool extends BaseTool {
   }
 
   /**
-   * Extends the default transaction response by extracting the created Token ID from 
+   * Extends the default transaction response by extracting the created Token ID from
    * the transaction record.
-   * 
-   * This is required because `StableCoin.buildCreate(request)` generates a 
-   * `ContractExecuteTransaction`. Unlike native token creation, the resulting 
-   * Token ID is not present in the receipt and must be parsed from the 
+   *
+   * This is required because `StableCoin.buildCreate(request)` generates a
+   * `ContractExecuteTransaction`. Unlike native token creation, the resulting
+   * Token ID is not present in the receipt and must be parsed from the
    * contract function result bytes.
    *
    * @param raw - The initial transaction response.
@@ -290,13 +290,7 @@ export class CreateStablecoinTool extends BaseTool {
   };
 
   async secondaryAction(transaction: Transaction, client: Client, context: Context) {
-    return await handleTransaction(
-      transaction,
-      client,
-      context,
-      postProcess,
-      this.extendResponse,
-    );
+    return await handleTransaction(transaction, client, context, postProcess, this.extendResponse);
   }
 
   async handleError(error: unknown, _context: Context): Promise<any> {

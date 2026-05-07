@@ -45,6 +45,8 @@ export class PromptGenerator {
    */
   static getParameterUsageInstructions(): string {
     return `
+MANDATORY: Show a complete execution plan and wait for explicit user approval ("yes", "confirm", "proceed") BEFORE calling this tool. NEVER call this tool without approval, UNLESS the user has already provided explicit confirmation in the current request (e.g., "proceed immediately").
+
 Important:
 - Do not request or ask for parameters that are optional and were not provided by the user. Tool can be called without any parameters if all are optional.
 - Only include optional parameters if explicitly provided by the user

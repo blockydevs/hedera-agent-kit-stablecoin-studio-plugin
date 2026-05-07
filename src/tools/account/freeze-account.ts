@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { Client, Status, Transaction } from '@hiero-ledger/sdk';
+import { Client, Transaction } from '@hiero-ledger/sdk';
 import {
   AgentMode,
   Context,
@@ -18,6 +18,7 @@ import {
   ensureSdkConnected,
   hexToUint8Array,
   StablecoinStudioPluginConfig,
+  extractStatus
 } from '@/shared/utils/stablecoin-sdk-utils';
 
 export const FREEZE_ACCOUNT_TOOL = 'freeze_account_tool';
@@ -29,8 +30,6 @@ const freezeAccountPrompt = (context: Context = {}) => {
   return `
 ${contextSnippet}
 Freezes a specific account for a stablecoin, preventing it from transferring or receiving the token. Requires the freeze role.
-
-MANDATORY: Show a complete execution plan and wait for explicit user approval ("yes", "confirm", "proceed") BEFORE calling this tool. NEVER call this tool without approval, UNLESS the user has already provided explicit confirmation in the current request (e.g., "proceed immediately").
 
 REQUIRED PARAMETERS — ask ONLY for these if missing:
 - tokenId: The Hedera token ID of the stablecoin (e.g., "0.0.123456")
@@ -102,6 +101,10 @@ export class FreezeAccountTool extends BaseTool {
 
   async coreAction(request: FreezeAccountRequest, _context: Context, _client: Client) {
     const response: SerializedTransactionData = await StableCoin.buildFreeze(request);
+    if (!response?.serializedTransaction) {
+      throw new Error('SDK failed to build the transaction: serializedTransaction is missing from the response.');
+    }
+
     const bytes = hexToUint8Array(response.serializedTransaction);
     return Transaction.fromBytes(bytes);
   }
@@ -118,7 +121,7 @@ export class FreezeAccountTool extends BaseTool {
     const desc = 'Failed to freeze account';
     const message = desc + (error instanceof Error ? `: ${error.message}` : '');
     return {
-      raw: { status: Status.InvalidTransaction, error: message },
+      raw: { status: extractStatus(error), error: message },
       humanMessage: message,
     };
   }

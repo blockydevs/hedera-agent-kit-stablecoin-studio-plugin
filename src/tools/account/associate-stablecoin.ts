@@ -19,6 +19,7 @@ import {
   ensureSdkConnected,
   hexToUint8Array,
   StablecoinStudioPluginConfig,
+  extractStatus
 } from '@/shared/utils/stablecoin-sdk-utils';
 
 export const ASSOCIATE_STABLECOIN_TOOL = 'associate_stablecoin_tool';
@@ -30,8 +31,6 @@ const associateStablecoinPrompt = (context: Context = {}) => {
   return `
 ${contextSnippet}
 Associates a stablecoin token with a Hedera account. An account must be associated before it can hold or receive that token.
-
-MANDATORY: Show a complete execution plan and wait for explicit user approval ("yes", "confirm", "proceed") BEFORE calling this tool. NEVER call this tool without approval, UNLESS the user has already provided explicit confirmation in the current request (e.g., "proceed immediately").
 
 REQUIRED PARAMETERS — ask ONLY for these if missing:
 - tokenId: The Hedera token ID of the stablecoin (e.g., "0.0.123456")
@@ -121,6 +120,10 @@ export class AssociateStablecoinTool extends BaseTool {
 
   async coreAction(request: AssociateTokenRequest, _context: Context, _client: Client) {
     const response: SerializedTransactionData = await StableCoin.buildAssociate(request);
+    if (!response?.serializedTransaction) {
+      throw new Error('SDK failed to build the transaction: serializedTransaction is missing from the response.');
+    }
+
     const bytes = hexToUint8Array(response.serializedTransaction);
     return Transaction.fromBytes(bytes);
   }
@@ -146,7 +149,7 @@ export class AssociateStablecoinTool extends BaseTool {
 
     const fullMessage = `${desc}: ${message}`;
     return {
-      raw: { status: Status.InvalidTransaction, error: fullMessage },
+      raw: { status: extractStatus(error), error: fullMessage },
       humanMessage: fullMessage,
     };
   }
